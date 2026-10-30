@@ -1,7 +1,7 @@
 # Gate 1 status — ESP Host node
 
 **Code status:** implemented + **firmware build SUCCESS** (`analyzer-s3-host`, Arduino-ESP32 3.2.1, EspUsbHost 2.10.1)  
-**Lab MEASURED:** pending — flash + plug FS device required  
+**Lab MEASURED (partial):** both `.88`/`.89` OTA’d to 0.1.0; `.88` UART-refreshed with MAC-stable id  
 **Claim depth:** USB Host controller enumeration (L1 descriptors) only
 
 ## Exit criteria

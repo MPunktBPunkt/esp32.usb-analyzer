@@ -39,8 +39,13 @@ void checkResetButton() {
 void netBootstrap(NetConfig &cfg) {
   checkResetButton();
 
+  const String derivedId = makeDeviceId();
   prefs.begin("usb-an", false);
-  cfg.deviceName = prefs.getString("name", makeDeviceId());
+  cfg.deviceName = prefs.getString("name", derivedId);
+  // First boot under Host FW may have saved usb-analyzer-0000 before MAC was ready.
+  if (cfg.deviceName.endsWith("-0000") || cfg.deviceName.length() < 8) {
+    cfg.deviceName = derivedId;
+  }
   cfg.controllerHost =
       prefs.getString("ctrl_host", CONTROLLER_HOST_DEFAULT);
   cfg.controllerPort =

@@ -67,10 +67,19 @@ def handle_client(conn: socket.socket, addr: tuple[str, int], auto_role: Optiona
                 node_id = msg.get("node_id") or body.get("device_id")
                 if mtype == "hello" and node_id:
                     device_id = str(node_id)
+                    # Key by device_id; if colliding ids (bug), fall back to ip.
+                    reg_key = str(device_id)
+                    ip = str(body.get("ip") or addr[0])
                     with REGISTRY_LOCK:
-                        prev = REGISTRY.get(device_id)
+                        if (
+                            reg_key in REGISTRY
+                            and REGISTRY[reg_key].last_hello.get("ip") not in (None, "", ip)
+                            and REGISTRY[reg_key].last_hello.get("ip") != ip
+                        ):
+                            reg_key = f"{device_id}@{ip}"
+                        prev = REGISTRY.get(reg_key)
                         already_assigned = bool(prev and prev.assigned_role)
-                        REGISTRY[device_id] = NodeState(
+                        REGISTRY[reg_key] = NodeState(
                             device_id=device_id,
                             last_hello=body,
                             peer=peer,

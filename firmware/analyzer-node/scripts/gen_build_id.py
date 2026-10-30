@@ -29,7 +29,7 @@ except Exception:
     pass
 
 out.write_text(
-    f'#pragma once\n#ifndef GIT_SHA\n#define GIT_SHA "{sha}"\n#endif\n',
+    f'#pragma once\n#ifdef GIT_SHA\n#undef GIT_SHA\n#endif\n#define GIT_SHA "{sha}"\n',
     encoding="utf-8",
 )
 print(f"[gen_build_id] GIT_SHA={sha}")

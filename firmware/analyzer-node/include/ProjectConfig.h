@@ -22,7 +22,7 @@
 
 /** Debian control plane — override in portal / NVS. */
 #ifndef CONTROLLER_HOST_DEFAULT
-#define CONTROLLER_HOST_DEFAULT "192.168.178.113"
+#define CONTROLLER_HOST_DEFAULT "192.168.178.187"
 #endif
 
 #ifndef CONTROLLER_PORT_DEFAULT
@@ -41,6 +41,4 @@
 #define RESET_HOLD_SEC 3
 #endif
 
-#ifndef GIT_SHA
-#define GIT_SHA "unknown"
-#endif
+/* GIT_SHA comes from include/build_id.h (generated pre-build). */

@@ -106,7 +106,7 @@ pio device monitor -b 115200
 python3 controller/discovery/server.py --port 9750 --auto-role host
 ```
 
-Details: [`docs/GATE1_STATUS.md`](docs/GATE1_STATUS.md) · [`docs/hardware/BOARD-YD-ESP32-S3.md`](docs/hardware/BOARD-YD-ESP32-S3.md)
+Lab boards: [`.88` / `.89`](docs/LAB_INVENTORY.md) · status [`docs/GATE1_STATUS.md`](docs/GATE1_STATUS.md) · board [`docs/hardware/BOARD-YD-ESP32-S3.md`](docs/hardware/BOARD-YD-ESP32-S3.md)
 
 ## Development strategy
 
