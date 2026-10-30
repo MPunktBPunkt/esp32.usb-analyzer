@@ -44,16 +44,17 @@ Set controller host/port in the WiFi portal (`USB-Analyzer-Setup`) or NVS defaul
 | FACT | S3 Host is Full-Speed only; HS-only devices fail |
 | FACT | Many DevKits do not source VBUS |
 | FACT | EspUsbHost 2.x needs Arduino-ESP32 ≥ 3.2.0 |
-| MEASURED | *(fill after lab)* board, device VID:PID, speed, enum latency |
+| MEASURED | `.88` → HELLO `usb-analyzer-339c` role=host, WiFi OK, `usb_devices=0` |
+| MEASURED | `.89` OTA 0.1.0 online but still `usb-analyzer-0000` until COM UART reflash |
+| UNKNOWN | FS DUT VID:PID enum on these boards (no stick plugged yet) |
 | UNKNOWN | Observer effect / MITM (out of Gate 1) |
 | REJECTED | “Analyzer works” / wire capture / proxy transparency |
 
 ## NEXT TEST
 
-1. Flash YD-ESP32-S3 N8R2 (or equivalent).
-2. Enumerate a known FS keyboard or flash drive.
-3. Paste serial excerpt into this file under MEASURED.
-4. Then start Gate 2 (device node).
+1. Plug FS keyboard/stick into **`.88` OTG** (not COM); watch discovery `usb_devices` / Serial ENUMERATED.
+2. Swap COM UART to `.89` → `pio run -e analyzer-s3-host -t upload` (MAC → `usb-analyzer-c568`).
+3. Then Gate 2 device role on `.89`.
 
 ## Epistemic one-liner
 
