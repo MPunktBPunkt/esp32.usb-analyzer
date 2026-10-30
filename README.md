@@ -1,6 +1,6 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.0.1-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-1%20host%20bring--up-yellow)](docs/GATE1_STATUS.md)
 
