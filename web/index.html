@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>usb-analyzer lab</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">usb-analyzer</div>
+    <div class="meta" id="health">connecting…</div>
+  </header>
+
+  <main>
+    <section class="lanes">
+      <article class="lane" id="lane-host">
+        <h2>HOST</h2>
+        <p class="muted">RX / TX — Capture events ab Gate 5</p>
+        <div class="node-slot" data-role="host">kein Node</div>
+        <div class="stream" id="stream-host"></div>
+      </article>
+      <article class="lane" id="lane-device">
+        <h2>DEVICE</h2>
+        <p class="muted">RX / TX — Capture events ab Gate 5</p>
+        <div class="node-slot" data-role="device">kein Node</div>
+        <div class="stream" id="stream-device"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>Nodes</h2>
+      <div id="nodes" class="nodes"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Live log</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

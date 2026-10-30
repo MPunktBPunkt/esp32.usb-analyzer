@@ -13,13 +13,18 @@ Python control plane running on Debian.
 | `analysis/` | Diff / timing | 8 |
 | `api/` | HTTP/SSE for Web UI | 7 |
 
-## Gate 1 discovery
+## Run (Slice A: discovery + Web UI)
 
 ```bash
-python3 controller/discovery/server.py --host 0.0.0.0 --port 9750 --auto-role host
+cd /path/to/esp32.usb-analyzer
+PYTHONPATH=. python3 -m controller.run --http-port 8080 --control-port 9750 --auto-role host
 ```
 
-Prints HELLO lines and a periodic registry dump. Optional `--auto-role host|device`.
+- ESP control: TCP `:9750`
+- Lab UI + API: http://\<debian\>:8080/  
+- `GET /api/v1/nodes`, `GET /api/v1/stream` (SSE), `POST …/ping`, `POST …/role`
+
+Legacy discovery-only: `python3 controller/discovery/server.py --port 9750`.
 
 ## Modes
 

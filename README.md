@@ -6,8 +6,8 @@
 
 Experimental **USB Protocol Analyzer / USB MITM** built from two ESP32-S3 nodes and a Debian control plane.
 
-> Gate 1: Host bring-up firmware is in-tree (`firmware/analyzer-node`).  
-> Lab MEASURED enumeration still required. No claim of MITM, wire capture, or fault injection.
+> **v0.0.1** tagged Zwischenstand. Post-tag: lab Web UI on `:8080`, Gate 2 device build.  
+> No claim of MITM, wire capture, or fault injection.
 
 ## Goal architecture
 
@@ -108,7 +108,11 @@ pio device monitor -b 115200
 python3 controller/discovery/server.py --port 9750 --auto-role host
 ```
 
-Lab boards: [`.88` / `.89`](docs/LAB_INVENTORY.md) · status [`docs/GATE1_STATUS.md`](docs/GATE1_STATUS.md) · board [`docs/hardware/BOARD-YD-ESP32-S3.md`](docs/hardware/BOARD-YD-ESP32-S3.md)
+Lab UI: http://192.168.178.187:8080/ · boards [`.88` / `.89`](docs/LAB_INVENTORY.md)
+
+```bash
+PYTHONPATH=. python3 -m controller.run --auto-role host
+```
 
 ## Development strategy
 
