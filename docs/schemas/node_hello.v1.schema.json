@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MPunktBPunkt/esp32.usb-analyzer/schemas/node_hello.v1.schema.json",
+  "title": "node_hello.v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "device_id",
+    "mac",
+    "ip",
+    "fw",
+    "capabilities",
+    "role"
+  ],
+  "properties": {
+    "device_id": { "type": "string", "minLength": 1 },
+    "mac": { "type": "string" },
+    "ip": { "type": "string" },
+    "fw": { "type": "string" },
+    "git_sha": { "type": "string" },
+    "hw": {
+      "type": "object",
+      "properties": {
+        "chip": { "type": "string" },
+        "rev": { "type": "string" },
+        "board": { "type": "string" }
+      }
+    },
+    "usb": {
+      "type": "object",
+      "properties": {
+        "controller": { "type": "string" },
+        "phy": { "type": "string" },
+        "role_capability": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["host", "device"] }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "role": {
+      "type": "string",
+      "enum": ["unassigned", "host", "device"]
+    },
+    "uptime_s": { "type": "integer", "minimum": 0 },
+    "free_heap": { "type": "integer", "minimum": 0 },
+    "free_psram": { "type": "integer", "minimum": 0 },
+    "psram_size": { "type": "integer", "minimum": 0 },
+    "wifi_rssi": { "type": "integer" },
+    "tcp_state": { "type": "string" }
+  }
+}

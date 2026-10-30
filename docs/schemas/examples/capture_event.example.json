@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "session_id": "20261030-USB-0001",
+  "node_id": "usb-analyzer-a1b2",
+  "seq": 1,
+  "timestamp_us": 123456789,
+  "timestamp_domain": "local",
+  "role": "device",
+  "fw_sha": "0000000",
+  "direction": "host_to_device",
+  "endpoint": 1,
+  "transfer_type": "bulk",
+  "event_type": "bot_cbw",
+  "length": 31,
+  "status": "ok",
+  "usb_state": "configured",
+  "payload": null,
+  "decoded": {
+    "protocol": "msc-bot",
+    "command": "READ_10",
+    "lba": 17489,
+    "transfer_length": 8,
+    "tag": 42,
+    "residue": 0,
+    "csw_status": 0
+  }
+}

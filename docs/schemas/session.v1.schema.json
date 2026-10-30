@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MPunktBPunkt/esp32.usb-analyzer/schemas/session.v1.schema.json",
+  "title": "session.v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["session_id", "mode", "capture_mode", "nodes"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}-USB-[0-9]{4}$"
+    },
+    "mode": { "type": "string", "enum": ["relay", "direct"] },
+    "capture_mode": {
+      "type": "string",
+      "enum": ["metadata-only", "protocol", "payload", "full"]
+    },
+    "created_at": { "type": "string" },
+    "nodes": {
+      "type": "object",
+      "required": ["host_endpoint", "device_endpoint"],
+      "properties": {
+        "host_endpoint": { "type": "string" },
+        "device_endpoint": { "type": "string" }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

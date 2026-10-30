@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MPunktBPunkt/esp32.usb-analyzer/schemas/integrity.v1.schema.json",
+  "title": "integrity.v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "session_id",
+    "node_id",
+    "records",
+    "bytes",
+    "dropped",
+    "overflow",
+    "first_seq",
+    "last_seq",
+    "gaps",
+    "retransmissions",
+    "tcp_errors"
+  ],
+  "properties": {
+    "session_id": { "type": "string" },
+    "node_id": { "type": "string" },
+    "records": { "type": "integer", "minimum": 0 },
+    "bytes": { "type": "integer", "minimum": 0 },
+    "dropped": { "type": "integer", "minimum": 0 },
+    "overflow": { "type": "integer", "minimum": 0 },
+    "first_seq": { "type": "integer", "minimum": 0 },
+    "last_seq": { "type": "integer", "minimum": 0 },
+    "gaps": { "type": "integer", "minimum": 0 },
+    "retransmissions": { "type": "integer", "minimum": 0 },
+    "tcp_errors": { "type": "integer", "minimum": 0 },
+    "ring_high_watermark": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

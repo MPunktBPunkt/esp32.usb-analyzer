@@ -1,0 +1,25 @@
+{
+  "device_id": "usb-analyzer-a1b2",
+  "mac": "aa:bb:cc:dd:ee:ff",
+  "ip": "192.168.1.101",
+  "fw": "0.0.1",
+  "git_sha": "0000000",
+  "hw": {
+    "chip": "ESP32-S3",
+    "rev": "unknown",
+    "board": "YD-ESP32-S3-N8R2"
+  },
+  "usb": {
+    "controller": "otg-fs",
+    "phy": "internal",
+    "role_capability": ["host", "device"]
+  },
+  "capabilities": ["usb-host", "usb-device", "capture", "tcp", "psram"],
+  "role": "unassigned",
+  "uptime_s": 0,
+  "free_heap": 0,
+  "free_psram": 0,
+  "psram_size": 0,
+  "wifi_rssi": 0,
+  "tcp_state": "control_connected"
+}
