@@ -4,6 +4,16 @@
 **Depends on:** Gate 4 transparent proxy baseline + Gate 5 capture integrity  
 **Motivation:** USB/WiFi coexistence under Bulk (technology-audit: HYPOTHESIS set; not desk FACT). Multicore scheduling alone does not remove WLAN latency, PSRAM/cache effects, or USB stack deadlines.
 
+### PSRAM detection ≠ PSRAM architecture (v0.0.1 / current `main`)
+
+| Present today | Missing until SF-0+ |
+|---------------|---------------------|
+| `board_build.arduino.memory_type = qio_qspi` + `BOARD_HAS_PSRAM` (N8R2) | Dual Capture/TX/RX/Playback rings |
+| `ESP.getPsramSize()` / `getFreePsram()` in boot log + HELLO | `ps_malloc` / heap_caps ring buffers |
+| capability `"psram"` when size &gt; 0 | “block ready” API; USB task never calls TCP |
+
+`ARDUINO_USB_MODE=0` + `ARDUINO_USB_CDC_ON_BOOT=0` is the OTG/UART lab choice — unrelated to whether rings exist. Do **not** treat HELLO `psram_size` as proof of store-and-forward.
+
 ## 1. Problem with naïve realtime path
 
 ```text
