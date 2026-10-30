@@ -170,10 +170,12 @@ NodeView {
 }
 
 SessionView {
-  session_id, mode: relay|direct,
+  session_id,
+  mode: relay|direct|store_forward|live|buffered|store|replay|burst|analyze,
   capture_mode: metadata-only|protocol|payload|full,
   host_node, device_node, state: idle|running|stopping|done,
-  flags: { fault_injection: bool }
+  flags: { fault_injection: bool },
+  transport?: { window, highest_seq_tx, highest_ack_rx, rx_buffer_pct }  // SF later
 }
 
 StatsView {

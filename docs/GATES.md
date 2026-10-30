@@ -92,8 +92,22 @@ Forbidden exit phrasing: “USB Analyzer works” when only a narrower claim was
 
 **Prove or falsify:** Level 2/3 visualization feasibility. Protocol-state UI may exist earlier without claiming wire capture.
 
+## Gate SF-* — Store-and-Forward (planned after Gate 4/5)
+
+See [`STORE_FORWARD.md`](STORE_FORWARD.md). Not started. Do not schedule before transparent proxy + capture integrity exist.
+
+| Subgate | Prove |
+|---------|-------|
+| SF-0 | USB task never calls TCP; block-ready handoff |
+| SF-1 | Block framing + sliding window (one direction) |
+| SF-2 | Water-level backpressure under load |
+| SF-3 | Full-duplex |
+| SF-4 | Pipeline stage timestamps exportable |
+| SF-5 | BURST/STORE/REPLAY + coex test matrix A–D |
+
 ---
 
 ## Current pointer
 
-**Active gate:** Gate 1 code ready → **lab MEASURED** → then Gate 2.
+**Active gate:** Gate 1 lab MEASURED (DUT enum) → Gate 2.  
+**Parked:** Store-and-Forward design accepted, implementation deferred.

@@ -51,6 +51,18 @@ ESP-A ═══════════ TCP ═══════════ ES
 - Peer addresses come from Debian session assignment — ESPs do not discover each other
 - Capture may still stream to Debian asynchronously
 
+### Mode C — STORE_FORWARD (planned, not implemented)
+
+```text
+ESP-A  USB → PSRAM rings ══ TCP blocks ══ PSRAM rings → USB  ESP-B
+         │                                              │
+         └──────────── Debian control / observe ────────┘
+```
+
+USB and WiFi meet only via block handoff — not per-event TCP. Preferred serious experiment mode after Gate 4/5. Full design: [`STORE_FORWARD.md`](STORE_FORWARD.md).
+
+Related lab modes on the same hardware: `LIVE`, `BUFFERED`, `STORE`, `REPLAY`, `BURST`, `FAULT`, `ANALYZE`.
+
 ## 3. Node roles
 
 Roles are **assigned by Debian**, not permanently baked into firmware binaries.
@@ -114,7 +126,8 @@ Overflow counters are mandatory. Integrity fields per session: records, bytes, d
 |-------|----------|
 | Capture-only | Observe without forwarding (host or device alone) |
 | Transparent forward | Proxy without mutation (Gate 4) |
-| Fault injection | delay / drop / duplicate / stall / reset / disconnect (Gate 9) |
+| Store-and-forward | Dual PSRAM rings + block TCP + water-level ACK (planned; [`STORE_FORWARD.md`](STORE_FORWARD.md)) |
+| Fault injection | delay / drop / duplicate / stall / reset / disconnect (Gate 9); prefer block-level once SF exists |
 | Protocol mutation | CBW/CDB/length/timing edits — only after stable baseline |
 
 ## 8. Debian controller modules

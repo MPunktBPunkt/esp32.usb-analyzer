@@ -84,6 +84,8 @@ esp32.usb-analyzer/
 | [`docs/HARDWARE-RISKS.md`](docs/HARDWARE-RISKS.md) | PHY sharing, VBUS, debug paths |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | D+/D− and research tracks |
 | [`docs/GATES.md`](docs/GATES.md) | Gate 0–10 plan with exit criteria |
+| [`docs/STORE_FORWARD.md`](docs/STORE_FORWARD.md) | Planned PSRAM store-and-forward tunnel (not implemented) |
+| [`docs/API.md`](docs/API.md) | Debian Web API for timeline / commands |
 | [`docs/HUB-BASELINE.md`](docs/HUB-BASELINE.md) | What we reuse from ESP32.esp-hub |
 
 Schemas: [`docs/schemas/`](docs/schemas/).

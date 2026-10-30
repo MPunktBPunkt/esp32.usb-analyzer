@@ -115,6 +115,8 @@ USB ISR/callback
 | Prefer internal RAM for USB DMA buffers | S3 quirks signal |
 | PSRAM for capture journals when enabled correctly | hu-probe pattern (MEASURED) |
 
+**Evolution:** Gate 0/5 batching is the precursor to the planned **Store-and-Forward** data plane (dual PSRAM rings, 64–128 KiB blocks, sliding-window ACK, water-level backpressure, pipeline stage timestamps). That path is Mode A only and must wait for proxy + integrity baselines — see [`STORE_FORWARD.md`](STORE_FORWARD.md). Do not implement SF as “just another capture_mode enum” without the ring/transport split.
+
 PSRAM enable requires board-correct `BOARD_HAS_PSRAM` + memory type (`qio_qspi` vs OPI). Board PSRAM ≠ auto-used (**REJECTED** assumption).
 
 ## 6. Session integrity summary
