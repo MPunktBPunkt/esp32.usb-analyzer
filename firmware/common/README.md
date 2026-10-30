@@ -1,10 +1,9 @@
 # firmware/common
 
-Shared C/C++ headers and helpers:
+Shared headers consumed by `analyzer-node` via `-I ../common/include`.
 
-- `node_hello` builder
-- capture event structs mirroring `docs/schemas`
-- config keys (controller host/port)
-- capability detection (PSRAM, chip rev)
+| Header | Purpose |
+|--------|---------|
+| `usb_analyzer/Role.h` | Role enum + name helpers |
 
-No code in Gate 0.
+Keep this tree header-only until multiple firmware images need shared `.cpp` units.

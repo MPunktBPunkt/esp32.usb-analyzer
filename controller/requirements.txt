@@ -1,0 +1,2 @@
+# Gate 1 discovery server — stdlib only; keep empty for now.
+# Future: fastapi / uvicorn for Gate 7 API.

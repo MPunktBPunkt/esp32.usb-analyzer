@@ -33,11 +33,21 @@ Forbidden exit phrasing: “USB Analyzer works” when only a narrower claim was
 
 ---
 
-## Gate 1 — ESP Host node
+## Gate 1 — ESP Host node 🔧 code ready / lab pending
 
 **Prove:** ESP-A in role `host` detects/enumerates a Full-Speed USB device.
 
 **Minimum artifacts:** logs with VID/PID/config; VBUS notes; health HELLO to Debian optional.
+
+**Implementation:** `firmware/analyzer-node` (`analyzer-s3-host`) + `controller/discovery/server.py`  
+**Status doc:** [`GATE1_STATUS.md`](GATE1_STATUS.md)
+
+| | |
+|-|-|
+| FACT | EspUsbHost 2.x + Arduino-ESP32 ≥ 3.2; S3 Host FS-only; VBUS often missing |
+| MEASURED | pending lab flash |
+| UNKNOWN | field enum success on our boards |
+| NEXT TEST | flash N8R2, plug FS keyboard/stick, record VID:PID |
 
 ## Gate 2 — ESP Device node
 
@@ -86,4 +96,4 @@ Forbidden exit phrasing: “USB Analyzer works” when only a narrower claim was
 
 ## Current pointer
 
-**Active gate:** 0 complete → start **Gate 1**.
+**Active gate:** Gate 1 code ready → **lab MEASURED** → then Gate 2.

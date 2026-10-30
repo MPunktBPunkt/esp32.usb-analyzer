@@ -1,13 +1,13 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.1-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Gate](https://img.shields.io/badge/gate-0%20architecture-orange)](docs/GATES.md)
+[![Gate](https://img.shields.io/badge/gate-1%20host%20bring--up-yellow)](docs/GATE1_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** built from two ESP32-S3 nodes and a Debian control plane.
 
-> Gate 0 status: **Architecture + Evidence + Interfaces + Test Plan**.  
-> This is not a working analyzer yet. No claim of USB wire capture, transparent proxy, or fault injection.
+> Gate 1: Host bring-up firmware is in-tree (`firmware/analyzer-node`).  
+> Lab MEASURED enumeration still required. No claim of MITM, wire capture, or fault injection.
 
 ## Goal architecture
 
@@ -94,11 +94,25 @@ Schemas: [`docs/schemas/`](docs/schemas/).
 - Evidence authority: [technology-audit](https://github.com/MPunktBPunkt/technology-audit)
 - Related field work: hu-probe / PiDrive MSC device stacks (device-layer capture ≠ wire)
 
+## Quick start (Gate 1 Host)
+
+```bash
+# Firmware (UART/COM for serial; OTG port for DUT)
+cd firmware/analyzer-node
+pio run -e analyzer-s3-host -t upload
+pio device monitor -b 115200
+
+# Optional Debian discovery
+python3 controller/discovery/server.py --port 9750 --auto-role host
+```
+
+Details: [`docs/GATE1_STATUS.md`](docs/GATE1_STATUS.md) · [`docs/hardware/BOARD-YD-ESP32-S3.md`](docs/hardware/BOARD-YD-ESP32-S3.md)
+
 ## Development strategy
 
-Work only through gates. Next implementable gate after this commit:
+Work only through gates:
 
-1. **Gate 1** — ESP Host node detects a USB device  
+1. **Gate 1** — ESP Host node detects a USB device ← code ready / lab pending  
 2. **Gate 2** — ESP Device node enumerates as a simple gadget  
 3. **Gate 3** — Sequenced TCP events between nodes (Relay mode OK)
 

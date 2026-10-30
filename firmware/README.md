@@ -26,6 +26,12 @@ firmware/
 - Capture must not block USB path on TCP send
 - Claim depth must match instrumentation (class hook vs App callback)
 
-## Tooling (planned)
+## Tooling (Gate 1)
 
-PlatformIO or Arduino-ESP32 — decision deferred to Gate 1 with board matrix (YD-ESP32-S3 N8R2 as lab default).
+PlatformIO + **pioarduino** Arduino-ESP32 **3.2.1** (required by EspUsbHost 2.x).  
+Lab default board: YD-ESP32-S3 N8R2 class — see `docs/hardware/BOARD-YD-ESP32-S3.md`.
+
+```bash
+cd firmware/analyzer-node
+~/.platformio/penv/bin/pio run -e analyzer-s3-host
+```
