@@ -34,11 +34,11 @@ credentials.json
 *.hex
 !docs/**/*.bin.md
 
-# Capture sessions (large)
-sessions/
+# Capture session data (large) — not the controller/sessions/ module
+/sessions/
 *.pcap
 *.pcapng
-controller/storage/data/
+/controller/storage/data/
 
 # Logs
 *.log
