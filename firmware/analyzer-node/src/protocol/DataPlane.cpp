@@ -20,8 +20,11 @@ constexpr uint8_t kCmdMscWriteReq = 22;
 constexpr uint8_t kCmdMscWriteRsp = 23;
 constexpr uint8_t kCmdDutInfoReq = 30;
 constexpr uint8_t kCmdDutInfoRsp = 31;
+constexpr uint8_t kCmdCtrlReq = 40;
+constexpr uint8_t kCmdCtrlRsp = 41;
 constexpr uint32_t kMaxFrame = 4096;
 constexpr uint32_t kMaxMscBlocks = 16;
+constexpr uint16_t kMaxCtrlBytes = 64;
 
 #pragma pack(push, 1)
 struct Hdr {
@@ -38,10 +41,19 @@ struct MscReq {
   uint16_t blocks;
   uint16_t reserved;
 };
+struct CtrlReq {
+  uint8_t bm_request_type;
+  uint8_t b_request;
+  uint16_t w_value;
+  uint16_t w_index;
+  uint16_t w_length;
+  uint16_t reserved;
+};
 #pragma pack(pop)
 
 static_assert(sizeof(Hdr) == 20, "Hdr size");
 static_assert(sizeof(MscReq) == 8, "MscReq size");
+static_assert(sizeof(CtrlReq) == 10, "CtrlReq size");
 
 } // namespace
 
@@ -277,6 +289,8 @@ void DataPlane::serviceInbound() {
     ok = handleMscWriteReq(inbound_, raw);
   } else if (hdr.cmd == kCmdDutInfoReq) {
     ok = handleDutInfoReq(inbound_, raw);
+  } else if (hdr.cmd == kCmdCtrlReq) {
+    ok = handleCtrlReq(inbound_, raw);
   } else {
     Serial.printf("[data] unknown cmd %u\n", hdr.cmd);
   }
@@ -719,6 +733,154 @@ bool DataPlane::proxyMscWrite(const String &peer_ip, uint32_t lba,
   proxy_hits_++;
   CaptureLog::instance().push(CapRole::Plane, CapType::MscProxyRsp, 0, payload,
                               lba, blocks, 0, "write_ack");
+  return true;
+}
+
+bool DataPlane::handleCtrlReq(WiFiClient &c, const uint8_t *hdr_bytes) {
+  Hdr hdr;
+  memcpy(&hdr, hdr_bytes, sizeof(hdr));
+  rx_bytes_ += sizeof(Hdr);
+
+  if (hdr.len != sizeof(CtrlReq)) {
+    proxy_fail_++;
+    return false;
+  }
+  CtrlReq req{};
+  if (!readExact(c, reinterpret_cast<uint8_t *>(&req), sizeof(req), 2000)) {
+    return false;
+  }
+  rx_bytes_ += sizeof(req);
+
+  uint8_t buf[kMaxCtrlBytes];
+  memset(buf, 0, sizeof(buf));
+  uint16_t want = req.w_length;
+  if (want > kMaxCtrlBytes) {
+    want = kMaxCtrlBytes;
+  }
+  uint16_t actual = 0;
+  bool ok = false;
+  if (host_ && want > 0) {
+    ok = host_->controlTransfer(req.bm_request_type, req.b_request, req.w_value,
+                                req.w_index, buf, want, &actual);
+  } else if (host_ && want == 0) {
+    ok = host_->controlTransfer(req.bm_request_type, req.b_request, req.w_value,
+                                req.w_index, nullptr, 0, &actual);
+  }
+
+  Hdr rsp{};
+  rsp.magic = kMagic;
+  rsp.ver = kVer;
+  rsp.cmd = kCmdCtrlRsp;
+  rsp.seq = hdr.seq;
+  rsp.status = ok ? 0 : 1;
+  rsp.len = ok ? actual : 0;
+  rsp.crc = ok && actual ? crc32(buf, actual) : 0;
+  if (ok) {
+    proxy_hits_++;
+    CaptureLog::instance().push(CapRole::Plane, CapType::EnumInfo, 0, actual,
+                                req.w_value, req.w_index, 0, "ctrl_fwd_rsp");
+  } else {
+    proxy_fail_++;
+  }
+  if (!writeExact(c, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp))) {
+    return false;
+  }
+  tx_bytes_ += sizeof(rsp);
+  if (ok && actual > 0) {
+    if (!writeExact(c, buf, actual)) {
+      return false;
+    }
+    tx_bytes_ += actual;
+  }
+  return true;
+}
+
+bool DataPlane::proxyControlTransfer(const String &peer_ip,
+                                     uint8_t bm_request_type, uint8_t b_request,
+                                     uint16_t w_value, uint16_t w_index,
+                                     uint8_t *data, uint16_t w_length,
+                                     uint16_t *actual_len, String *err) {
+  auto fail = [&](const char *e) {
+    if (err) {
+      *err = e;
+    }
+    proxy_fail_++;
+    closeProxySession();
+    return false;
+  };
+  if (actual_len) {
+    *actual_len = 0;
+  }
+  if (w_length > kMaxCtrlBytes) {
+    return fail("wlength_gt_64");
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    return fail("no_wifi");
+  }
+  if (!ensureProxyClient(peer_ip, err)) {
+    proxy_fail_++;
+    return false;
+  }
+
+  CtrlReq req{};
+  req.bm_request_type = bm_request_type;
+  req.b_request = b_request;
+  req.w_value = w_value;
+  req.w_index = w_index;
+  req.w_length = w_length;
+
+  Hdr hdr{};
+  hdr.magic = kMagic;
+  hdr.ver = kVer;
+  hdr.cmd = kCmdCtrlReq;
+  hdr.status = 0;
+  hdr.seq = 0;
+  hdr.len = sizeof(req);
+  hdr.crc = crc32(reinterpret_cast<uint8_t *>(&req), sizeof(req));
+  if (!writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&hdr),
+                  sizeof(hdr)) ||
+      !writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&req),
+                  sizeof(req))) {
+    return fail("write_fail");
+  }
+  tx_bytes_ += sizeof(hdr) + sizeof(req);
+
+  Hdr rsp{};
+  if (!readExact(proxy_client_, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp),
+                 5000)) {
+    return fail("rsp_timeout");
+  }
+  if (rsp.magic != kMagic || rsp.cmd != kCmdCtrlRsp) {
+    return fail("bad_rsp");
+  }
+  if (rsp.status != 0) {
+    if (err) {
+      *err = "ctrl_status_" + String(rsp.status);
+    }
+    proxy_fail_++;
+    return false;
+  }
+  if (rsp.len > w_length || rsp.len > kMaxCtrlBytes) {
+    return fail("bad_len");
+  }
+  if (rsp.len > 0) {
+    if (!data) {
+      return fail("no_buf");
+    }
+    if (!readExact(proxy_client_, data, rsp.len, 5000)) {
+      return fail("payload_timeout");
+    }
+    if (rsp.crc && crc32(data, rsp.len) != rsp.crc) {
+      return fail("crc_mismatch");
+    }
+  }
+  rx_bytes_ += sizeof(rsp) + rsp.len;
+  if (actual_len) {
+    *actual_len = static_cast<uint16_t>(rsp.len);
+  }
+  proxy_hits_++;
+  CaptureLog::instance().push(CapRole::Plane, CapType::EnumInfo, 0, rsp.len,
+                              w_value, w_index, 0, "ctrl_fwd");
   return true;
 }
 

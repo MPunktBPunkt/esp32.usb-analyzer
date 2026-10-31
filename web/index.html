@@ -30,10 +30,11 @@
 
     <section class="panel">
       <h2>Capture</h2>
-      <p class="muted">timestamp_domain=<span class="mono">local_per_node</span> — clocks not synchronized · not D+/D− · click a row for inspector</p>
+      <p class="muted">timestamp_domain=<span class="mono" id="cap-domain">local_per_node</span> · <span id="cap-sync-badge">clocks not synchronized</span> · not D+/D− · click a row for inspector</p>
       <div class="actions" style="margin-bottom:0.5rem">
         <button type="button" id="btn-cap-pause">Pause</button>
         <button type="button" id="btn-cap-clear">Clear lanes</button>
+        <button type="button" id="btn-cap-sync">Sync offset</button>
       </div>
       <div class="filters" id="cap-filters">
         <label><input type="checkbox" data-f="attach" checked /> attach</label>
@@ -42,6 +43,7 @@
         <label><input type="checkbox" data-f="bot" checked /> bot</label>
         <label><input type="checkbox" data-f="proxy" checked /> proxy</label>
         <label><input type="checkbox" data-f="tcp" checked /> tcp</label>
+        <label><input type="checkbox" data-f="sync" checked /> sync</label>
         <label><input type="checkbox" data-f="other" checked /> other</label>
       </div>
       <div class="stats" id="cap-stats">host — · device —</div>

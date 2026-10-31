@@ -5,7 +5,9 @@
 #include "USB.h"
 #include "USBMSC.h"
 #include "capture/CaptureLog.h"
+#include "esp32-hal-tinyusb.h"
 #include "protocol/DataPlane.h"
+#include "tusb.h"
 
 #include <cstring>
 #include <usb_analyzer/UsbLabPattern.h>
@@ -17,11 +19,100 @@ USBMSC g_msc;
 static uint8_t g_sector[512];
 static UsbDeviceNode *g_self = nullptr;
 
+// Own device/string descriptors so we can re-ident after USB.begin()
+// (Arduino ESPUSB has no end(); VID/PID setters no-op once started).
+static tusb_desc_device_t g_dev_desc = {
+    .bLength = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = 0x0200,
+    .bDeviceClass = TUSB_CLASS_MISC,
+    .bDeviceSubClass = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol = MISC_PROTOCOL_IAD,
+    .bMaxPacketSize0 = CFG_TUD_ENDOINT0_SIZE,
+    .idVendor = USB_ESPRESSIF_VID,
+    .idProduct = 0x1001,
+    .bcdDevice = 0x0100,
+    .iManufacturer = 0x01,
+    .iProduct = 0x02,
+    .iSerialNumber = 0x03,
+    .bNumConfigurations = 0x01,
+};
+
+static char g_str_mfr[64] = "MPB";
+static char g_str_product[64] = "ANALYZER";
+static char g_str_serial[64] = "lab-gadget";
+
+static void copyField(char *dst, size_t dst_len, const char *src,
+                      const char *fallback) {
+  if (!dst || dst_len == 0) {
+    return;
+  }
+  const char *s = (src && src[0]) ? src : fallback;
+  strncpy(dst, s ? s : "", dst_len - 1);
+  dst[dst_len - 1] = '\0';
+}
+
+static void setMscInquiry(const char *vendor8, const char *product16,
+                          const char *rev4) {
+  char v[9] = {0};
+  char p[17] = {0};
+  char r[5] = {0};
+  copyField(v, sizeof(v), vendor8, "MPB");
+  copyField(p, sizeof(p), product16, "ANALYZER");
+  copyField(r, sizeof(r), rev4, "0001");
+  g_msc.vendorID(v);
+  g_msc.productID(p);
+  g_msc.productRevision(r);
+}
+
+} // namespace
+
+// Weak overrides — host re-reads these after tud_disconnect/connect.
+extern "C" uint8_t const *tud_descriptor_device_cb(void) {
+  return reinterpret_cast<uint8_t const *>(&g_dev_desc);
+}
+
+extern "C" uint16_t const *tud_descriptor_string_cb(uint8_t index,
+                                                    uint16_t langid) {
+  (void)langid;
+  static uint16_t desc[64];
+  if (index == 0) {
+    desc[1] = 0x0409;
+    desc[0] = (TUSB_DESC_STRING << 8) | (2 + 2);
+    return desc;
+  }
+  const char *str = "MSC";
+  if (index == 1) {
+    str = g_str_mfr;
+  } else if (index == 2) {
+    str = g_str_product;
+  } else if (index == 3) {
+    str = g_str_serial;
+  }
+  size_t n = strlen(str);
+  if (n > 62) {
+    n = 62;
+  }
+  for (size_t i = 0; i < n; i++) {
+    desc[1 + i] = static_cast<uint16_t>(static_cast<uint8_t>(str[i]));
+  }
+  desc[0] = static_cast<uint16_t>((TUSB_DESC_STRING << 8) | (2 + n * 2));
+  return desc;
+}
+
+namespace {
+
 int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   uint8_t *out = static_cast<uint8_t *>(buffer);
-  if (g_self && g_self->proxyEnabled() &&
-      g_self->fillFromProxy(lba, offset, out, bufsize)) {
+  if (g_self && g_self->proxyEnabled()) {
+    if (!g_self->fillFromProxy(lba, offset, out, bufsize)) {
+      g_self->noteProxyFail();
+      CaptureLog::instance().push(CapRole::Device, CapType::MscProxyRsp, 1,
+                                  bufsize, lba, bufsize / 512u, 0, "proxy_fail");
+      return -1; // SCSI fail — never fall back to lab pattern while proxy ON
+    }
     g_self->noteRead(bufsize);
+    g_self->noteProxyHit(bufsize);
     CaptureLog::instance().push(CapRole::Device, CapType::MscProxyRsp, 0, bufsize,
                                 lba, bufsize / 512u, 0, "from_host_dut");
     return static_cast<int32_t>(bufsize);
@@ -51,12 +142,9 @@ int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   if (g_self) {
     g_self->noteRead(bufsize);
     if ((g_self->readOps() & 31u) == 1u) {
+      // Bot CBW/CSW come from TinyUSB class hooks (Gate-6), not App fiction.
       CaptureLog::instance().push(CapRole::Device, CapType::MscRead, 0, bufsize,
                                   lba, bufsize / 512u, 0, "gadget_pattern");
-      CaptureLog::instance().push(CapRole::Device, CapType::BotCbw, 0, 31, lba,
-                                  bufsize / 512u, 0, "READ10_inferred");
-      CaptureLog::instance().push(CapRole::Device, CapType::BotCsw, 0, 13, lba, 0,
-                                  0, "CSW_ok_inferred");
     }
   }
   return static_cast<int32_t>(bufsize);
@@ -69,19 +157,18 @@ int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer,
   }
   if (g_self->proxyEnabled()) {
     if (!g_self->writeThroughProxy(lba, offset, buffer, bufsize)) {
+      g_self->noteProxyFail();
       return -1;
     }
+    g_self->noteProxyHit(bufsize);
   } else if (!g_self->storeWrite(lba, offset, buffer, bufsize)) {
     return -1;
   }
   g_self->noteWrite(bufsize);
+  // Bot CBW/CSW come from TinyUSB class hooks (Gate-6), not App fiction.
   CaptureLog::instance().push(CapRole::Device, CapType::MscWrite, 0, bufsize, lba,
                               bufsize / 512u, 0,
                               g_self->proxyEnabled() ? "proxy_write" : "gadget_write");
-  CaptureLog::instance().push(CapRole::Device, CapType::BotCbw, 0, 31, lba,
-                              bufsize / 512u, 0, "WRITE10_inferred");
-  CaptureLog::instance().push(CapRole::Device, CapType::BotCsw, 0, 13, lba, 0, 0,
-                              "CSW_ok_inferred");
   return static_cast<int32_t>(bufsize);
 }
 
@@ -133,6 +220,67 @@ void UsbDeviceNode::noteWrite(uint32_t bytes) {
   write_bytes_ += bytes;
 }
 
+void UsbDeviceNode::noteProxyHit(uint32_t bytes) {
+  proxy_hits_++;
+  proxy_bytes_ += bytes;
+}
+
+void UsbDeviceNode::noteProxyFail() { proxy_fails_++; }
+
+bool UsbDeviceNode::copyLocalDeviceDescriptor(uint8_t *out18) const {
+  if (!out18) {
+    return false;
+  }
+  memcpy(out18, &g_dev_desc, 18);
+  return true;
+}
+
+bool UsbDeviceNode::localStringAscii(uint8_t index, char *out,
+                                     size_t out_len) const {
+  if (!out || out_len == 0) {
+    return false;
+  }
+  const char *src = nullptr;
+  if (index == 1) {
+    src = g_str_mfr;
+  } else if (index == 2) {
+    src = g_str_product;
+  } else if (index == 3) {
+    src = g_str_serial;
+  } else {
+    out[0] = '\0';
+    return false;
+  }
+  strncpy(out, src, out_len - 1);
+  out[out_len - 1] = '\0';
+  return true;
+}
+
+bool UsbDeviceNode::selftestProxyRead(uint32_t lba, uint32_t blocks, uint8_t *out,
+                                      String *err) {
+  if (!proxy_on_ || !proxy_plane_) {
+    if (err) {
+      *err = "proxy_off";
+    }
+    return false;
+  }
+  if (!out || blocks == 0 || blocks > 16) {
+    if (err) {
+      *err = "bad_args";
+    }
+    return false;
+  }
+  if (!fillFromProxy(lba, 0, out, blocks * 512u)) {
+    noteProxyFail();
+    if (err) {
+      *err = "proxy_read_fail";
+    }
+    return false;
+  }
+  noteProxyHit(blocks * 512u);
+  return true;
+}
+
 bool UsbDeviceNode::storeWrite(uint32_t lba, uint32_t offset, const uint8_t *in,
                                uint32_t bufsize) {
   if (!in || bufsize == 0) {
@@ -148,7 +296,6 @@ bool UsbDeviceNode::storeWrite(uint32_t lba, uint32_t offset, const uint8_t *in,
     if (n > room) {
       n = room;
     }
-    // Find or allocate cache entry for this LBA.
     WriteCacheEntry *slot = nullptr;
     for (size_t i = 0; i < kWriteCache; i++) {
       if (write_cache_[i].valid && write_cache_[i].lba == cur_lba) {
@@ -161,7 +308,7 @@ bool UsbDeviceNode::storeWrite(uint32_t lba, uint32_t offset, const uint8_t *in,
       write_cache_i_++;
       slot->lba = cur_lba;
       slot->valid = true;
-      fillLabSector(slot->data, 512, cur_lba, 0); // base then overlay
+      fillLabSector(slot->data, 512, cur_lba, 0);
     }
     memcpy(slot->data + cur_off, in + done, n);
     done += n;
@@ -182,18 +329,113 @@ bool UsbDeviceNode::loadCachedSector(uint32_t lba, uint8_t *out512) const {
   return false;
 }
 
+void UsbDeviceNode::scheduleSoftReenum() {
+  pending_reenum_ = true;
+  reenum_at_ms_ = millis() + 80;
+}
+
+void UsbDeviceNode::runSoftReenum() {
+  Serial.printf("[device] soft re-enum as %04x:%04x (%s)\n", g_dev_desc.idVendor,
+                g_dev_desc.idProduct, g_str_product);
+  g_msc.mediaPresent(false);
+  tud_disconnect();
+  delay(40);
+  g_msc.mediaPresent(true);
+  tud_connect();
+  CaptureLog::instance().push(CapRole::Device, CapType::EnumInfo, 0, 0,
+                              g_dev_desc.idVendor, g_dev_desc.idProduct, 0,
+                              "gadget_reident");
+}
+
+void UsbDeviceNode::applyLabIdentity() {
+  g_dev_desc.idVendor = USB_ESPRESSIF_VID;
+  g_dev_desc.idProduct = 0x1001;
+  copyField(g_str_mfr, sizeof(g_str_mfr), "MPB", "MPB");
+  copyField(g_str_product, sizeof(g_str_product), "ANALYZER", "ANALYZER");
+  copyField(g_str_serial, sizeof(g_str_serial), "lab-gadget", "lab-gadget");
+  setMscInquiry("MPB", "ANALYZER", "0001");
+  gadget_blocks_ = 512;
+  gadget_block_size_ = 512;
+  g_msc.begin(gadget_blocks_, gadget_block_size_);
+  applied_vid_ = g_dev_desc.idVendor;
+  applied_pid_ = g_dev_desc.idProduct;
+  identity_applied_ = false;
+}
+
+bool UsbDeviceNode::applyDutIdentity(const DutInfoSnapshot &snap) {
+  if (!snap.present || snap.vid == 0) {
+    return false;
+  }
+
+  const bool first_apply = !identity_applied_;
+  const bool usb_changed =
+      first_apply || (applied_vid_ != snap.vid) || (applied_pid_ != snap.pid);
+
+  g_dev_desc.idVendor = snap.vid;
+  g_dev_desc.idProduct = snap.pid;
+  copyField(g_str_mfr, sizeof(g_str_mfr), snap.mfr, "DUT");
+  copyField(g_str_product, sizeof(g_str_product), snap.product, "proxied");
+  copyField(g_str_serial, sizeof(g_str_serial), snap.serial, "proxy");
+
+  const char *inq_v = (snap.inq_vendor[0]) ? snap.inq_vendor : g_str_mfr;
+  const char *inq_p = (snap.inq_product[0]) ? snap.inq_product : g_str_product;
+  const char *inq_r = (snap.inq_rev[0]) ? snap.inq_rev : "0001";
+  setMscInquiry(inq_v, inq_p, inq_r);
+
+  uint16_t bsz = snap.block_size ? snap.block_size : 512;
+  // Proxy path assumes 512-byte sectors for now.
+  if (bsz != 512) {
+    Serial.printf("[device] DUT block_size=%u — gadget stays 512 (proxy limit)\n",
+                  bsz);
+    bsz = 512;
+  }
+  uint32_t blocks = snap.capacity_blocks;
+  if (blocks == 0) {
+    blocks = gadget_blocks_ ? gadget_blocks_ : 512;
+  }
+  // Cap absurd sizes so TinyUSB RAM path stays sane in lab.
+  if (blocks > 64u * 1024u * 1024u) {
+    blocks = 64u * 1024u * 1024u;
+  }
+  const bool capacity_changed =
+      (gadget_blocks_ != blocks) || (gadget_block_size_ != bsz);
+  gadget_block_size_ = bsz;
+  gadget_blocks_ = blocks;
+  g_msc.begin(gadget_blocks_, gadget_block_size_);
+
+  applied_vid_ = snap.vid;
+  applied_pid_ = snap.pid;
+  identity_applied_ = true;
+
+  Serial.printf("[device] apply DUT identity %04x:%04x '%s' blocks=%u msc=%u\n",
+                snap.vid, snap.pid, g_str_product,
+                static_cast<unsigned>(gadget_blocks_), snap.msc_ready);
+
+  if (usb_changed) {
+    scheduleSoftReenum();
+  } else if (capacity_changed) {
+    // Capacity/inquiry-only change: unit attention via media toggle.
+    g_msc.mediaPresent(false);
+    delay(20);
+    g_msc.mediaPresent(true);
+  }
+  return true;
+}
+
 void UsbDeviceNode::setProxy(DataPlane *plane, const String &peer_ip) {
   proxy_plane_ = plane;
   proxy_peer_ = peer_ip;
   proxy_on_ = plane && peer_ip.length() > 0;
   memset(&proxied_dut_, 0, sizeof(proxied_dut_));
-  if (!proxy_on_ && plane) {
-    plane->closeProxySession();
+  if (!proxy_on_) {
+    if (plane) {
+      plane->closeProxySession();
+    }
+    applyLabIdentity();
+    scheduleSoftReenum();
   }
   Serial.printf("[device] MSC proxy %s peer=%s\n", proxy_on_ ? "ON" : "OFF",
                 proxy_peer_.c_str());
-  // Do not fetch DUT info inside the HTTP handler synchronously — avoids
-  // nested WiFi/USB stalls. Caller / loop can refresh separately.
 }
 
 bool UsbDeviceNode::refreshProxiedDut() {
@@ -212,6 +454,7 @@ bool UsbDeviceNode::refreshProxiedDut() {
   Serial.printf("[device] proxied DUT %04x:%04x %s msc=%u cap=%u\n", snap.vid,
                 snap.pid, snap.product, snap.msc_ready,
                 static_cast<unsigned>(snap.capacity_blocks));
+  applyDutIdentity(snap);
   return true;
 }
 
@@ -220,7 +463,6 @@ bool UsbDeviceNode::fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
   if (!proxy_on_ || !proxy_plane_ || !out || bufsize == 0) {
     return false;
   }
-  // Only full-sector aligned proxy fetches for Gate 4 slice.
   if (offset != 0 || (bufsize % 512u) != 0) {
     return false;
   }
@@ -286,6 +528,25 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += ",\"proxyPeer\":\"";
   json += proxy_peer_;
   json += "\"";
+  json += ",\"identityApplied\":";
+  json += identity_applied_ ? "true" : "false";
+  json += ",\"appliedId\":\"";
+  {
+    char id[12];
+    snprintf(id, sizeof(id), "%04x:%04x", applied_vid_, applied_pid_);
+    json += id;
+  }
+  json += "\",\"blockCount\":";
+  json += String(gadget_blocks_);
+  json += ",\"blockSize\":";
+  json += String(gadget_block_size_);
+  json += ",\"proxyHits\":";
+  json += String(proxy_hits_);
+  json += ",\"proxyFails\":";
+  json += String(proxy_fails_);
+  json += ",\"proxyBytes\":";
+  json += String(proxy_bytes_);
+  json += ",\"claim\":\"gadget_identity_from_dut_snapshot\"";
   json += ",\"proxiedDut\":{";
   json += "\"present\":";
   json += proxied_dut_.present ? "true" : "false";
@@ -345,23 +606,29 @@ bool UsbDeviceNode::begin() {
       "[device] Debug: UART/COM only; OTG port is the gadget toward Host/PC");
   Serial.println("[device] MSC pattern=lab_sector_v1 for OTG-loop probes");
 
+  applyLabIdentity();
+  // Also seed Arduino USB.* before begin (used if weak override fails to link).
+  USB.VID(g_dev_desc.idVendor);
+  USB.PID(g_dev_desc.idProduct);
+  USB.manufacturerName(g_str_mfr);
+  USB.productName(g_str_product);
+  USB.serialNumber(g_str_serial);
+
   USB.onEvent(onEvent);
-  g_msc.vendorID("MPB");
-  g_msc.productID("ANALYZER");
-  g_msc.productRevision("0001");
   g_msc.onRead(onRead);
   g_msc.onWrite(onWrite);
   g_msc.onStartStop(onStartStop);
   g_msc.mediaPresent(true);
   g_msc.isWritable(true);
-  g_msc.begin(512, 512);
+  g_msc.begin(gadget_blocks_, gadget_block_size_);
 
   USB.begin();
   begin_ok_ = true;
   ready_ = true;
   mounted_ = static_cast<bool>(USB);
   Serial.println("[device] USB.begin() issued — wait for host enumeration");
-  Serial.printf("[device] otg_state=%s\n", otgState());
+  Serial.printf("[device] otg_state=%s id=%04x:%04x\n", otgState(),
+                g_dev_desc.idVendor, g_dev_desc.idProduct);
   (void)g_sector;
   return begin_ok_;
 }
@@ -373,6 +640,10 @@ void UsbDeviceNode::loop() {
       mounted_ = now;
       Serial.printf("[device] otg_state → %s\n", otgState());
     }
+  }
+  if (pending_reenum_ && static_cast<int32_t>(millis() - reenum_at_ms_) >= 0) {
+    pending_reenum_ = false;
+    runSoftReenum();
   }
   if (proxy_on_ && proxy_plane_ && !proxied_dut_.present) {
     static uint32_t last_try_ms = 0;
@@ -400,8 +671,17 @@ void UsbDeviceNode::notifyMounted(bool) {}
 void UsbDeviceNode::notifySuspended(bool) {}
 void UsbDeviceNode::noteRead(uint32_t) {}
 void UsbDeviceNode::noteWrite(uint32_t) {}
+void UsbDeviceNode::noteProxyHit(uint32_t) {}
+void UsbDeviceNode::noteProxyFail() {}
 void UsbDeviceNode::setProxy(DataPlane *, const String &) {}
 bool UsbDeviceNode::refreshProxiedDut() { return false; }
+bool UsbDeviceNode::selftestProxyRead(uint32_t, uint32_t, uint8_t *, String *) {
+  return false;
+}
+bool UsbDeviceNode::copyLocalDeviceDescriptor(uint8_t *) const { return false; }
+bool UsbDeviceNode::localStringAscii(uint8_t, char *, size_t) const {
+  return false;
+}
 bool UsbDeviceNode::writeThroughProxy(uint32_t, uint32_t, const uint8_t *,
                                       uint32_t) {
   return false;
@@ -417,6 +697,10 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += ",\"gadget\":{\"readOps\":0,\"readBytes\":0,\"writeOps\":0,\"proxy\":false}";
   (void)json;
 }
+void UsbDeviceNode::applyLabIdentity() {}
+bool UsbDeviceNode::applyDutIdentity(const DutInfoSnapshot &) { return false; }
+void UsbDeviceNode::scheduleSoftReenum() {}
+void UsbDeviceNode::runSoftReenum() {}
 
 } // namespace usb_analyzer
 

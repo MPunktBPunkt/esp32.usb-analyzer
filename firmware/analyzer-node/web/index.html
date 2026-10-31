@@ -309,7 +309,11 @@ input[type=file]{display:none}
     if(dut.present){
       dutEl.textContent=(dut.id||'?')+' · '+(dut.product||'')+' · '+(dut.serial||'')+' · '+(dut.speed||'');
     }else if(s.gadget){
-      dutEl.textContent='gadget reads='+(s.gadget.readOps||0)+' bytes='+(s.gadget.readBytes||0);
+      var gd=s.gadget;
+      var pd=gd.proxiedDut||{};
+      var idPart=gd.identityApplied?(gd.appliedId||'?')+' · ':'';
+      var proxyPart=gd.proxy?('proxy '+(pd.id||gd.proxyPeer||'')+' · '):'';
+      dutEl.textContent=idPart+proxyPart+'reads='+(gd.readOps||0)+' bytes='+(gd.readBytes||0);
     }else{
       dutEl.textContent='—';
     }

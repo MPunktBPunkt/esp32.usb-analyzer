@@ -27,6 +27,7 @@ Each experiment must produce: `FACT` / `MEASURED` / `INFERENCE` / `UNKNOWN` / `N
 - **Hypothesis:** PC Host ↔ ESP-Device ↔ tunnel ↔ ESP-Host ↔ Stick completes enumeration + BOT READ10.
 - **Observer test:** compare stick-only vs proxied on same control host (method B4 spirit).
 - **Pass:** functional I/O + documented Δ latency; **not** “transparent” as FACT without metrics.
+- **0.0.25 slice (MEASURED):** Device→Host DUT MSC bulk selftest byte-exact (`lab_usb_proxy_verify.py`). Optional PC blockdev path when gadget is visible. **Not claimed:** transparency / control MITM.
 
 ## Track B — Capture depth (Gates 5–6)
 

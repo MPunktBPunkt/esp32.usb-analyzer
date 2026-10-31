@@ -1,13 +1,13 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.23-blue)
+![Version](https://img.shields.io/badge/version-0.0.28-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.23** Zwischenstand — Host/Device FW, OTG-loop MSC READ+WRITE, WiFi TCP bulk, MSC-proxy slice, L1 capture + inferred BOT/SCSI decode.  
-> **Nicht claimed:** transparent MITM, D+/D− Wire-Capture, USB-IF Compliance.
+> **v0.0.28** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + bulk selftest, class-hook CBW/CSW, sync-offset (+ session lane display), EP0 device+string forward.  
+> **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, USB-IF Compliance.
 
 ## Goal architecture
 
@@ -57,9 +57,14 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **WiFi TCP integrity** both ways | `POST /api/lab/integrity?peer=&frames=&frame_bytes=` | 0 frame fails | Not USB MITM |
 | **WiFi TCP bulk throughput** | same + `window=4…12` | ~**140 kB/s** (ack-each) → ~**260–360 kB/s** (windowed) | Protocol RTT-bound |
 | **MSC proxy Host serve** | TCP `MscReq`→Host READ DUT→payload | CRC/pattern OK on loop DUT | Gate‑4 slice; MITM wiring separate |
+| **Gadget DUT identity** | DUT snapshot → Device VID/PID + MSC inquiry/capacity + soft re-enum | PC `lsusb` shows DUT-like id after arm | Snapshot apply — **not** control MITM |
+| **MSC bulk proxy selftest** | Device proxy-read vs Host DUT raw (`lab_usb_proxy_verify.py`) | byte-exact CRC/hex match | WiFi MSC tunnel — **not** transparent MITM |
 | **L1/lab capture timeline** | `GET /api/capture` · Analyzer-Tab · Debian dual lanes | attach/enum/msc_read/msc_write/bot_cbw/csw/tcp_bulk | **Not** D+/D− packets |
 | **Dual-node lab UI** | `GET /api/v1/capture/dual` · `:8080` Host/Device lanes | live poll both ESPs | clocks local, not synced |
-| **Inferred BOT/SCSI decode** | capture `decoded.command` READ_10 / WRITE_10 / CSW | `source: class_api_inferred` | Not wire CBW bytes |
+| **Inferred BOT/SCSI decode** | capture `decoded.command` (Host App path) | `source: class_api_inferred` | App fiction — Device uses class-hook |
+| **Class-hook BOT CBW/CSW** | vendored TinyUSB `mscd_xfer_cb` / `send_csw` | `source: class_hook_mscd_xfer` + `payload_hex` | Class driver bytes — **not** D+/D− wire |
+| **Cross-node sync offset** | `lab_sync_offset.py` / `POST /api/v1/sync` | median `offset_us` ± residual | Estimate — **not** hard µs lock |
+| **EP0 GET_DESCRIPTOR forward** | Device→Host WiFi ctrl (`lab_usb_ctrl_loop_verify.py`) | match local gadget desc (OTG loop) | Lab echo — **not** control MITM |
 | **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
 
 ### ESP Web UI (per node, port 80)
@@ -78,6 +83,11 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 
 ./tools/lab_usb_loop_probe.py --blocks 512
 ./tools/lab_integrity_test.py --both-ways
+./tools/lab_usb_proxy_arm.py
+./tools/lab_usb_proxy_verify.py --arm              # MSC bulk proxy byte-exact
+./tools/lab_bot_class_hook_verify.py               # Gate-6 real CBW/CSW (OTG loop)
+./tools/lab_sync_offset.py                         # Gate-8 offset estimate (WiFi)
+./tools/lab_usb_ctrl_loop_verify.py                # Gate-4 EP0 forward (OTG loop)
 ./tools/lab_perf_sweep.py
 ./tools/lab_baseline_campaign.py                 # USB + TCP campaign → docs/evidence/
 ```
@@ -85,9 +95,8 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ### Explicitly **not** measured / not claimed
 
 - D+/D− / DATA0/1 / ACK/NAK wire capture (Gate 10 — UNKNOWN)
-- Real TinyUSB CBW/CSW byte capture (Gate 6 — next; today = class-API inferred)
 - Transparent MITM PC↔Stick with observer-effect baseline
-- Synchronized µs clocks across both ESPs
+- Hard synchronized µs clocks across both ESPs (offset estimate only)
 - USB High-Speed
 
 ## Epistemics

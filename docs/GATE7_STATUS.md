@@ -11,8 +11,8 @@
 | `timestamp_domain=local_per_node` labeled | done |
 | Packet inspector (click → JSON) | done (0.0.19+) |
 | Event type filters + live stats | done (0.0.22) |
-| Sync µs / cross-node align | **not yet** |
-| Claim synchronized dual clocks | **REJECTED** until Gate 8 |
+| Sync µs / cross-node align | Gate‑8 slice (0.0.27) — offset estimate, not hard lock |
+| Claim synchronized dual clocks | **REJECTED** (offset estimate only; see GATE8_STATUS) |
 
 ## API
 

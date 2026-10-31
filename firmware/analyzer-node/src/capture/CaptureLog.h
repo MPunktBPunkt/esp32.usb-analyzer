@@ -1,8 +1,9 @@
 #pragma once
 
 /**
- * Gate 5 slice — L1/lab capture ring (not D+/D− wire).
+ * Gate 5/6 — L1/lab capture ring (not D+/D− wire).
  * Emits capture_event.v1 JSON via /api/capture.
+ * Gate-6: CapEvent.payload may hold real BOT CBW (31) / CSW (13) bytes.
  */
 
 #include <Arduino.h>
@@ -19,7 +20,7 @@ enum class CapType : uint8_t {
   MscProxyReq = 6,
   MscProxyRsp = 7,
   TcpBulk = 8,
-  BotCbw = 9,  // lab-inferred from class API — not wire CBW
+  BotCbw = 9, // may be class-hook bytes or App-inferred — see decoded.source
   BotCsw = 10,
   Error = 11,
   Overflow = 12,
@@ -32,12 +33,13 @@ struct CapEvent {
   CapRole role = CapRole::Host;
   CapType type = CapType::SyncMarker;
   uint8_t status = 0; // 0=ok
-  uint8_t reserved = 0;
+  uint8_t payload_len = 0;
   uint32_t length = 0;
   uint32_t arg0 = 0; // e.g. lba / vid
   uint32_t arg1 = 0; // e.g. blocks / pid
   uint32_t duration_us = 0;
   char note[24] = {0};
+  uint8_t payload[32] = {0}; // CBW 31 / CSW 13
 };
 
 class CaptureLog {
@@ -53,6 +55,11 @@ public:
   void push(CapRole role, CapType type, uint8_t status, uint32_t length,
             uint32_t arg0 = 0, uint32_t arg1 = 0, uint32_t duration_us = 0,
             const char *note = nullptr);
+
+  void pushPayload(CapRole role, CapType type, uint8_t status, uint32_t length,
+                   uint32_t arg0, uint32_t arg1, uint32_t duration_us,
+                   const char *note, const uint8_t *payload,
+                   uint8_t payload_len);
 
   uint32_t seq() const { return seq_; }
   uint32_t dropped() const { return dropped_; }

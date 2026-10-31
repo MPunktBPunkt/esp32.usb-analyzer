@@ -5,7 +5,8 @@ MEASURED paths:
   A) ESP↔ESP TCP PUSH→ACK RTT (Gate 3 WiFi data plane)
   B) PC→ESP Device MSC sector read (USB gadget only — not through Host ESP)
 
-NOT measured (Gate 4 missing): USB DUT → Host ESP → TCP → Device ESP → PC
+Gate-4 MSC bulk proxy (Device→Host DUT) selftest: tools/lab_usb_proxy_verify.py
+NOT claimed: transparent MITM / PC observer-effect baseline.
 """
 from __future__ import annotations
 

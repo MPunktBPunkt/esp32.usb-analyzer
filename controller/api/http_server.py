@@ -22,6 +22,39 @@ STARTED = time.time()
 LAB_HOST_IP = "192.168.178.88"
 LAB_DEVICE_IP = "192.168.178.89"
 
+# Last Gate-8 session offset estimate (controller-local, not hard µs lock)
+_LAST_SYNC: Dict[str, Any] = {}
+
+
+def _post_json(url: str, timeout: float = 5.0) -> Dict[str, Any]:
+    req = urllib.request.Request(url, method="POST", data=b"")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def run_sync_sample(host_ip: str, device_ip: str, nonce: int) -> Dict[str, Any]:
+    """Fire sync-marker on both ESPs; return offset estimate."""
+    t0 = time.time()
+    h = _post_json(f"http://{host_ip}/api/lab/sync-marker?nonce={nonce}")
+    d = _post_json(f"http://{device_ip}/api/lab/sync-marker?nonce={nonce}")
+    wall_ms = int((time.time() - t0) * 1000)
+    host_ts = int(h.get("timestamp_us") or 0)
+    device_ts = int(d.get("timestamp_us") or 0)
+    offset = host_ts - device_ts
+    return {
+        "ok": bool(h.get("ok") and d.get("ok")),
+        "nonce": nonce,
+        "host_ts_us": host_ts,
+        "device_ts_us": device_ts,
+        "offset_us": offset,
+        "wall_rtt_ms": wall_ms,
+        "host": h,
+        "device": d,
+        "timestamp_domain": "session_offset",
+        "claim": "cross_node_offset_estimate",
+        "note": "not_hard_us_lock",
+    }
+
 
 def _role_of(view: Dict[str, Any]) -> str:
     return str(view.get("assigned_role") or view.get("role") or "unassigned")
@@ -211,16 +244,27 @@ class Handler(BaseHTTPRequestHandler):
             device = fetch_node_capture(
                 _node_ip_for_role("device") or LAB_DEVICE_IP, since_d, limit
             )
-            self._json(
-                200,
-                {
-                    "ok": True,
-                    "timestamp_domain": "local_per_node",
-                    "note": "Dual L1_lab lanes — clocks not synchronized",
-                    "host": host,
-                    "device": device,
-                },
-            )
+            body: Dict[str, Any] = {
+                "ok": True,
+                "timestamp_domain": "local_per_node",
+                "note": "Dual L1_lab lanes — clocks not synchronized",
+                "host": host,
+                "device": device,
+            }
+            if _LAST_SYNC:
+                body["sync"] = {
+                    "offset_us": _LAST_SYNC.get("offset_us"),
+                    "residual_us": _LAST_SYNC.get("residual_us"),
+                    "samples": _LAST_SYNC.get("samples"),
+                    "nonce": _LAST_SYNC.get("nonce"),
+                    "timestamp_domain": "session_offset",
+                    "claim": "cross_node_offset_estimate",
+                }
+                body["note"] = (
+                    "Dual L1_lab lanes — session offset available "
+                    f"(offset_us={_LAST_SYNC.get('offset_us')}); not hard µs lock"
+                )
+            self._json(200, body)
             return
 
         # static
@@ -264,6 +308,47 @@ class Handler(BaseHTTPRequestHandler):
                             REGISTRY.set_assigned_role(v["registry_key"], role)
                             break
             self._json(200 if result.get("ok") else 502, result)
+            return
+
+        if path == "/api/v1/sync":
+            samples = int(body.get("samples") or 5)
+            samples = max(1, min(samples, 21))
+            host_ip = _node_ip_for_role("host") or LAB_HOST_IP
+            device_ip = _node_ip_for_role("device") or LAB_DEVICE_IP
+            base_nonce = int(body.get("nonce") or (time.time_ns() & 0x7FFFFFFF))
+            offsets: list[int] = []
+            last: Dict[str, Any] = {}
+            try:
+                for i in range(samples):
+                    last = run_sync_sample(host_ip, device_ip, base_nonce + i)
+                    if not last.get("ok"):
+                        self._json(502, {"ok": False, "err": "sync_marker_fail", **last})
+                        return
+                    offsets.append(int(last["offset_us"]))
+                    time.sleep(0.05)
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+                self._json(502, {"ok": False, "err": str(exc)})
+                return
+            offsets.sort()
+            mid = offsets[len(offsets) // 2]
+            residual = max(offsets) - min(offsets) if len(offsets) > 1 else 0
+            out = {
+                "ok": True,
+                "nonce": base_nonce,
+                "samples": samples,
+                "offsets_us": offsets,
+                "offset_us": mid,
+                "residual_us": residual,
+                "host_ts_us": last.get("host_ts_us"),
+                "device_ts_us": last.get("device_ts_us"),
+                "timestamp_domain": "session_offset",
+                "claim": "cross_node_offset_estimate",
+                "note": "not_hard_us_lock",
+                "last": last,
+            }
+            _LAST_SYNC.clear()
+            _LAST_SYNC.update(out)
+            self._json(200, out)
             return
 
         self._json(404, {"ok": False, "err": "not_found"})

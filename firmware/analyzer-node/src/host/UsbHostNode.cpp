@@ -597,6 +597,31 @@ HostMscProbeResult UsbHostNode::runMscWriteProbe(uint32_t blocks,
   return r;
 }
 
+bool UsbHostNode::controlTransfer(uint8_t bm_request_type, uint8_t b_request,
+                                  uint16_t w_value, uint16_t w_index,
+                                  uint8_t *data, uint16_t w_length,
+                                  uint16_t *actual_len) {
+  if (!begin_ok_ || deviceCount() == 0) {
+    return false;
+  }
+  if (w_length > 64) {
+    return false;
+  }
+  size_t actual = 0;
+  const int64_t t0 = esp_timer_get_time();
+  const bool ok = g_usb.vendorControlTransfer(
+      bm_request_type, b_request, w_value, w_index, data, w_length, &actual,
+      ESP_USB_HOST_ANY_ADDRESS);
+  const uint32_t dur = static_cast<uint32_t>(esp_timer_get_time() - t0);
+  if (actual_len) {
+    *actual_len = static_cast<uint16_t>(actual);
+  }
+  CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, ok ? 0 : 1,
+                              static_cast<uint32_t>(actual), w_value, w_index,
+                              dur, ok ? "ep0_ctrl" : "ep0_fail");
+  return ok;
+}
+
 void UsbHostNode::printNoDeviceHints() const {
   Serial.println();
   Serial.println("--- no device enumerated (check order) ---");
@@ -649,6 +674,10 @@ void UsbHostNode::printNoDeviceHints() const {}
 void UsbHostNode::clearDut() {}
 bool UsbHostNode::fillDutSnapshot(DutInfoSnapshot &out) {
   memset(&out, 0, sizeof(out));
+  return false;
+}
+bool UsbHostNode::controlTransfer(uint8_t, uint8_t, uint16_t, uint16_t,
+                                  uint8_t *, uint16_t, uint16_t *) {
   return false;
 }
 

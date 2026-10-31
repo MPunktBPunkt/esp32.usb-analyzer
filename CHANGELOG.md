@@ -2,6 +2,11 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.28: EP0 string-descriptor forward (`desc=string&index=`); dual-lane session timestamp display after sync — **not** hard µs lock / control MITM
+- FW 0.0.27: Gate‑8 sync markers (`/api/lab/sync-marker`, controller `/api/v1/sync`, `lab_sync_offset.py`) + Gate‑4 EP0 GET_DESCRIPTOR forward (`kCmdCtrl*`, `/api/lab/usb-ctrl-forward`, `lab_usb_ctrl_loop_verify.py`) — **not** hard µs lock / control MITM
+- FW 0.0.26: Gate‑6 TinyUSB class-hook CBW/CSW — vendored `msc_device.c` (0.18.0) + `class_hook_mscd_xfer` capture payload; Device drops App-inferred bot markers; `tools/lab_bot_class_hook_verify.py` — **not** wire PHY / MITM
+- FW 0.0.25: Gate‑4 A4 MSC bulk proxy selftest — `usb-host-read` + `usb-proxy-selftest` byte-exact; proxyHits/Fails; proxy-ON never falls back to lab pattern; `tools/lab_usb_proxy_verify.py` — **not** transparent MITM
+- FW 0.0.24: Gate‑4 gadget identity from DUT snapshot (VID/PID + MSC inquiry/capacity + soft re-enum); `lab_usb_proxy_arm.py` probes Host then verifies applied id — **not** USB control MITM
 - FW 0.0.23: persistent MSC-proxy TCP session; DUT info snapshot forward; TCP window default 8 / max 64
 - 0.0.22: Gate‑7 capture filters + stats; Host enum capture carries product/address
 - FW 0.0.21: Gate‑4 MSC WRITE proxy (Device→Host DUT) + `tools/lab_usb_proxy_arm.py`

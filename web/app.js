@@ -24,8 +24,10 @@ const filters = {
   bot: true,
   proxy: true,
   tcp: true,
+  sync: true,
   other: true,
 };
+let lastSync = null;
 
 function log(line) {
   const t = new Date().toISOString().slice(11, 19);
@@ -106,6 +108,7 @@ function filterBucket(et) {
   const t = et || "";
   if (t === "attach" || t === "detach") return "attach";
   if (t === "enum_info") return "enum";
+  if (t === "sync_marker") return "sync";
   if (t.startsWith("msc_") && !t.includes("proxy")) return "msc";
   if (t.startsWith("bot_")) return "bot";
   if (t.includes("proxy")) return "proxy";
@@ -113,22 +116,40 @@ function filterBucket(et) {
   return "other";
 }
 
+function updateSyncBadge(sync) {
+  const badge = document.getElementById("cap-sync-badge");
+  if (!badge) return;
+  if (!sync || sync.offset_us == null) {
+    badge.textContent = "clocks not synchronized";
+    return;
+  }
+  badge.textContent =
+    `offset_us≈${sync.offset_us} ±${sync.residual_us ?? "?"} (estimate, not hard µs lock)`;
+}
+
 function passesFilter(e) {
   return !!filters[filterBucket(e.event_type)];
 }
 
-function fmtEvent(e) {
+function fmtEvent(e, lane) {
   const dec = e.decoded || {};
   const cmd = dec.command || "";
   const lba = dec.lba != null ? ` lba=${dec.lba}` : "";
   const n = dec.transfer_length != null ? ` n=${dec.transfer_length}` : "";
   const prod = dec.product ? ` ${dec.product}` : "";
   const note = e.note ? ` ${e.note}` : "";
-  const t = ((e.timestamp_us || 0) / 1000).toFixed(1);
+  let tus = e.timestamp_us || 0;
+  let domain = "local";
+  // Display-only session align: device lane shifted by last sync offset
+  if (lane === "device" && lastSync && lastSync.offset_us != null) {
+    tus = tus + Number(lastSync.offset_us);
+    domain = "session";
+  }
+  const t = (tus / 1000).toFixed(1);
   return {
     cls: e.status === "error" ? "err" : e.event_type || "",
     html:
-      `<span class="t">${t}ms</span> ` +
+      `<span class="t" title="${domain}">${t}ms</span> ` +
       `<span class="et">${e.event_type || "?"}</span> ` +
       `<span class="cmd">${cmd}</span>${lba}${n}${prod}` +
       `<span class="note">${note}</span>`,
@@ -161,13 +182,13 @@ function renderStats() {
     `host n=${allHost.length} [${fmt(h)}] · device n=${allDevice.length} [${fmt(d)}] · filter live`;
 }
 
-function rebuildLane(listEl, store) {
+function rebuildLane(listEl, store, lane) {
   if (!listEl) return;
   listEl.innerHTML = "";
   const shown = store.filter(passesFilter).slice(-MAX_ROWS).reverse();
   for (const e of shown) {
     const row = document.createElement("div");
-    const f = fmtEvent(e);
+    const f = fmtEvent(e, lane);
     row.className = `cap-row ${f.cls}`;
     row.innerHTML = f.html;
     row.addEventListener("click", () => {
@@ -217,12 +238,16 @@ async function pollCapture() {
     const j = await (await fetch(`/api/v1/capture/dual?${q}`)).json();
     const host = j.host || {};
     const device = j.device || {};
+    if (j.sync) {
+      lastSync = j.sync;
+      updateSyncBadge(lastSync);
+    }
     setMeta(capMetaHost, host, "host");
     setMeta(capMetaDevice, device, "device");
     const ah = ingest(allHost, seenHost, host.events || []);
     const ad = ingest(allDevice, seenDevice, device.events || []);
-    if (ah) rebuildLane(capHost, allHost);
-    if (ad) rebuildLane(capDevice, allDevice);
+    if (ah) rebuildLane(capHost, allHost, "host");
+    if (ad) rebuildLane(capDevice, allDevice, "device");
     if (ah || ad) renderStats();
     for (const e of host.events || []) {
       if (e.seq > sinceHost) sinceHost = e.seq;
@@ -239,8 +264,8 @@ document.getElementById("cap-filters")?.addEventListener("change", (ev) => {
   const cb = ev.target.closest("input[data-f]");
   if (!cb) return;
   filters[cb.dataset.f] = cb.checked;
-  rebuildLane(capHost, allHost);
-  rebuildLane(capDevice, allDevice);
+  rebuildLane(capHost, allHost, "host");
+  rebuildLane(capDevice, allDevice, "device");
   renderStats();
 });
 
@@ -257,6 +282,26 @@ document.getElementById("btn-cap-clear")?.addEventListener("click", () => {
   allHost.length = 0;
   allDevice.length = 0;
   renderStats();
+});
+
+document.getElementById("btn-cap-sync")?.addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/v1/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ samples: 7 }),
+    });
+    const j = await r.json();
+    lastSync = j;
+    updateSyncBadge(j);
+    rebuildLane(capHost, allHost, "host");
+    rebuildLane(capDevice, allDevice, "device");
+    log(
+      `sync offset_us≈${j.offset_us} residual=${j.residual_us} samples=${j.samples}`
+    );
+  } catch (e) {
+    log(`sync error ${e}`);
+  }
 });
 
 async function refresh() {

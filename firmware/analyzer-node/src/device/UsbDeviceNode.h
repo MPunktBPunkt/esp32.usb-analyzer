@@ -9,7 +9,7 @@ class DataPlane;
 
 /**
  * Gate 2: USB Device (gadget) bring-up.
- * Gate 4 slice: optional MSC proxy via DataPlane → Host DUT.
+ * Gate 4: MSC proxy + DUT-snapshot identity apply (not USB control MITM).
  */
 class UsbDeviceNode {
 public:
@@ -32,14 +32,29 @@ public:
   bool refreshProxiedDut();
   bool hasProxiedDut() const { return proxied_dut_.present != 0; }
   const DutInfoSnapshot &proxiedDut() const { return proxied_dut_; }
+  bool identityApplied() const { return identity_applied_; }
 
   void noteRead(uint32_t bytes);
   void noteWrite(uint32_t bytes);
+  void noteProxyHit(uint32_t bytes);
+  void noteProxyFail();
   uint32_t readOps() const { return read_ops_; }
   uint32_t readBytes() const { return read_bytes_; }
   uint32_t writeOps() const { return write_ops_; }
   uint32_t writeBytes() const { return write_bytes_; }
+  uint32_t proxyHits() const { return proxy_hits_; }
+  uint32_t proxyFails() const { return proxy_fails_; }
+  uint32_t proxyBytes() const { return proxy_bytes_; }
   void appendStatusJson(String &json) const;
+
+  /** Lab selftest: Device→Host DUT MSC READ via armed proxy (not PC path). */
+  bool selftestProxyRead(uint32_t lba, uint32_t blocks, uint8_t *out,
+                         String *err);
+
+  /** Copy current gadget device descriptor (18 B) for ctrl-forward compare. */
+  bool copyLocalDeviceDescriptor(uint8_t *out18) const;
+  /** ASCII view of string index 1=mfr 2=product 3=serial. */
+  bool localStringAscii(uint8_t index, char *out, size_t out_len) const;
 
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
@@ -51,6 +66,11 @@ public:
   bool loadCachedSector(uint32_t lba, uint8_t *out512) const;
 
 private:
+  void applyLabIdentity();
+  bool applyDutIdentity(const DutInfoSnapshot &snap);
+  void scheduleSoftReenum();
+  void runSoftReenum();
+
   bool ready_ = false;
   bool begin_ok_ = false;
   bool mounted_ = false;
@@ -59,10 +79,20 @@ private:
   uint32_t read_bytes_ = 0;
   uint32_t write_ops_ = 0;
   uint32_t write_bytes_ = 0;
+  uint32_t proxy_hits_ = 0;
+  uint32_t proxy_fails_ = 0;
+  uint32_t proxy_bytes_ = 0;
   DataPlane *proxy_plane_ = nullptr;
   String proxy_peer_;
   bool proxy_on_ = false;
   DutInfoSnapshot proxied_dut_{};
+  bool identity_applied_ = false;
+  bool pending_reenum_ = false;
+  uint32_t reenum_at_ms_ = 0;
+  uint32_t gadget_blocks_ = 512;
+  uint16_t gadget_block_size_ = 512;
+  uint16_t applied_vid_ = 0;
+  uint16_t applied_pid_ = 0;
 
   static constexpr size_t kWriteCache = 64; // covers typical lab write probe
   struct WriteCacheEntry {

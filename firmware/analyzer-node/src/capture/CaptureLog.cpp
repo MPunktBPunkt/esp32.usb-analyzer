@@ -34,6 +34,14 @@ uint32_t CaptureLog::stored() const { return static_cast<uint32_t>(count_); }
 void CaptureLog::push(CapRole role, CapType type, uint8_t status, uint32_t length,
                       uint32_t arg0, uint32_t arg1, uint32_t duration_us,
                       const char *note) {
+  pushPayload(role, type, status, length, arg0, arg1, duration_us, note, nullptr,
+              0);
+}
+
+void CaptureLog::pushPayload(CapRole role, CapType type, uint8_t status,
+                             uint32_t length, uint32_t arg0, uint32_t arg1,
+                             uint32_t duration_us, const char *note,
+                             const uint8_t *payload, uint8_t payload_len) {
   CapEvent e;
   e.seq = ++seq_;
   e.timestamp_us = static_cast<uint32_t>(esp_timer_get_time());
@@ -48,6 +56,13 @@ void CaptureLog::push(CapRole role, CapType type, uint8_t status, uint32_t lengt
     strncpy(e.note, note, sizeof(e.note) - 1);
     e.note[sizeof(e.note) - 1] = 0;
   }
+  if (payload && payload_len) {
+    if (payload_len > sizeof(e.payload)) {
+      payload_len = sizeof(e.payload);
+    }
+    memcpy(e.payload, payload, payload_len);
+    e.payload_len = payload_len;
+  }
 
   ring_[head_] = e;
   head_ = (head_ + 1) % kCapacity;
@@ -56,10 +71,6 @@ void CaptureLog::push(CapRole role, CapType type, uint8_t status, uint32_t lengt
   } else {
     dropped_++;
     overflowed_ = true;
-    // Still record overflow marker occasionally
-    if ((dropped_ % 32u) == 1u) {
-      // overwrite next slot already advanced — count stays full
-    }
   }
 }
 
@@ -128,8 +139,31 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
   const bool note_write =
       e.note[0] && (strstr(e.note, "WRITE") != nullptr ||
                     strstr(e.note, "write") != nullptr);
-  if (e.type == CapType::MscWrite ||
-      (e.type == CapType::BotCbw && note_write)) {
+  const bool from_hook =
+      e.note[0] && strstr(e.note, "class_hook") != nullptr;
+  if (e.type == CapType::BotCbw && from_hook && e.payload_len >= 15) {
+    const uint8_t op = e.payload[15]; // CBW.command[0]
+    const bool is_write = (op == 0x2A);
+    out += is_write ? ",\"direction\":\"out\"" : ",\"direction\":\"in\"";
+    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"";
+    out += (op == 0x28) ? "READ_10" : (op == 0x2A) ? "WRITE_10" : "SCSI";
+    out += "\"";
+    out += ",\"scsi_opcode\":" + String(op);
+    out += ",\"lba\":" + String(e.arg0);
+    out += ",\"transfer_length\":" + String(e.arg1);
+    out += ",\"signature\":\"USBC\"";
+    out += ",\"source\":\"class_hook_mscd_xfer\"";
+    out += "}";
+  } else if (e.type == CapType::BotCsw && from_hook) {
+    out += ",\"direction\":\"in\"";
+    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"CSW\"";
+    out += ",\"residue\":" + String(e.arg1);
+    out += ",\"csw_status\":" + String(e.arg0);
+    out += ",\"signature\":\"USBS\"";
+    out += ",\"source\":\"class_hook_mscd_xfer\"";
+    out += "}";
+  } else if (e.type == CapType::MscWrite ||
+             (e.type == CapType::BotCbw && note_write)) {
     out += ",\"direction\":\"out\"";
     out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"WRITE_10\"";
     out += ",\"scsi_opcode\":42"; // 0x2A — decimal for valid JSON
@@ -151,7 +185,6 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
     out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"CSW\"";
     out += ",\"lba\":" + String(e.arg0);
     out += ",\"residue\":" + String(e.arg1);
-    // complete_cb notes are closer to BOT status stage than App onRead/onWrite
     const bool from_complete =
         e.note[0] && (strstr(e.note, "complete") != nullptr ||
                       strstr(e.note, "_done") != nullptr);
@@ -179,6 +212,15 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
   if (e.note[0]) {
     out += ",\"note\":\"";
     out += e.note;
+    out += "\"";
+  }
+  if (e.payload_len) {
+    out += ",\"payload_hex\":\"";
+    for (uint8_t i = 0; i < e.payload_len; i++) {
+      char hx[3];
+      snprintf(hx, sizeof(hx), "%02x", e.payload[i]);
+      out += hx;
+    }
     out += "\"";
   }
   out += "}";

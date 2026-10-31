@@ -70,6 +70,15 @@ public:
   bool proxyDutInfo(const String &peer_ip, DutInfoSnapshot &out,
                     String *err = nullptr);
 
+  /**
+   * Device→Host EP0 control IN/OUT (lab GET_DESCRIPTOR slice).
+   * Not transparent MITM — caller-initiated over WiFi.
+   */
+  bool proxyControlTransfer(const String &peer_ip, uint8_t bm_request_type,
+                            uint8_t b_request, uint16_t w_value,
+                            uint16_t w_index, uint8_t *data, uint16_t w_length,
+                            uint16_t *actual_len, String *err = nullptr);
+
   void closeProxySession();
 
   uint32_t txBytes() const { return tx_bytes_; }
@@ -84,6 +93,8 @@ public:
   bool hasLastResult() const { return has_last_; }
   const IntegrityResult &lastResult() const { return last_result_; }
   const String &lastPeer() const { return last_peer_; }
+
+  static uint32_t crc32(const uint8_t *data, size_t len);
 
 private:
   WiFiServer server_{kPort};
@@ -113,8 +124,8 @@ private:
   bool handleMscReq(WiFiClient &c, const uint8_t *hdr_bytes);
   bool handleMscWriteReq(WiFiClient &c, const uint8_t *hdr_bytes);
   bool handleDutInfoReq(WiFiClient &c, const uint8_t *hdr_bytes);
+  bool handleCtrlReq(WiFiClient &c, const uint8_t *hdr_bytes);
   bool ensureProxyClient(const String &peer_ip, String *err);
-  static uint32_t crc32(const uint8_t *data, size_t len);
   static void fillPattern(uint8_t *buf, uint32_t len, uint32_t seq);
   static bool checkPattern(const uint8_t *buf, uint32_t len, uint32_t seq);
   bool readExact(WiFiClient &c, uint8_t *buf, size_t n, uint32_t timeout_ms);

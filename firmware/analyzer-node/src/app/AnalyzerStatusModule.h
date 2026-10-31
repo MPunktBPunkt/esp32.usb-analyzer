@@ -39,7 +39,11 @@ private:
   void handleIntegrity();
   void handleLed();
   void handleUsbHostProbe();
+  void handleUsbHostRead();
   void handleUsbProxy();
+  void handleUsbProxySelftest();
+  void handleUsbCtrlForward();
+  void handleSyncMarker();
   void handleCapture();
 };
 

@@ -7,6 +7,8 @@
 #include "device/UsbDeviceNode.h"
 #include "host/UsbHostNode.h" // HostMscProbeResult
 #include "protocol/DataPlane.h"
+#include <cstring>
+#include <esp_timer.h>
 #include <usb_analyzer/Role.h>
 
 namespace usb_analyzer {
@@ -296,7 +298,9 @@ void AnalyzerStatusModule::handleUsbProxy() {
   device_->setProxy(data_, peer);
   String j = "{\"ok\":true,\"proxy\":true,\"peer\":\"";
   j += peer;
-  j += "\",\"note\":\"MITM wiring: Device OTG→PC, Host OTG→DUT; not OTG-loop\"}";
+  j += "\",\"note\":\"MITM wiring: Device OTG→PC, Host OTG→DUT; not OTG-loop\"";
+  j += ",\"identity\":\"async_apply_dut_snapshot_soft_reenum\"";
+  j += ",\"claim\":\"gadget_identity_from_dut_snapshot\"}";
   server_->send(200, F("application/json"), j);
 }
 
@@ -379,6 +383,149 @@ void AnalyzerStatusModule::handleUsbHostProbe() {
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }
 
+void AnalyzerStatusModule::handleUsbHostRead() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  uint32_t lba = 0;
+  uint32_t blocks = 4;
+  if (server_->hasArg("lba")) {
+    lba = static_cast<uint32_t>(server_->arg("lba").toInt());
+  }
+  if (server_->hasArg("blocks")) {
+    blocks = static_cast<uint32_t>(server_->arg("blocks").toInt());
+  }
+  if (blocks == 0 || blocks > 16) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"blocks_1_16\"}"));
+    return;
+  }
+  uint8_t *buf = static_cast<uint8_t *>(malloc(blocks * 512u));
+  if (!buf) {
+    server_->send(500, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"oom\"}"));
+    return;
+  }
+  const uint32_t t0 = millis();
+  const bool ok = host_->readBlocks(lba, blocks, buf);
+  const uint32_t dur = millis() - t0;
+  String j = "{\"ok\":";
+  j += ok ? "true" : "false";
+  j += ",\"lba\":";
+  j += String(lba);
+  j += ",\"blocks\":";
+  j += String(blocks);
+  j += ",\"bytes\":";
+  j += String(blocks * 512u);
+  j += ",\"duration_ms\":";
+  j += String(dur);
+  if (ok) {
+    char crcbuf[12];
+    snprintf(crcbuf, sizeof(crcbuf), "%08x",
+             DataPlane::crc32(buf, blocks * 512u));
+    j += ",\"crc32\":\"";
+    j += crcbuf;
+    j += "\",\"hex\":\"";
+    const uint32_t nbytes = blocks * 512u;
+    for (uint32_t i = 0; i < nbytes; i++) {
+      char hx[3];
+      snprintf(hx, sizeof(hx), "%02x", buf[i]);
+      j += hx;
+    }
+    j += "\"";
+  } else {
+    j += ",\"err\":\"msc_read_fail\"";
+  }
+  j += ",\"path\":\"usb_otg_host_dut_raw\"";
+  j += ",\"note\":\"direct_otg_not_wifi_mitm\"}";
+  free(buf);
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleUsbProxySelftest() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  if (!device_->proxyEnabled()) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"proxy_off\"}"));
+    return;
+  }
+  uint32_t lba = 0;
+  uint32_t blocks = 4;
+  if (server_->hasArg("lba")) {
+    lba = static_cast<uint32_t>(server_->arg("lba").toInt());
+  }
+  if (server_->hasArg("blocks")) {
+    blocks = static_cast<uint32_t>(server_->arg("blocks").toInt());
+  }
+  if (blocks == 0 || blocks > 16) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"blocks_1_16\"}"));
+    return;
+  }
+  uint8_t *buf = static_cast<uint8_t *>(malloc(blocks * 512u));
+  if (!buf) {
+    server_->send(500, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"oom\"}"));
+    return;
+  }
+  String err;
+  const uint32_t t0 = millis();
+  const bool ok = device_->selftestProxyRead(lba, blocks, buf, &err);
+  const uint32_t dur = millis() - t0;
+  String j = "{\"ok\":";
+  j += ok ? "true" : "false";
+  j += ",\"lba\":";
+  j += String(lba);
+  j += ",\"blocks\":";
+  j += String(blocks);
+  j += ",\"bytes\":";
+  j += String(blocks * 512u);
+  j += ",\"duration_ms\":";
+  j += String(dur);
+  j += ",\"proxyHits\":";
+  j += String(device_->proxyHits());
+  j += ",\"proxyFails\":";
+  j += String(device_->proxyFails());
+  if (ok) {
+    char crcbuf[12];
+    snprintf(crcbuf, sizeof(crcbuf), "%08x",
+             DataPlane::crc32(buf, blocks * 512u));
+    j += ",\"crc32\":\"";
+    j += crcbuf;
+    j += "\",\"hex\":\"";
+    const uint32_t nbytes = blocks * 512u;
+    for (uint32_t i = 0; i < nbytes; i++) {
+      char hx[3];
+      snprintf(hx, sizeof(hx), "%02x", buf[i]);
+      j += hx;
+    }
+    j += "\"";
+  } else {
+    j += ",\"err\":\"";
+    j += err.length() ? err : "fail";
+    j += "\"";
+  }
+  j += ",\"path\":\"device_proxy_to_host_dut\"";
+  j += ",\"claim\":\"msc_bulk_proxy_selftest\"";
+  j += ",\"note\":\"not_pc_path_not_transparent_mitm\"}";
+  free(buf);
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(ok ? 200 : 500, F("application/json"), j);
+}
+
 void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server_ = &server;
   server.on("/analyzer", HTTP_GET, [&server]() {
@@ -390,9 +537,164 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/integrity", HTTP_ANY, [this]() { handleIntegrity(); });
   server.on("/api/lab/usb-host-probe", HTTP_ANY,
             [this]() { handleUsbHostProbe(); });
+  server.on("/api/lab/usb-host-read", HTTP_ANY,
+            [this]() { handleUsbHostRead(); });
   server.on("/api/lab/usb-proxy", HTTP_ANY, [this]() { handleUsbProxy(); });
+  server.on("/api/lab/usb-proxy-selftest", HTTP_ANY,
+            [this]() { handleUsbProxySelftest(); });
+  server.on("/api/lab/usb-ctrl-forward", HTTP_ANY,
+            [this]() { handleUsbCtrlForward(); });
+  server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
+}
+
+void AnalyzerStatusModule::handleSyncMarker() {
+  if (!server_) {
+    return;
+  }
+  uint32_t nonce = static_cast<uint32_t>(millis());
+  if (server_->hasArg("nonce")) {
+    nonce = static_cast<uint32_t>(server_->arg("nonce").toInt());
+  }
+  const uint32_t ts = static_cast<uint32_t>(esp_timer_get_time());
+  CaptureLog::instance().push(CapRole::Plane, CapType::SyncMarker, 0, 0, nonce,
+                              ts, 0, "lab_sync");
+  String j = "{\"ok\":true,\"nonce\":";
+  j += String(nonce);
+  j += ",\"timestamp_us\":";
+  j += String(ts);
+  j += ",\"role\":\"";
+  j += roleName(role_);
+  j += "\",\"claim\":\"cross_node_offset_estimate\"";
+  j += ",\"note\":\"not_hard_us_lock\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(200, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleUsbCtrlForward() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  if (!data_) {
+    server_->send(500, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"no_dataplane\"}"));
+    return;
+  }
+  String peer = server_->arg("peer");
+  if (peer.isEmpty()) {
+    peer = "192.168.178.88";
+  }
+  String kind = server_->arg("desc");
+  kind.toLowerCase();
+  if (kind.isEmpty()) {
+    kind = "device";
+  }
+  uint8_t str_index = 2;
+  if (server_->hasArg("index")) {
+    str_index = static_cast<uint8_t>(server_->arg("index").toInt());
+  }
+
+  const uint8_t bm = 0x80;
+  const uint8_t br = 0x06; // GET_DESCRIPTOR
+  uint16_t wv = 0x0100;    // DEVICE
+  uint16_t wi = 0;
+  uint16_t wl = 18;
+  if (kind == "string") {
+    if (str_index < 1 || str_index > 3) {
+      server_->send(400, F("application/json"),
+                    F("{\"ok\":false,\"err\":\"string_index_1_3\"}"));
+      return;
+    }
+    wv = static_cast<uint16_t>(0x0300u | str_index);
+    wi = 0x0409; // en-US
+    wl = 64;
+  } else if (kind != "device") {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"desc_device_or_string\"}"));
+    return;
+  }
+
+  uint8_t buf[64];
+  memset(buf, 0, sizeof(buf));
+  uint16_t actual = 0;
+  String err;
+  const uint32_t t0 = millis();
+  const bool ok = data_->proxyControlTransfer(peer, bm, br, wv, wi, buf, wl,
+                                              &actual, &err);
+  const uint32_t dur = millis() - t0;
+
+  bool match = false;
+  char decoded[48] = {0};
+  if (ok && kind == "device" && actual >= 18) {
+    uint8_t local[18];
+    if (device_->copyLocalDeviceDescriptor(local)) {
+      match = (memcmp(buf, local, 18) == 0);
+    }
+  } else if (ok && kind == "string" && actual >= 2 && buf[1] == 0x03) {
+    // USB string: UTF-16LE after 2-byte header → ASCII decode
+    const uint8_t nchars = (buf[0] > 2) ? static_cast<uint8_t>((buf[0] - 2) / 2) : 0;
+    size_t di = 0;
+    for (uint8_t i = 0; i < nchars && di + 1 < sizeof(decoded); i++) {
+      decoded[di++] = static_cast<char>(buf[2 + i * 2]);
+    }
+    decoded[di] = '\0';
+    char local[48];
+    if (device_->localStringAscii(str_index, local, sizeof(local))) {
+      match = (strcmp(decoded, local) == 0);
+    }
+  }
+
+  String j = "{\"ok\":";
+  j += ok ? "true" : "false";
+  j += ",\"peer\":\"";
+  j += peer;
+  j += "\",\"desc\":\"";
+  j += kind;
+  j += "\",\"bmRequestType\":128,\"bRequest\":6,\"wValue\":";
+  j += String(wv);
+  j += ",\"wIndex\":";
+  j += String(wi);
+  j += ",\"wLength\":";
+  j += String(wl);
+  j += ",\"actual\":";
+  j += String(actual);
+  j += ",\"duration_ms\":";
+  j += String(dur);
+  j += ",\"match_local_desc\":";
+  j += match ? "true" : "false";
+  if (kind == "string" && decoded[0]) {
+    j += ",\"decoded\":\"";
+    j += decoded;
+    j += "\"";
+  }
+  if (ok && actual > 0) {
+    char crcbuf[12];
+    snprintf(crcbuf, sizeof(crcbuf), "%08x", DataPlane::crc32(buf, actual));
+    j += ",\"crc32\":\"";
+    j += crcbuf;
+    j += "\",\"hex\":\"";
+    for (uint16_t i = 0; i < actual; i++) {
+      char hx[3];
+      snprintf(hx, sizeof(hx), "%02x", buf[i]);
+      j += hx;
+    }
+    j += "\"";
+  } else if (err.length()) {
+    j += ",\"err\":\"";
+    j += err;
+    j += "\"";
+  }
+  j += ",\"path\":\"ep0_get_desc_forward_lab_loop\"";
+  j += ",\"claim\":\"ep0_get_desc_forward_lab_loop\"";
+  j += ",\"note\":\"not_usb_control_mitm\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(ok ? 200 : 500, F("application/json"), j);
 }
 
 void AnalyzerStatusModule::handleCapture() {

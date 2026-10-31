@@ -73,6 +73,14 @@ public:
   /** Fill Gate-4 DUT snapshot (descriptors + best-effort MSC inquiry). */
   bool fillDutSnapshot(DutInfoSnapshot &out);
 
+  /**
+   * Blocking EP0 control transfer against attached DUT (not from USB callback).
+   * Gate-4 lab control-forward substrate.
+   */
+  bool controlTransfer(uint8_t bm_request_type, uint8_t b_request,
+                       uint16_t w_value, uint16_t w_index, uint8_t *data,
+                       uint16_t w_length, uint16_t *actual_len);
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;
