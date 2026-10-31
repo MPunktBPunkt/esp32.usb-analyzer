@@ -62,6 +62,17 @@ public:
   /** Soft-reenum as Google accessory VID/PID after START (MSC IF remains). */
   void applyAoaAccessoryIdentity();
 
+  /** Lab soft disconnect/connect — Host sees Detach+Attach (not control MITM). */
+  void requestSoftReenum();
+
+  /**
+   * Lab HID keyboard inject (interrupt IN). ASCII or raw HID usage.
+   * Claim: hid_interrupt_lab_loop — NOT MITM / L0 / HU.
+   */
+  bool injectHidKey(uint8_t ascii_or_raw, bool raw = false);
+  bool hidEnabled() const { return hid_enabled_; }
+  uint32_t hidInjectCount() const { return hid_injects_; }
+
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
                      uint32_t bufsize);
@@ -99,6 +110,8 @@ private:
   uint16_t gadget_block_size_ = 512;
   uint16_t applied_vid_ = 0;
   uint16_t applied_pid_ = 0;
+  bool hid_enabled_ = false;
+  uint32_t hid_injects_ = 0;
 
   static constexpr size_t kWriteCache = 64; // covers typical lab write probe
   struct WriteCacheEntry {

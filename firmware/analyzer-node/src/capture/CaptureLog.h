@@ -25,6 +25,9 @@ enum class CapType : uint8_t {
   Error = 11,
   Overflow = 12,
   SyncMarker = 13,
+  HidInput = 14, // interrupt IN report (class callback — not L0 wire)
+  Suspend = 15,  // gadget/host stack notice — not L0
+  Resume = 16,
 };
 
 struct CapEvent {

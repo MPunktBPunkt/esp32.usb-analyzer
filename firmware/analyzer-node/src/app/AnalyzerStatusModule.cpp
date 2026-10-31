@@ -549,6 +549,11 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleAoaHandshake(); });
   server.on("/api/lab/aoa-bulk", HTTP_ANY, [this]() { handleAoaBulk(); });
   server.on("/api/lab/aoa-bcl", HTTP_ANY, [this]() { handleAoaBcl(); });
+  server.on("/api/lab/usb-enum-observe", HTTP_ANY,
+            [this]() { handleUsbEnumObserve(); });
+  server.on("/api/lab/hid-observe", HTTP_ANY, [this]() { handleHidObserve(); });
+  server.on("/api/lab/hid-inject", HTTP_ANY, [this]() { handleHidInject(); });
+  server.on("/api/lab/soft-reenum", HTTP_ANY, [this]() { handleSoftReenum(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -932,6 +937,171 @@ void AnalyzerStatusModule::handleAoaBcl() {
   j += ",\"note\":\"desk_header_fact_not_hu_wire\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleUsbEnumObserve() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  bool ep0 = true;
+  if (server_->hasArg("ep0")) {
+    const String v = server_->arg("ep0");
+    ep0 = !(v == "0" || v == "false" || v == "off");
+  }
+  const UsbHostNode::EnumObserveResult r = host_->runEnumObserve(ep0);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"dutPresent\":";
+  j += r.dut_present ? "true" : "false";
+  j += ",\"address\":";
+  j += String(r.address);
+  j += ",\"configurationValue\":";
+  j += String(r.configuration_value);
+  j += ",\"interfaces\":";
+  j += String(r.iface_count);
+  j += ",\"hidIface\":";
+  j += r.hid_iface ? "true" : "false";
+  j += ",\"getDescOk\":";
+  j += r.get_desc_ok ? "true" : "false";
+  j += ",\"getConfigOk\":";
+  j += r.get_config_ok ? "true" : "false";
+  j += ",\"getConfigMatch\":";
+  j += r.get_config_match ? "true" : "false";
+  j += ",\"getConfigByte\":";
+  j += String(r.get_config_byte);
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"usb_enum_outcome_lab\"";
+  j += ",\"note\":\"post_enum_stack_outcome_not_setup_mitm_not_l0\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleHidObserve() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  uint32_t wait_ms = 2000;
+  bool clear = true;
+  if (server_->hasArg("wait_ms")) {
+    wait_ms = static_cast<uint32_t>(server_->arg("wait_ms").toInt());
+  }
+  if (server_->hasArg("clear")) {
+    const String v = server_->arg("clear");
+    clear = !(v == "0" || v == "false" || v == "off");
+  }
+  const UsbHostNode::HidObserveResult r = host_->runHidObserve(wait_ms, clear);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"got\":";
+  j += r.got ? "true" : "false";
+  j += ",\"keycode\":";
+  j += String(r.keycode);
+  j += ",\"ascii\":";
+  j += String(r.ascii);
+  j += ",\"modifiers\":";
+  j += String(r.modifiers);
+  j += ",\"iface\":";
+  j += String(r.iface);
+  j += ",\"reportLen\":";
+  j += String(r.report_len);
+  j += ",\"reportHex\":\"";
+  for (uint8_t i = 0; i < r.report_len; i++) {
+    char hx[3];
+    snprintf(hx, sizeof(hx), "%02x", r.report[i]);
+    j += hx;
+  }
+  j += "\",\"age_ms\":";
+  j += String(r.age_ms);
+  j += ",\"reports\":";
+  j += String(r.report_count);
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"hid_interrupt_lab_loop\"";
+  j += ",\"note\":\"class_callback_not_l0_wire_not_hu\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleHidInject() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  uint8_t key = static_cast<uint8_t>('a');
+  bool raw = false;
+  if (server_->hasArg("ascii")) {
+    const String a = server_->arg("ascii");
+    if (a.length() > 0) {
+      key = static_cast<uint8_t>(a.charAt(0));
+    }
+  }
+  if (server_->hasArg("key")) {
+    key = static_cast<uint8_t>(strtoul(server_->arg("key").c_str(), nullptr, 0));
+  }
+  if (server_->hasArg("raw")) {
+    const String v = server_->arg("raw");
+    raw = (v == "1" || v == "true" || v == "on");
+  }
+  const bool ok = device_->injectHidKey(key, raw);
+  String j = "{\"ok\":";
+  j += ok ? "true" : "false";
+  j += ",\"key\":";
+  j += String(key);
+  j += ",\"raw\":";
+  j += raw ? "true" : "false";
+  j += ",\"injects\":";
+  j += String(device_->hidInjectCount());
+  if (!ok) {
+    j += ",\"err\":\"";
+    j += device_->hidEnabled() ? "inject_fail_or_unmounted" : "hid_disabled";
+    j += "\"";
+  }
+  j += ",\"claim\":\"hid_interrupt_lab_loop\"";
+  j += ",\"note\":\"gadget_inject_not_hu\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleSoftReenum() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  device_->requestSoftReenum();
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(
+      200, F("application/json"),
+      F("{\"ok\":true,\"scheduled\":true,\"claim\":\"usb_enum_outcome_lab\","
+        "\"note\":\"soft_reenum_not_control_mitm\"}"));
 }
 
 void AnalyzerStatusModule::handleCapture() {

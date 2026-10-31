@@ -3,6 +3,7 @@
 #if ANALYZER_ENABLE_USB_DEVICE
 
 #include "USB.h"
+#include "USBHIDKeyboard.h"
 #include "USBMSC.h"
 #include "USBVendor.h"
 #include "capture/CaptureLog.h"
@@ -19,6 +20,7 @@ namespace {
 
 USBMSC g_msc;
 USBVendor g_vendor(64);
+USBHIDKeyboard g_kbd;
 static uint8_t g_sector[512];
 static UsbDeviceNode *g_self = nullptr;
 
@@ -219,10 +221,14 @@ void onEvent(void *arg, esp_event_base_t event_base, int32_t event_id,
   }
   if (event_id == ARDUINO_USB_SUSPEND_EVENT) {
     g_self->notifySuspended(true);
+    CaptureLog::instance().push(CapRole::Device, CapType::Suspend, 0, 0, 0, 0, 0,
+                                "usb_suspend");
     Serial.println("[device] USB SUSPEND");
   }
   if (event_id == ARDUINO_USB_RESUME_EVENT) {
     g_self->notifySuspended(false);
+    CaptureLog::instance().push(CapRole::Device, CapType::Resume, 0, 0, 0, 0, 0,
+                                "usb_resume");
     Serial.println("[device] USB RESUME");
   }
 }
@@ -351,6 +357,33 @@ bool UsbDeviceNode::loadCachedSector(uint32_t lba, uint8_t *out512) const {
 void UsbDeviceNode::scheduleSoftReenum() {
   pending_reenum_ = true;
   reenum_at_ms_ = millis() + 80;
+}
+
+void UsbDeviceNode::requestSoftReenum() { scheduleSoftReenum(); }
+
+bool UsbDeviceNode::injectHidKey(uint8_t ascii_or_raw, bool raw) {
+  if (!hid_enabled_ || !mounted_) {
+    return false;
+  }
+  size_t n = 0;
+  if (raw) {
+    n = g_kbd.pressRaw(ascii_or_raw);
+    delay(15);
+    g_kbd.releaseRaw(ascii_or_raw);
+  } else {
+    n = g_kbd.press(ascii_or_raw);
+    delay(15);
+    g_kbd.release(ascii_or_raw);
+  }
+  delay(5);
+  g_kbd.releaseAll();
+  if (n == 0) {
+    return false;
+  }
+  hid_injects_++;
+  CaptureLog::instance().push(CapRole::Device, CapType::HidInput, 0, 1,
+                              ascii_or_raw, raw ? 1u : 0u, 0, "hid_inject");
+  return true;
 }
 
 void UsbDeviceNode::runSoftReenum() {
@@ -601,6 +634,10 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += String(proxy_fails_);
   json += ",\"proxyBytes\":";
   json += String(proxy_bytes_);
+  json += ",\"hid\":";
+  json += hid_enabled_ ? "true" : "false";
+  json += ",\"hidInjects\":";
+  json += String(hid_injects_);
   json += ",\"claim\":\"gadget_identity_from_dut_snapshot\"";
   AoaLabResponder::instance().appendStatusJson(json);
   json += ",\"proxiedDut\":{";
@@ -683,12 +720,16 @@ bool UsbDeviceNode::begin() {
   g_vendor.onRequest(onAoaVendorRequest);
   g_vendor.onEvent(onAoaVendorEvent);
   g_vendor.begin();
+  // HID keyboard IF — interrupt IN lab (MSC+Vendor+HID soft-composite).
+  g_kbd.begin();
+  hid_enabled_ = true;
 
   USB.begin();
   begin_ok_ = true;
   ready_ = true;
   mounted_ = static_cast<bool>(USB);
-  Serial.println("[device] USB.begin() issued — MSC+Vendor lab composite");
+  Serial.println(
+      "[device] USB.begin() issued — MSC+Vendor+HID lab composite");
   Serial.printf("[device] otg_state=%s id=%04x:%04x\n", otgState(),
                 g_dev_desc.idVendor, g_dev_desc.idProduct);
   (void)g_sector;
@@ -751,6 +792,8 @@ bool UsbDeviceNode::localStringAscii(uint8_t, char *, size_t) const {
 void UsbDeviceNode::setAoaRespond(bool, bool) {}
 bool UsbDeviceNode::aoaRespondEnabled() const { return false; }
 void UsbDeviceNode::applyAoaAccessoryIdentity() {}
+void UsbDeviceNode::requestSoftReenum() {}
+bool UsbDeviceNode::injectHidKey(uint8_t, bool) { return false; }
 bool UsbDeviceNode::writeThroughProxy(uint32_t, uint32_t, const uint8_t *,
                                       uint32_t) {
   return false;

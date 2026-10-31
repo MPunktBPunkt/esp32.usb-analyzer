@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.34-blue)
+![Version](https://img.shields.io/badge/version-0.0.35-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.34** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + selftest, class-hook CBW/CSW, sync-offset, EP0 forward, Lab AOA + **BCL host-units / RX-parse / lab series**.  
+> **v0.0.35** Zwischenstand — MSC/AOA/BCL lab + **enum-outcome (address/config)** + **HID interrupt** (Device inject / Host observe).  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -43,7 +43,7 @@ Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debi
 | **A — DIRECT** | ESP1 ══ TCP ══ ESP2 | Gate 3 bulk + Gate 4 MSC-proxy slice |
 | **B — RELAY** | via Debian | discovery/control; USB data not relayed yet |
 
-## What we can measure today (0.0.34)
+## What we can measure today (0.0.35)
 
 Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) · AOA: [`LAB_AOA_HANDSHAKE_MEASURED.md`](docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md)
 
@@ -69,6 +69,8 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **AOA capture decode** | `decoded.protocol=aoa` on Host capture | GET_PROTOCOL / SEND_STRING / START | EP0 lab markers — **not** wire |
 | **AOA vendor-bulk echo** | Host `/api/lab/aoa-bulk` · verify `--bulk` | byte-exact echo (TinyUSB FIFO path) | Lab Rohr MSC+Vendor — **not** BCL/HU |
 | **Lab BCL on AOA bulk** | 8-byte BE + init; Host RX parse; `--series` / host units | HANDSHAKE/DATA/empty echo + unit negatives | Desk FACT framing — **not** HU wire |
+| **USB enum outcome** | `/api/lab/usb-enum-observe` + optional soft-reenum | address≠0, config≠0, GET_CONFIGURATION match | Post-enum stack — **not** SETUP MITM / L0 |
+| **HID interrupt** | Device `/api/lab/hid-inject` → Host `/api/lab/hid-observe` | keycode/report via EspUsbHost callback | Class IRQ — **not** L0 / HU |
 | **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
 
 ### ESP Web UI (per node, port 80)
@@ -96,6 +98,8 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_aoa_handshake_verify.py --bulk         # + vendor bulk echo after re-enum
 ./tools/lab_aoa_bcl_verify.py --series             # BCL HANDSHAKE/DATA/empty + host units
 ./tools/lab_aoa_bcl_verify.py --unit-only          # BclLabFrame.h host tests (no hardware)
+./tools/lab_usb_enum_observe.py --reenum           # address/config + soft-reenum cycle
+./tools/lab_hid_interrupt_verify.py                # HID interrupt Device→Host
 ./tools/lab_perf_sweep.py
 ./tools/lab_baseline_campaign.py                 # USB + TCP campaign → docs/evidence/
 ```

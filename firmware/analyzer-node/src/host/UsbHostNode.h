@@ -151,6 +151,46 @@ public:
                                   size_t payload_len = 0,
                                   bool explicit_payload = false);
 
+  /**
+   * Post-enum USB state outcome + caller EP0 GET_DESCRIPTOR/GET_CONFIGURATION.
+   * Claim: usb_enum_outcome_lab — NOT mid-enum SETUP MITM / L0 / SET_ADDRESS wire.
+   */
+  struct EnumObserveResult {
+    bool ok = false;
+    bool dut_present = false;
+    uint8_t address = 0;
+    uint8_t configuration_value = 0;
+    uint8_t iface_count = 0;
+    bool hid_iface = false;
+    bool get_desc_ok = false;
+    bool get_config_ok = false;
+    bool get_config_match = false;
+    uint8_t get_config_byte = 0;
+    uint32_t duration_ms = 0;
+    String error;
+  };
+  EnumObserveResult runEnumObserve(bool ep0_probe = true);
+
+  /**
+   * Wait for HID interrupt report from DUT (EspUsbHost keyboard/HID callback).
+   * Claim: hid_interrupt_lab_loop — NOT wire / MITM / HU.
+   */
+  struct HidObserveResult {
+    bool ok = false;
+    bool got = false;
+    uint8_t keycode = 0;
+    uint8_t ascii = 0;
+    uint8_t modifiers = 0;
+    uint8_t iface = 0;
+    uint8_t report_len = 0;
+    uint8_t report[16]{};
+    uint32_t age_ms = 0;
+    uint32_t duration_ms = 0;
+    uint32_t report_count = 0;
+    String error;
+  };
+  HidObserveResult runHidObserve(uint32_t wait_ms = 2000, bool clear = true);
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;
@@ -170,9 +210,26 @@ private:
   String dut_product_;
   String dut_serial_;
   String dut_speed_;
+  uint8_t dut_cfg_ = 0;
+  uint8_t dut_iface_count_ = 0;
+  bool dut_hid_iface_ = false;
+
+  // Last HID interrupt report (Host callback cache)
+  volatile bool hid_armed_ = false;
+  volatile bool hid_got_ = false;
+  uint8_t hid_keycode_ = 0;
+  uint8_t hid_ascii_ = 0;
+  uint8_t hid_modifiers_ = 0;
+  uint8_t hid_iface_ = 0;
+  uint8_t hid_report_len_ = 0;
+  uint8_t hid_report_[16]{};
+  uint32_t hid_last_ms_ = 0;
+  uint32_t hid_report_count_ = 0;
 
   void printNoDeviceHints() const;
   void clearDut();
+  void noteHidReport(uint8_t keycode, uint8_t ascii, uint8_t modifiers,
+                     uint8_t iface, const uint8_t *data, size_t len);
 };
 
 } // namespace usb_analyzer

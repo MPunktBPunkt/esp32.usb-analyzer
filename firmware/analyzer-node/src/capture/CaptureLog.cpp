@@ -102,6 +102,12 @@ const char *CaptureLog::typeName(CapType t) {
     return "overflow";
   case CapType::SyncMarker:
     return "sync_marker";
+  case CapType::HidInput:
+    return "hid_input";
+  case CapType::Suspend:
+    return "suspend";
+  case CapType::Resume:
+    return "resume";
   default:
     return "unknown";
   }

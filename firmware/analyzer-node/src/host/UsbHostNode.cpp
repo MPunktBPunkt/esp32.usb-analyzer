@@ -122,6 +122,30 @@ void UsbHostNode::clearDut() {
   dut_product_ = "";
   dut_serial_ = "";
   dut_speed_ = "";
+  dut_cfg_ = 0;
+  dut_iface_count_ = 0;
+  dut_hid_iface_ = false;
+}
+
+void UsbHostNode::noteHidReport(uint8_t keycode, uint8_t ascii,
+                                uint8_t modifiers, uint8_t iface,
+                                const uint8_t *data, size_t len) {
+  hid_keycode_ = keycode;
+  hid_ascii_ = ascii;
+  hid_modifiers_ = modifiers;
+  hid_iface_ = iface;
+  hid_report_len_ = static_cast<uint8_t>(len > sizeof(hid_report_)
+                                             ? sizeof(hid_report_)
+                                             : len);
+  if (data && hid_report_len_) {
+    memcpy(hid_report_, data, hid_report_len_);
+  }
+  hid_last_ms_ = millis();
+  hid_report_count_++;
+  hid_got_ = true;
+  CaptureLog::instance().pushPayload(
+      CapRole::Host, CapType::HidInput, 0, hid_report_len_, keycode, ascii, 0,
+      "hid_irq", hid_report_, hid_report_len_);
 }
 
 bool UsbHostNode::fillDutSnapshot(DutInfoSnapshot &out) {
@@ -186,6 +210,21 @@ bool UsbHostNode::begin() {
     dut_product_ = d.product ? d.product : "";
     dut_serial_ = d.serial ? d.serial : "";
     dut_speed_ = speedName(d.speed);
+    dut_cfg_ = d.configurationValue;
+    dut_iface_count_ = d.configurationInterfaceCount;
+    dut_hid_iface_ = false;
+    EspUsbHostInterfaceInfo interfaces[ESP_USB_HOST_MAX_INTERFACES];
+    const size_t n =
+        g_usb.getInterfaces(d.address, interfaces, ESP_USB_HOST_MAX_INTERFACES);
+    if (n > 0) {
+      dut_iface_count_ = static_cast<uint8_t>(n);
+    }
+    for (size_t i = 0; i < n; i++) {
+      if (interfaces[i].interfaceClass == 0x03) {
+        dut_hid_iface_ = true;
+        break;
+      }
+    }
     CaptureLog::instance().push(CapRole::Host, CapType::Attach, 0, 0, d.vid,
                                 d.pid, 0, speedName(d.speed));
     // note carries truncated product for Gate-7 inspector (≤23 chars)
@@ -197,6 +236,10 @@ bool UsbHostNode::begin() {
     }
     CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, d.address,
                                 d.vid, d.pid, 0, prod);
+    // Post-enum outcome: address + bConfigurationValue (NOT mid-enum SETUP).
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, dut_cfg_,
+                                d.address, dut_iface_count_, 0,
+                                dut_hid_iface_ ? "cfg_hid" : "cfg_outcome");
   });
 
   g_usb.onDeviceDisconnected([this](const EspUsbHostDeviceInfo &d) {
@@ -206,6 +249,36 @@ bool UsbHostNode::begin() {
     CaptureLog::instance().push(CapRole::Host, CapType::Detach, 0, 0, d.vid,
                                 d.pid, 0, "removed");
     clearDut();
+  });
+
+  g_usb.onKeyboard([this](const EspUsbHostKeyboardEvent &ev) {
+    if (ev.pressed || ev.keycode != 0 || ev.ascii != 0) {
+      noteHidReport(ev.keycode, ev.ascii, ev.modifiers, ev.interfaceNumber,
+                    ev.rawData ? ev.rawData : ev.reportData,
+                    ev.rawData ? ev.rawLength : ev.reportLength);
+    }
+  });
+  g_usb.onHIDInput([this](const EspUsbHostHIDInput &in) {
+    // Fallback path if keyboard parser does not fire (raw interrupt report).
+    if (in.length == 0 || !in.data) {
+      return;
+    }
+    bool nonzero = false;
+    for (size_t i = 0; i < in.length; i++) {
+      if (in.data[i]) {
+        nonzero = true;
+        break;
+      }
+    }
+    if (!nonzero) {
+      return; // ignore empty / key-up
+    }
+    uint8_t kc = 0;
+    if (in.length >= 3) {
+      kc = in.data[2]; // boot keyboard key[0]
+    }
+    noteHidReport(kc, 0, in.length >= 1 ? in.data[0] : 0, in.interfaceNumber,
+                  in.data, in.length);
   });
 
   begin_ok_ = g_usb.begin();
@@ -277,6 +350,12 @@ void UsbHostNode::appendStatusJson(String &json) const {
     json += String(dut_pid_);
     json += ",\"address\":";
     json += String(dut_address_);
+    json += ",\"configurationValue\":";
+    json += String(dut_cfg_);
+    json += ",\"interfaces\":";
+    json += String(dut_iface_count_);
+    json += ",\"hidIface\":";
+    json += dut_hid_iface_ ? "true" : "false";
     json += ",\"speed\":\"";
     json += dut_speed_;
     json += "\",\"manufacturer\":\"";
@@ -287,6 +366,14 @@ void UsbHostNode::appendStatusJson(String &json) const {
     json += dut_serial_;
     json += "\"";
   }
+  json += "}";
+  json += ",\"hid\":{";
+  json += "\"reports\":";
+  json += String(hid_report_count_);
+  json += ",\"lastKeycode\":";
+  json += String(hid_keycode_);
+  json += ",\"lastAscii\":";
+  json += String(hid_ascii_);
   json += "}";
   if (has_last_probe_) {
     const HostMscProbeResult &p = last_probe_;
@@ -899,6 +986,99 @@ UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(
   return r;
 }
 
+UsbHostNode::EnumObserveResult UsbHostNode::runEnumObserve(bool ep0_probe) {
+  EnumObserveResult r;
+  const uint32_t t0 = millis();
+  r.dut_present = dut_present_ && deviceCount() > 0;
+  if (!r.dut_present) {
+    r.error = begin_ok_ ? "no_dut" : "host_disabled";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  r.address = dut_address_;
+  r.configuration_value = dut_cfg_;
+  r.iface_count = dut_iface_count_;
+  r.hid_iface = dut_hid_iface_;
+
+  if (ep0_probe) {
+    uint8_t desc[18];
+    memset(desc, 0, sizeof(desc));
+    uint16_t actual = 0;
+    // GET_DESCRIPTOR(DEVICE) — caller-initiated EP0, not mid-enum sniff.
+    r.get_desc_ok =
+        controlTransfer(0x80, 0x06, 0x0100, 0, desc, 18, &actual) && actual >= 18;
+
+    uint8_t cfg = 0;
+    actual = 0;
+    // GET_CONFIGURATION
+    r.get_config_ok =
+        controlTransfer(0x80, 0x08, 0, 0, &cfg, 1, &actual) && actual >= 1;
+    r.get_config_byte = cfg;
+    r.get_config_match =
+        r.get_config_ok && (cfg == r.configuration_value) && (cfg != 0);
+    CaptureLog::instance().push(
+        CapRole::Host, CapType::EnumInfo, r.get_config_match ? 0 : 1, cfg,
+        r.address, r.configuration_value, 0, "get_config");
+  } else {
+    r.get_desc_ok = true;
+    r.get_config_ok = true;
+    r.get_config_match = r.configuration_value != 0;
+  }
+
+  r.ok = r.dut_present && r.address != 0 && r.configuration_value != 0 &&
+         (!ep0_probe || (r.get_desc_ok && r.get_config_match));
+  if (!r.ok && r.error.length() == 0) {
+    r.error = !r.get_desc_ok
+                  ? "get_desc_fail"
+                  : (!r.get_config_ok ? "get_config_fail" : "cfg_mismatch");
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
+UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t wait_ms,
+                                                         bool clear) {
+  HidObserveResult r;
+  const uint32_t t0 = millis();
+  if (!begin_ok_) {
+    r.error = "host_disabled";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  if (deviceCount() == 0) {
+    r.error = "no_dut";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  if (clear) {
+    hid_got_ = false;
+    hid_armed_ = true;
+  }
+  const uint32_t deadline = millis() + wait_ms;
+  while (millis() < deadline) {
+    if (hid_got_) {
+      break;
+    }
+    delay(5);
+  }
+  hid_armed_ = false;
+  r.got = hid_got_;
+  r.keycode = hid_keycode_;
+  r.ascii = hid_ascii_;
+  r.modifiers = hid_modifiers_;
+  r.iface = hid_iface_;
+  r.report_len = hid_report_len_;
+  memcpy(r.report, hid_report_, sizeof(r.report));
+  r.report_count = hid_report_count_;
+  r.age_ms = hid_last_ms_ ? (millis() - hid_last_ms_) : 0xffffffffu;
+  r.ok = r.got && (r.keycode != 0 || r.ascii != 0 || r.report_len > 0);
+  if (!r.ok && r.error.length() == 0) {
+    r.error = "timeout_no_hid";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
 void UsbHostNode::printNoDeviceHints() const {
   Serial.println();
   Serial.println("--- no device enumerated (check order) ---");
@@ -980,6 +1160,18 @@ UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t, uint16_t,
   r.error = "host_disabled";
   return r;
 }
+UsbHostNode::EnumObserveResult UsbHostNode::runEnumObserve(bool) {
+  EnumObserveResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t, bool) {
+  HidObserveResult r;
+  r.error = "host_disabled";
+  return r;
+}
+void UsbHostNode::noteHidReport(uint8_t, uint8_t, uint8_t, uint8_t,
+                                const uint8_t *, size_t) {}
 
 } // namespace usb_analyzer
 

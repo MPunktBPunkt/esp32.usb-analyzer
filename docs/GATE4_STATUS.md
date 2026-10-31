@@ -22,6 +22,8 @@
 | Lab AOA vendor-bulk echo (soft-composite) | done (0.0.32) — TinyUSB FIFO echo; Host continuous RX; **not** BCL |
 | Lab BCL frame on AOA bulk | done (0.0.33) — init+HANDSHAKE echo; **not** HU wire |
 | BCL host units + RX parse + lab series | done (0.0.34) — `tests/host/`, DATA/`plhex`/empty; **not** HU wire |
+| USB enum outcome (addr/config + GET_CONFIGURATION) | done (0.0.35) — post-enum; soft-reenum optional; **not** SETUP MITM |
+| HID interrupt lab (keyboard inject→Host) | done (0.0.35) — MSC+Vendor+HID composite; **not** L0/HU |
 | Live SETUP interception / transparent control MITM | **not yet** |
 | Transparency claim | **not claimed** |
 

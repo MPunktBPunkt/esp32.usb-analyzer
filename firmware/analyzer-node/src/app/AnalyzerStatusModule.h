@@ -47,6 +47,10 @@ private:
   void handleAoaHandshake();
   void handleAoaBulk();
   void handleAoaBcl();
+  void handleUsbEnumObserve();
+  void handleHidObserve();
+  void handleHidInject();
+  void handleSoftReenum();
   void handleSyncMarker();
   void handleCapture();
 };
