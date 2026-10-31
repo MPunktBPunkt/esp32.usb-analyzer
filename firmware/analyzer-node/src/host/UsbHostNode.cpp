@@ -754,9 +754,9 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
     return r;
   }
 
-  // Prefer on-demand reads; continuous can also work if Device echoes slowly.
+  // Continuous IN first so Device echo can land while we still hold the pipe.
   if (!g_usb.vendorOpen(ESP_USB_HOST_ANY_ADDRESS, 0xff,
-                        ESP_USB_HOST_VENDOR_READ_ON_DEMAND, 64)) {
+                        ESP_USB_HOST_VENDOR_READ_CONTINUOUS, 64)) {
     r.error = "vendor_open_fail";
     r.duration_ms = millis() - t0;
     CaptureLog::instance().push(CapRole::Host, CapType::Error, 1, 0, dut_vid_,
@@ -776,6 +776,7 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
     return r;
   }
 
+  delay(20); // Device loop polls TinyUSB FIFO
   if (!g_usb.vendorWrite(reinterpret_cast<const uint8_t *>(msg), n)) {
     r.error = "vendor_write_fail";
     r.duration_ms = millis() - t0;
@@ -785,14 +786,26 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
   CaptureLog::instance().push(CapRole::Host, CapType::TcpBulk, 0, r.tx, 0, 0, 0,
                               "aoa_bulk_out");
 
-  // Yield so Device event/loop can echo before IN.
-  for (int i = 0; i < 10; i++) {
-    delay(20);
-  }
+  // Drain continuous RX / fallback sync for up to ~2s
   uint8_t buf[64];
   memset(buf, 0, sizeof(buf));
   size_t actual = 0;
-  if (!g_usb.vendorReadSync(buf, sizeof(buf), &actual, 2000)) {
+  const uint32_t deadline = millis() + 2000;
+  while (millis() < deadline && actual < n) {
+    size_t got = g_usb.vendorRead(buf + actual, sizeof(buf) - actual);
+    if (got > 0) {
+      actual += got;
+      continue;
+    }
+    delay(10);
+  }
+  if (actual == 0) {
+    size_t sync_got = 0;
+    if (g_usb.vendorReadSync(buf, sizeof(buf), &sync_got, 500)) {
+      actual = sync_got;
+    }
+  }
+  if (actual == 0) {
     r.error = "vendor_read_fail";
     r.duration_ms = millis() - t0;
     return r;

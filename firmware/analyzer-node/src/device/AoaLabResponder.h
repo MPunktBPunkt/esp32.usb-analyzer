@@ -42,6 +42,8 @@ public:
   uint32_t stringBytes() const { return string_bytes_; }
   uint32_t bulkRx() const { return bulk_rx_; }
   uint32_t bulkTx() const { return bulk_tx_; }
+  uint32_t bulkFifo() const { return bulk_fifo_; }
+  uint32_t bulkPolls() const { return bulk_polls_; }
   uint8_t lastStringIndex() const { return last_string_index_; }
   const char *lastString() const { return last_string_; }
 
@@ -71,6 +73,8 @@ private:
   uint32_t string_bytes_ = 0;
   uint32_t bulk_rx_ = 0;
   uint32_t bulk_tx_ = 0;
+  uint32_t bulk_fifo_ = 0;
+  uint32_t bulk_polls_ = 0;
   uint8_t last_string_index_ = 0xff;
   char last_string_[48] = {0};
   uint8_t string_scratch_[64] = {0};

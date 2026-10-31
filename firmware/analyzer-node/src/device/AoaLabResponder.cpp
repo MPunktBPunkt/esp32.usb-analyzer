@@ -26,7 +26,7 @@ void AoaLabResponder::setEnabled(bool on) {
 
 void AoaLabResponder::resetCounters() {
   setup_count_ = aoa51_ = aoa52_ = aoa53_ = aoa51_ok_ = 0;
-  string_bytes_ = bulk_rx_ = bulk_tx_ = 0;
+  string_bytes_ = bulk_rx_ = bulk_tx_ = bulk_fifo_ = bulk_polls_ = 0;
   last_string_index_ = 0xff;
   last_string_[0] = '\0';
   string_scratch_len_ = 0;
@@ -69,6 +69,12 @@ void AoaLabResponder::appendStatusJson(String &json) const {
   json += String(bulk_rx_);
   json += ",\"bulkTx\":";
   json += String(bulk_tx_);
+  json += ",\"bulkFifo\":";
+  json += String(bulk_fifo_);
+  json += ",\"bulkPolls\":";
+  json += String(bulk_polls_);
+  json += ",\"tudVendorAvail\":";
+  json += String(static_cast<unsigned>(tud_vendor_n_available(0)));
   json += ",\"lastStringIndex\":";
   json += String(last_string_index_);
   if (last_string_[0]) {
@@ -82,15 +88,43 @@ void AoaLabResponder::appendStatusJson(String &json) const {
 }
 
 void AoaLabResponder::pollBulkEcho() {
-  // Echo whenever vendor is mounted — respond gate only for EP0 AOA.
-  // (Host may bulk-test after START while Device loop is busy with re-enum.)
-  if (!bulk_echo_ || !vendor_) {
+  // Echo via TinyUSB vendor FIFO first (bypass Arduino RX queue), then USBVendor.
+  if (!bulk_echo_) {
     return;
   }
-  if (!vendor_->mounted()) {
-    return;
-  }
+  bulk_polls_++;
   uint8_t buf[64];
+
+  // Path A: TinyUSB class FIFO (itf 0) — works even if USBVendor queue misses.
+  if (tud_vendor_n_mounted(0)) {
+    uint32_t avail = tud_vendor_n_available(0);
+    if (avail > bulk_fifo_) {
+      bulk_fifo_ = avail;
+    }
+    int guard = 0;
+    while (avail > 0 && guard++ < 8) {
+      const uint32_t n = tud_vendor_n_read(0, buf, sizeof(buf));
+      if (n == 0) {
+        break;
+      }
+      bulk_rx_ += n;
+      uint32_t w = 0;
+      if (tud_vendor_n_write_available(0) >= n) {
+        w = tud_vendor_n_write(0, buf, n);
+        tud_vendor_n_write_flush(0);
+      }
+      bulk_tx_ += w;
+      CaptureLog::instance().push(CapRole::Device, CapType::TcpBulk,
+                                  (w == n) ? 0 : 1, n, w, 0, 0,
+                                  (w == n) ? "aoa_tud_echo" : "aoa_tud_short");
+      avail = tud_vendor_n_available(0);
+    }
+  }
+
+  // Path B: Arduino USBVendor queue (DATA event / Stream API)
+  if (!vendor_ || !vendor_->mounted()) {
+    return;
+  }
   int guard = 0;
   while (vendor_->available() > 0 && guard++ < 8) {
     const int n = vendor_->read(buf, sizeof(buf));
@@ -98,17 +132,14 @@ void AoaLabResponder::pollBulkEcho() {
       break;
     }
     bulk_rx_ += static_cast<uint32_t>(n);
-    // No delay here — may run from USBVendor DATA event (USB task).
     const size_t w = vendor_->write(buf, static_cast<size_t>(n));
     bulk_tx_ += static_cast<uint32_t>(w);
-    if (enabled_) {
-      CaptureLog::instance().push(CapRole::Device, CapType::TcpBulk,
-                                  (w == static_cast<size_t>(n)) ? 0 : 1,
-                                  static_cast<uint32_t>(n),
-                                  static_cast<uint32_t>(w), 0, 0,
-                                  (w == static_cast<size_t>(n)) ? "aoa_bulk_echo"
-                                                                : "aoa_bulk_short");
-    }
+    CaptureLog::instance().push(CapRole::Device, CapType::TcpBulk,
+                                (w == static_cast<size_t>(n)) ? 0 : 1,
+                                static_cast<uint32_t>(n),
+                                static_cast<uint32_t>(w), 0, 0,
+                                (w == static_cast<size_t>(n)) ? "aoa_bulk_echo"
+                                                              : "aoa_bulk_short");
   }
 }
 

@@ -1,9 +1,9 @@
 # Lab AOA control handshake — MEASURED (OTG loop)
 
 **Date:** 2026-10-31  
-**Firmware:** Host/Device **0.0.30**  
-**Topology:** `.88` Host OTG ↔ USB-C ↔ `.89` Device MSC gadget  
-**Repro:** `./tools/lab_aoa_handshake_verify.py`
+**Firmware:** Host/Device **0.0.32** (handshake since 0.0.29/30; bulk echo 0.0.32)  
+**Topology:** `.88` Host OTG ↔ USB-C ↔ `.89` Device MSC+Vendor soft-composite  
+**Repro:** `./tools/lab_aoa_handshake_verify.py` · bulk: `… --bulk`
 
 Classification: **MEASURED** (this lab). Desk FACT path from
 `technology-audit/technologies/usb-aoa` + hu-probe C1b lab notes.
@@ -15,8 +15,9 @@ Classification: **MEASURED** (this lab). Desk FACT path from
 |----------|----------------|
 | EP0 AOA 51→52×6→53 on OTG loop | HU Connected / BCL framing |
 | Device EP0 responder + Host accessory role | Phone/AAIdrive UI |
-| Soft-reenum VID/PID → `18d1:2d00` | Accessory bulk IN/OUT Rohr |
+| Soft-reenum VID/PID → `18d1:2d00` | BCL framing on bulk |
 | Lab A (respond ON) / Lab B (respond OFF) | Transparent MITM |
+| Vendor bulk OUT/IN echo (lab Rohr) | HU Connected |
 
 ## MEASURED (Lab A, profile=`lab`)
 
@@ -30,6 +31,17 @@ Classification: **MEASURED** (this lab). Desk FACT path from
 | Capture decode | Host `decoded.protocol=aoa` · `GET_PROTOCOL`/`SEND_STRING`/`START` |
 
 Device counters after Lab A: `aoa51=1` / `aoa52=6` / `aoa53=1` / `aoa51Ok=1`.
+
+## MEASURED (Lab bulk echo, 0.0.32)
+
+| Step | Result |
+|------|--------|
+| Host `vendorOpen` continuous | **PASS** — EP OUT `0x02` / IN `0x82`, MPS 64 |
+| Host bulk OUT `AOA-LAB` (7 B) | **PASS** |
+| Device TinyUSB FIFO RX → echo TX | **PASS** — `bulkRx=7` `bulkTx=7` |
+| Host RX match | **PASS** — `duration_ms≈30` |
+
+Root cause of 0.0.31 gap: Arduino `USBVendor` RX queue alone missed OUT; fix = poll `tud_vendor_n_available/read/write` in Device loop + Host continuous IN drain.
 
 ## Lab B (responder OFF)
 
@@ -48,5 +60,6 @@ AOA AOSP defines **order**, not handshake deadlines. Documented elsewhere:
 | Claim | Class |
 |-------|-------|
 | ESP Host can drive AOA control against ESP Device responder | **MEASURED** |
-| Soft-reenum presents Google accessory VID/PID (MSC IF remains) | **MEASURED** |
+| Soft-reenum presents Google accessory VID/PID (MSC+Vendor composite) | **MEASURED** |
+| Vendor bulk echo Host↔Device after/without START | **MEASURED** (lab Rohr) |
 | This proves HU AOA or BCL-on-Bulk | **REJECTED** / not claimed |
