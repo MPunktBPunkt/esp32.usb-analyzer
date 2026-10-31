@@ -35,6 +35,16 @@
         <button type="button" id="btn-cap-pause">Pause</button>
         <button type="button" id="btn-cap-clear">Clear lanes</button>
       </div>
+      <div class="filters" id="cap-filters">
+        <label><input type="checkbox" data-f="attach" checked /> attach</label>
+        <label><input type="checkbox" data-f="enum" checked /> enum</label>
+        <label><input type="checkbox" data-f="msc" checked /> msc</label>
+        <label><input type="checkbox" data-f="bot" checked /> bot</label>
+        <label><input type="checkbox" data-f="proxy" checked /> proxy</label>
+        <label><input type="checkbox" data-f="tcp" checked /> tcp</label>
+        <label><input type="checkbox" data-f="other" checked /> other</label>
+      </div>
+      <div class="stats" id="cap-stats">host — · device —</div>
       <pre id="cap-inspect" class="inspect">select an event…</pre>
     </section>
 

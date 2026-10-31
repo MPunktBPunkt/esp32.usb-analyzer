@@ -9,7 +9,9 @@
 | Controller proxy `GET /api/v1/capture?role=` · `/api/v1/capture/dual` | done |
 | Debian lab UI Host/Device capture lanes | done |
 | `timestamp_domain=local_per_node` labeled | done |
-| Packet inspector / filter / sync µs | **not yet** |
+| Packet inspector (click → JSON) | done (0.0.19+) |
+| Event type filters + live stats | done (0.0.22) |
+| Sync µs / cross-node align | **not yet** |
 | Claim synchronized dual clocks | **REJECTED** until Gate 8 |
 
 ## API

@@ -5,13 +5,27 @@ const capHost = document.getElementById("cap-host");
 const capDevice = document.getElementById("cap-device");
 const capMetaHost = document.getElementById("cap-meta-host");
 const capMetaDevice = document.getElementById("cap-meta-device");
+const capStats = document.getElementById("cap-stats");
 
 let capPaused = false;
 let sinceHost = 0;
 let sinceDevice = 0;
 const seenHost = new Set();
 const seenDevice = new Set();
+const allHost = [];
+const allDevice = [];
 const MAX_ROWS = 120;
+const MAX_STORE = 400;
+
+const filters = {
+  attach: true,
+  enum: true,
+  msc: true,
+  bot: true,
+  proxy: true,
+  tcp: true,
+  other: true,
+};
 
 function log(line) {
   const t = new Date().toISOString().slice(11, 19);
@@ -88,11 +102,27 @@ nodesEl.addEventListener("click", async (ev) => {
   }
 });
 
+function filterBucket(et) {
+  const t = et || "";
+  if (t === "attach" || t === "detach") return "attach";
+  if (t === "enum_info") return "enum";
+  if (t.startsWith("msc_") && !t.includes("proxy")) return "msc";
+  if (t.startsWith("bot_")) return "bot";
+  if (t.includes("proxy")) return "proxy";
+  if (t === "tcp_bulk") return "tcp";
+  return "other";
+}
+
+function passesFilter(e) {
+  return !!filters[filterBucket(e.event_type)];
+}
+
 function fmtEvent(e) {
   const dec = e.decoded || {};
   const cmd = dec.command || "";
   const lba = dec.lba != null ? ` lba=${dec.lba}` : "";
   const n = dec.transfer_length != null ? ` n=${dec.transfer_length}` : "";
+  const prod = dec.product ? ` ${dec.product}` : "";
   const note = e.note ? ` ${e.note}` : "";
   const t = ((e.timestamp_us || 0) / 1000).toFixed(1);
   return {
@@ -100,7 +130,7 @@ function fmtEvent(e) {
     html:
       `<span class="t">${t}ms</span> ` +
       `<span class="et">${e.event_type || "?"}</span> ` +
-      `<span class="cmd">${cmd}</span>${lba}${n}` +
+      `<span class="cmd">${cmd}</span>${lba}${n}${prod}` +
       `<span class="note">${note}</span>`,
   };
 }
@@ -112,12 +142,30 @@ function showInspect(e) {
   inspectEl.textContent = JSON.stringify(e, null, 2);
 }
 
-function appendEvents(listEl, seen, events) {
-  if (!listEl || !events || !events.length) return;
-  for (const e of events) {
-    const key = `${e.node_id || ""}:${e.seq}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+function recount(list) {
+  const c = {};
+  for (const e of list) {
+    const b = filterBucket(e.event_type);
+    c[b] = (c[b] || 0) + 1;
+  }
+  return c;
+}
+
+function renderStats() {
+  if (!capStats) return;
+  const h = recount(allHost);
+  const d = recount(allDevice);
+  const fmt = (c) =>
+    `a${c.attach || 0} e${c.enum || 0} m${c.msc || 0} b${c.bot || 0} p${c.proxy || 0} t${c.tcp || 0}`;
+  capStats.textContent =
+    `host n=${allHost.length} [${fmt(h)}] · device n=${allDevice.length} [${fmt(d)}] · filter live`;
+}
+
+function rebuildLane(listEl, store) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  const shown = store.filter(passesFilter).slice(-MAX_ROWS).reverse();
+  for (const e of shown) {
     const row = document.createElement("div");
     const f = fmtEvent(e);
     row.className = `cap-row ${f.cls}`;
@@ -127,11 +175,21 @@ function appendEvents(listEl, seen, events) {
       row.classList.add("selected");
       showInspect(e);
     });
-    listEl.prepend(row);
+    listEl.appendChild(row);
   }
-  while (listEl.children.length > MAX_ROWS) {
-    listEl.removeChild(listEl.lastChild);
+}
+
+function ingest(store, seen, events) {
+  let added = false;
+  for (const e of events || []) {
+    const key = `${e.node_id || ""}:${e.seq}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    store.push(e);
+    added = true;
   }
+  while (store.length > MAX_STORE) store.shift();
+  return added;
 }
 
 function setMeta(el, batch, role) {
@@ -161,9 +219,11 @@ async function pollCapture() {
     const device = j.device || {};
     setMeta(capMetaHost, host, "host");
     setMeta(capMetaDevice, device, "device");
-    appendEvents(capHost, seenHost, host.events || []);
-    appendEvents(capDevice, seenDevice, device.events || []);
-    // /api/capture since is exclusive lower bound (seq > since)
+    const ah = ingest(allHost, seenHost, host.events || []);
+    const ad = ingest(allDevice, seenDevice, device.events || []);
+    if (ah) rebuildLane(capHost, allHost);
+    if (ad) rebuildLane(capDevice, allDevice);
+    if (ah || ad) renderStats();
     for (const e of host.events || []) {
       if (e.seq > sinceHost) sinceHost = e.seq;
     }
@@ -175,6 +235,15 @@ async function pollCapture() {
   }
 }
 
+document.getElementById("cap-filters")?.addEventListener("change", (ev) => {
+  const cb = ev.target.closest("input[data-f]");
+  if (!cb) return;
+  filters[cb.dataset.f] = cb.checked;
+  rebuildLane(capHost, allHost);
+  rebuildLane(capDevice, allDevice);
+  renderStats();
+});
+
 document.getElementById("btn-cap-pause")?.addEventListener("click", (ev) => {
   capPaused = !capPaused;
   ev.target.textContent = capPaused ? "Resume" : "Pause";
@@ -185,6 +254,9 @@ document.getElementById("btn-cap-clear")?.addEventListener("click", () => {
   if (capDevice) capDevice.innerHTML = "";
   seenHost.clear();
   seenDevice.clear();
+  allHost.length = 0;
+  allDevice.length = 0;
+  renderStats();
 });
 
 async function refresh() {
@@ -227,3 +299,4 @@ connectSSE();
 setInterval(refresh, 5000);
 pollCapture();
 setInterval(pollCapture, 1500);
+renderStats();

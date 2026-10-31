@@ -160,7 +160,21 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
     out += "}";
   } else if (e.type == CapType::Attach || e.type == CapType::EnumInfo) {
     out += ",\"decoded\":{\"vid\":" + String(e.arg0);
-    out += ",\"pid\":" + String(e.arg1) + "}";
+    out += ",\"pid\":" + String(e.arg1);
+    if (e.type == CapType::EnumInfo && e.length) {
+      out += ",\"address\":" + String(e.length);
+    }
+    if (e.type == CapType::EnumInfo && e.note[0]) {
+      out += ",\"product\":\"";
+      out += e.note;
+      out += "\"";
+    }
+    if (e.type == CapType::Attach && e.note[0]) {
+      out += ",\"speed\":\"";
+      out += e.note;
+      out += "\"";
+    }
+    out += "}";
   }
   if (e.note[0]) {
     out += ",\"note\":\"";

@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- 0.0.22: Gate‑7 capture filters + stats; Host enum capture carries product/address
 - FW 0.0.21: Gate‑4 MSC WRITE proxy (Device→Host DUT) + `tools/lab_usb_proxy_arm.py`
 - FW: Status-Tab RGB-LED Steuerung (`POST /api/led`) — Farben + Identify-Blink zum Unterscheiden der beiden ESPs (GPIO48 WS2812)
 - FW 0.0.11: Analyzer-Tab Bridge-Perf Button + Throughput/Latenz-Charts; `lastIntegrity` in `/api/status`

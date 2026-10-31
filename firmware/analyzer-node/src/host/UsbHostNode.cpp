@@ -147,8 +147,15 @@ bool UsbHostNode::begin() {
     dut_speed_ = speedName(d.speed);
     CaptureLog::instance().push(CapRole::Host, CapType::Attach, 0, 0, d.vid,
                                 d.pid, 0, speedName(d.speed));
-    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 0, d.vid,
-                                d.pid, 0, "descriptors");
+    // note carries truncated product for Gate-7 inspector (≤23 chars)
+    char prod[24] = {0};
+    if (d.product) {
+      strncpy(prod, d.product, sizeof(prod) - 1);
+    } else {
+      snprintf(prod, sizeof(prod), "%04x:%04x", d.vid, d.pid);
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, d.address,
+                                d.vid, d.pid, 0, prod);
   });
 
   g_usb.onDeviceDisconnected([this](const EspUsbHostDeviceInfo &d) {
