@@ -154,14 +154,15 @@ Minimum surfaces (Gate 7+):
 
 ## 10. What ESP32.esp-hub contributes
 
-Reuse as **patterns**, copy selectively later:
+**Stufe A (verbindlich):** Core vendored from `esp-hub-base` v1.10.5 into `firmware/analyzer-node/src/esphub/` — DiagLog/Recovery stack, HardwareInfo/CpuLoad, WebUi/OtaService, HubClient. See [`HUB-BASELINE.md`](HUB-BASELINE.md).
 
-- WiFiManager / no secrets in git
-- Diagnostics, health, OTA lifecycle ideas
-- Web UI / SSE status patterns
-- HardwareInfo / PSRAM telemetry
+Planes stay split:
 
-Do **not** inherit hub architecture blindly. This repo stays standalone. See [`HUB-BASELINE.md`](HUB-BASELINE.md).
+- **Hub** — FW distribute / project switch (`HubClient`)
+- **Debian** — analyzer discovery/session/lab UI (`ControlClient`)
+- **USB/TCP** — measurement data path (Host/Device nodes)
+
+Not yet: full `AppCore` or USB-as-`BaseModule` (Stufe C/D).
 
 ## 11. Open architecture risks
 

@@ -8,6 +8,7 @@ Aligned with technology-audit / hu-probe board notes.
 | PSRAM | 2 MiB Quad (QSPI) — needs `BOARD_HAS_PSRAM` + `qio_qspi` |
 | USB port | Native OTG (GPIO19 D− / GPIO20 D+ per Espressif DOC) |
 | COM port | USB-UART bridge (CH343P class) — use for Serial monitor |
+| RGB LED | WS2812 on **GPIO48** (`RGB_LED_PIN`); some boards need the **RGB** solder bridge closed |
 
 ## Gate 1 wiring
 

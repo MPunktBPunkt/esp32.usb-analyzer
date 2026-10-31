@@ -1,137 +1,172 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.1-blue)
+![Version](https://img.shields.io/badge/version-0.0.16-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Gate](https://img.shields.io/badge/gate-1%20host%20bring--up-yellow)](docs/GATE1_STATUS.md)
+[![Gate](https://img.shields.io/badge/gate-5%20capture%20slice-yellow)](docs/GATE5_STATUS.md)
 
-Experimental **USB Protocol Analyzer / USB MITM** built from two ESP32-S3 nodes and a Debian control plane.
+Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.1** tagged Zwischenstand. Post-tag: lab Web UI on `:8080`, Gate 2 device build.  
-> No claim of MITM, wire capture, or fault injection.
+> **v0.0.16** Zwischenstand — Host/Device FW, OTG-loop MSC probe, WiFi TCP bulk, MSC-proxy slice, L1 capture timeline.  
+> **Nicht claimed:** transparent MITM, D+/D− Wire-Capture, USB-IF Compliance.
 
 ## Goal architecture
 
 ```text
-                         USB SIDE A
+                         USB SIDE A (DUT / Stick)
                              │
                              ▼
                  ┌─────────────────────┐
                  │     ESP32-S3 #1     │
-                 │  USB OTG = HOST     │
+                 │  USB OTG = HOST     │  .88 lab
                  │  Capture / Forward  │
                  └──────────┬──────────┘
-                            │ WiFi / TCP
+                            │ WiFi / TCP :9752
               ┌─────────────┴─────────────┐
               │          Debian           │
-              │  Control / Discovery      │
-              │  Capture Collector        │
-              │  Web UI / Analysis        │
+              │  Control / Discovery      │  :9750
+              │  Lab Web UI               │  :8080
               └─────────────┬─────────────┘
-                            │ WiFi / TCP
+                            │
                  ┌──────────▼──────────┐
                  │     ESP32-S3 #2     │
-                 │  USB OTG = DEVICE   │
+                 │  USB OTG = DEVICE   │  .89 lab
                  │  Capture / Forward  │
                  └──────────┬──────────┘
                             │
                             ▼
-                         USB SIDE B
+                         USB SIDE B (PC / Host)
 ```
 
-**Critical design rule:** Debian is primarily the **control plane**. The long-term USB data path is a direct ESP1 ⇄ ESP2 TCP tunnel.
+| Mode | Path | Status |
+|------|------|--------|
+| **OTG loop** | Host OTG ↔ Device OTG (Kabel) | MEASURED — MSC probe |
+| **A — DIRECT** | ESP1 ══ TCP ══ ESP2 | Gate 3 bulk + Gate 4 MSC-proxy slice |
+| **B — RELAY** | via Debian | discovery/control; USB data not relayed yet |
 
-| Mode | Path | Intended use |
-|------|------|--------------|
-| **B — RELAY** | ESP1 → Debian → ESP2 | Gates 1–3 (simpler bring-up) |
-| **A — DIRECT** | ESP1 ═══ TCP ═══ ESP2 (+ Debian observes) | Later analyzer / low-latency proxy |
+## What we can measure today (0.0.16)
+
+Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md)
+
+| Measurement | How | Typical lab result | Claim limit |
+|-------------|-----|--------------------|-------------|
+| **USB OTG MSC throughput** Host→Device | `POST /api/lab/usb-host-probe?blocks=&chunk=` · `tools/lab_usb_loop_probe.py` | ~**650–934 kB/s** (chunk 1…8) | FS stack/BOT — not HS |
+| **USB pattern integrity** | `lab_sector_v1` on gadget + host verify | **0** fail bytes (chunk≤8) | Lab pattern, not arbitrary DUT FS |
+| **USB sector / transfer RTT** | Probe `rtt_us` min/avg/p50/p95/max | ~**0.73 ms**/sector; ~**4 ms**/8-block | Host stack timing |
+| **DUT enumeration** | `/api/status` → `otg` + `dut` | VID/PID/serial/speed | L1 descriptors |
+| **WiFi TCP integrity** both ways | `POST /api/lab/integrity?peer=&frames=&frame_bytes=` | 0 frame fails | Not USB MITM |
+| **WiFi TCP bulk throughput** | same + `window=4…12` | ~**140 kB/s** (ack-each) → ~**260–360 kB/s** (windowed) | Protocol RTT-bound |
+| **MSC proxy Host serve** | TCP `MscReq`→Host READ DUT→payload | CRC/pattern OK on loop DUT | Gate‑4 slice; MITM wiring separate |
+| **L1/lab capture timeline** | `GET /api/capture` · Analyzer-Tab | attach/enum/msc_read/tcp_bulk/… | **Not** D+/D− packets |
+| **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
+
+### ESP Web UI (per node, port 80)
+
+| Tab | Functions |
+|-----|-----------|
+| **Analyzer** | OTG state, DUT, USB-OTG Probe, Bridge-Perf charts, Capture Timeline, RX/TX counters |
+| **Status** | HW/heap/PSRAM, hub, **RGB LED** colors + identify |
+| **OTA** | Local `.bin` upload |
+
+### Lab tools
+
+```bash
+./tools/flash_lab_ota.sh 192.168.178.88          # host env
+ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
+
+./tools/lab_usb_loop_probe.py --blocks 512
+./tools/lab_integrity_test.py --both-ways
+./tools/lab_perf_sweep.py
+./tools/lab_baseline_campaign.py                 # USB + TCP campaign → docs/evidence/
+```
+
+### Explicitly **not** measured / not claimed
+
+- D+/D− / DATA0/1 / ACK/NAK wire capture (Gate 10 — UNKNOWN)
+- Full BOT CBW/CSW class-hook decode (Gate 6 — next)
+- Transparent MITM PC↔Stick with observer-effect baseline
+- Synchronized µs clocks across both ESPs
+- USB High-Speed
 
 ## Epistemics
 
-Before every substantial implementation decision, consult
-[technology-audit](https://github.com/MPunktBPunkt/technology-audit) and classify claims as:
+Consult [technology-audit](https://github.com/MPunktBPunkt/technology-audit) and classify:
 
 `FACT` · `MEASURED` · `INFERENCE` · `HYPOTHESIS` · `UNKNOWN` · `REJECTED`
 
-Project evidence digest: [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
-
-### Must not claim yet
-
-- D+/D− waveform / Logic-Analyzer-style wire capture on ESP32-S3
-- Transparent dual-ESP MITM without observer-effect baseline
-- App MSC callbacks ≡ full USB BOT wire events
-- USB Bulk kills WiFi as FACT
-- Synchronized µs timestamps across two ESPs without calibration
+Digest: [`docs/EVIDENCE.md`](docs/EVIDENCE.md).
 
 ## Repository layout
 
 ```text
 esp32.usb-analyzer/
-├── firmware/          # ESP32-S3 analyzer nodes (host/device roles configurable)
-├── controller/        # Debian control plane (discovery, sessions, capture, API)
-├── web/               # Lab UI (timeline, packets, statistics, D+/D− research)
-├── docs/              # Architecture, protocol, capture, evidence, gates
-└── tools/             # Lab helpers (later)
+├── firmware/analyzer-node/   # Host + Device envs, esp-hub Web/OTA, CaptureLog
+├── firmware/common/          # Shared headers (lab pattern, roles)
+├── controller/               # Debian discovery / registry (:9750)
+├── web/                      # Lab UI on Debian (:8080)
+├── docs/                     # Architecture, gates, evidence/
+└── tools/                    # OTA flash + lab measurement scripts
 ```
 
-## Documents (Gate 0)
+## Documents
 
 | Doc | Purpose |
 |-----|---------|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, planes, modes |
-| [`docs/PROTOCOL.md`](docs/PROTOCOL.md) | Node hello, discovery, session control |
-| [`docs/CAPTURE.md`](docs/CAPTURE.md) | Capture layers, event schema, buffering |
-| [`docs/EVIDENCE.md`](docs/EVIDENCE.md) | technology-audit extraction |
-| [`docs/HARDWARE-RISKS.md`](docs/HARDWARE-RISKS.md) | PHY sharing, VBUS, debug paths |
-| [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | D+/D− and research tracks |
-| [`docs/GATES.md`](docs/GATES.md) | Gate 0–10 plan with exit criteria |
-| [`docs/STORE_FORWARD.md`](docs/STORE_FORWARD.md) | Planned PSRAM store-and-forward tunnel (not implemented) |
-| [`docs/API.md`](docs/API.md) | Debian Web API for timeline / commands |
-| [`docs/HUB-BASELINE.md`](docs/HUB-BASELINE.md) | What we reuse from ESP32.esp-hub |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Planes, modes |
+| [`docs/GATES.md`](docs/GATES.md) | Gate 0–10 |
+| [`docs/GATE3_STATUS.md`](docs/GATE3_STATUS.md) · [`GATE4`](docs/GATE4_STATUS.md) · [`GATE5`](docs/GATE5_STATUS.md) | Current gate notes |
+| [`docs/CAPTURE.md`](docs/CAPTURE.md) | Capture layers / schema |
+| [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) | Lab baseline numbers |
+| [`docs/LAB_INVENTORY.md`](docs/LAB_INVENTORY.md) | `.88` / `.89` boards |
+| [`docs/HUB-BASELINE.md`](docs/HUB-BASELINE.md) | esp-hub Stufe A |
 
-Schemas: [`docs/schemas/`](docs/schemas/).
-
-## Baseline references
-
-- Firmware/UI patterns: [ESP32.esp-hub](https://github.com/MPunktBPunkt/ESP32.esp-hub) — inspiration only, **no hard dependency**
-- Evidence authority: [technology-audit](https://github.com/MPunktBPunkt/technology-audit)
-- Related field work: hu-probe / PiDrive MSC device stacks (device-layer capture ≠ wire)
-
-## Quick start (Gate 1 Host)
+## Quick start
 
 ```bash
-# Firmware (UART/COM for serial; OTG port for DUT)
 cd firmware/analyzer-node
-pio run -e analyzer-s3-host -t upload
-pio device monitor -b 115200
+# Host (.88) — OTG = DUT; Serial = UART/COM
+pio run -e analyzer-s3-host
+# Device (.89)
+pio run -e analyzer-s3-device
 
-# Optional Debian discovery
-python3 controller/discovery/server.py --port 9750 --auto-role host
+# OTA (boards already on WiFi)
+../../tools/flash_lab_ota.sh 192.168.178.88
+ENV=analyzer-s3-device ../../tools/flash_lab_ota.sh 192.168.178.89
 ```
 
-Lab UI: http://192.168.178.187:8080/ · boards [`.88` / `.89`](docs/LAB_INVENTORY.md)
+- Node UI: `http://192.168.178.88/` · `http://192.168.178.89/`
+- Lab UI: `http://192.168.178.187:8080/`
+- Controller: `PYTHONPATH=. python3 -m controller.run`
 
-```bash
-PYTHONPATH=. python3 -m controller.run --auto-role host
-```
+### OTG-loop test (no PC gadget)
+
+1. Flash Host + Device  
+2. USB-C between both **OTG** ports  
+3. Host `/api/status` → `dut.present`  
+4. `tools/lab_usb_loop_probe.py` or Analyzer **USB-OTG Probe**
+
+### MITM wiring (proxy slice)
+
+Device OTG → PC · Host OTG → real stick · then  
+`POST http://.89/api/lab/usb-proxy?enable=1&peer=192.168.178.88`  
+(Observer-effect baseline still required before transparency claims.)
 
 ## Development strategy
 
-Work only through gates:
+1. Gate 1 Host enum — **done (lab)**  
+2. Gate 2 Device gadget — **done**  
+3. Gate 3 TCP integrity/bulk — **done**  
+4. Gate 4 USB proxy — **slice** (MSC READ forward)  
+5. Gate 5 Capture — **slice** (L1/lab timeline)  
+6. Gate 6+ Decoder / dual timeline / wire research — **next**
 
-1. **Gate 1** — ESP Host node detects a USB device ← code ready / lab pending  
-2. **Gate 2** — ESP Device node enumerates as a simple gadget  
-3. **Gate 3** — Sequenced TCP events between nodes (Relay mode OK)
+## Hardware
 
-See [`docs/GATES.md`](docs/GATES.md).
-
-## Hardware assumptions (provisional)
-
-- Two ESP32-S3 boards with native USB-OTG Full-Speed
-- Debian host on the same WiFi/LAN
-- Debug via UART (or external PHY + USB-Serial/JTAG) — do **not** assume simultaneous internal OTG + Serial/JTAG on one PHY
+- Two YD-ESP32-S3 (N8R2) · USB-OTG Full-Speed · UART/COM for debug  
+- RGB LED GPIO48 (often needs RGB solder bridge)  
+- VBUS: many DevKits do not source Host 5 V — measure / powered hub
 
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
 
-Note: selective copies from GPL-licensed ESP32.esp-hub must preserve that license on the copied files and may require adjusting this project's license before such merges.
+Note: selective copies from GPL-licensed ESP32.esp-hub must preserve that license on the copied files.

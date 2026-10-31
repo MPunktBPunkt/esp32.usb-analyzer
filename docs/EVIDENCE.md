@@ -125,3 +125,12 @@ projects/{usb-bot-observation,esp32-pidrive,hu-probe,esp32-msc-gadget-refs}/
 ```
 
 When this project produces new MEASURED results, add them back into technology-audit — do not leave knowledge only in this repo.
+
+## Lab baseline (usb-analyzer, 2026-10-31)
+
+| Status | Claim | Source |
+|--------|-------|--------|
+| MEASURED | OTG Host↔Device MSC READ peak **~934 kB/s**, pattern fail **0** (chunk=8, FS) | `docs/evidence/LAB_BASELINE_MEASURED.md` |
+| MEASURED | Single-sector MSC RTT p50 **~0.73 ms** | same |
+| MEASURED | WiFi TCP ESP↔ESP peak **~139 kB/s**; small frames RTT ~250 ms | same |
+| REJECTED | Multi-chunk pattern fails on 0.0.12 Device = USB data loss | gadget multi-LBA fill bug; fixed 0.0.14 |

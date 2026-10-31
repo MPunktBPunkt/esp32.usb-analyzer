@@ -4,20 +4,48 @@
 
 #include "USB.h"
 #include "USBMSC.h"
+#include "capture/CaptureLog.h"
+#include "protocol/DataPlane.h"
+
+#include <usb_analyzer/UsbLabPattern.h>
 
 namespace usb_analyzer {
 namespace {
 
 USBMSC g_msc;
 static uint8_t g_sector[512];
+static UsbDeviceNode *g_self = nullptr;
 
-int32_t onRead(uint32_t /*lba*/, uint32_t offset, void *buffer, uint32_t bufsize) {
-  // Minimal zero-fill gadget — App callback ≠ BOT wire event (REJECTED equality).
+int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   uint8_t *out = static_cast<uint8_t *>(buffer);
-  for (uint32_t i = 0; i < bufsize; i++) {
-    out[i] = 0;
+  if (g_self && g_self->proxyEnabled() &&
+      g_self->fillFromProxy(lba, offset, out, bufsize)) {
+    g_self->noteRead(bufsize);
+    CaptureLog::instance().push(CapRole::Device, CapType::MscProxyRsp, 0, bufsize,
+                                lba, bufsize / 512u, 0, "from_host_dut");
+    return static_cast<int32_t>(bufsize);
   }
-  (void)offset;
+  // Lab pattern (OTG loop / no proxy). Sample-rate limit: log every 32nd call.
+  uint32_t done = 0;
+  while (done < bufsize) {
+    const uint32_t abs_off = offset + done;
+    const uint32_t cur_lba = lba + (abs_off / 512u);
+    const uint32_t cur_off = abs_off % 512u;
+    uint32_t n = bufsize - done;
+    const uint32_t room = 512u - cur_off;
+    if (n > room) {
+      n = room;
+    }
+    fillLabSector(out + done, n, cur_lba, cur_off);
+    done += n;
+  }
+  if (g_self) {
+    g_self->noteRead(bufsize);
+    if ((g_self->readOps() & 31u) == 1u) {
+      CaptureLog::instance().push(CapRole::Device, CapType::MscRead, 0, bufsize,
+                                  lba, bufsize / 512u, 0, "gadget_pattern");
+    }
+  }
   return static_cast<int32_t>(bufsize);
 }
 
@@ -27,30 +55,126 @@ bool onStartStop(uint8_t power_condition, bool start, bool load_eject) {
   return true;
 }
 
-void onEvent(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+void onEvent(void *arg, esp_event_base_t event_base, int32_t event_id,
+             void *event_data) {
   (void)arg;
   (void)event_base;
   (void)event_data;
+  if (!g_self) {
+    return;
+  }
   if (event_id == ARDUINO_USB_STARTED_EVENT) {
-    Serial.println("[device] USB STARTED (bus activity)");
+    g_self->notifyMounted(true);
+    CaptureLog::instance().push(CapRole::Device, CapType::Attach, 0, 0, 0, 0, 0,
+                                "usb_started");
+    Serial.println("[device] USB STARTED (host configured / OTG mounted)");
   }
   if (event_id == ARDUINO_USB_STOPPED_EVENT) {
-    Serial.println("[device] USB STOPPED");
+    g_self->notifyMounted(false);
+    CaptureLog::instance().push(CapRole::Device, CapType::Detach, 0, 0, 0, 0, 0,
+                                "usb_stopped");
+    Serial.println("[device] USB STOPPED (OTG unmounted)");
   }
   if (event_id == ARDUINO_USB_SUSPEND_EVENT) {
+    g_self->notifySuspended(true);
     Serial.println("[device] USB SUSPEND");
   }
   if (event_id == ARDUINO_USB_RESUME_EVENT) {
+    g_self->notifySuspended(false);
     Serial.println("[device] USB RESUME");
   }
 }
 
 } // namespace
 
+void UsbDeviceNode::noteRead(uint32_t bytes) {
+  read_ops_++;
+  read_bytes_ += bytes;
+}
+
+void UsbDeviceNode::setProxy(DataPlane *plane, const String &peer_ip) {
+  proxy_plane_ = plane;
+  proxy_peer_ = peer_ip;
+  proxy_on_ = plane && peer_ip.length() > 0;
+  Serial.printf("[device] MSC proxy %s peer=%s\n", proxy_on_ ? "ON" : "OFF",
+                proxy_peer_.c_str());
+}
+
+bool UsbDeviceNode::fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
+                                  uint32_t bufsize) {
+  if (!proxy_on_ || !proxy_plane_ || !out || bufsize == 0) {
+    return false;
+  }
+  // Only full-sector aligned proxy fetches for Gate 4 slice.
+  if (offset != 0 || (bufsize % 512u) != 0) {
+    return false;
+  }
+  uint32_t blocks = bufsize / 512u;
+  uint32_t done = 0;
+  while (done < blocks) {
+    uint32_t n = blocks - done;
+    if (n > 8) {
+      n = 8;
+    }
+    String err;
+    if (!proxy_plane_->proxyMscRead(proxy_peer_, lba + done, n, out + done * 512u,
+                                    n * 512u, &err)) {
+      Serial.printf("[device] proxy fail lba=%u n=%u err=%s\n", lba + done, n,
+                    err.c_str());
+      return false;
+    }
+    done += n;
+  }
+  return true;
+}
+
+void UsbDeviceNode::appendStatusJson(String &json) const {
+  json += ",\"gadget\":{";
+  json += "\"readOps\":";
+  json += String(read_ops_);
+  json += ",\"readBytes\":";
+  json += String(read_bytes_);
+  json += ",\"pattern\":\"lab_sector_v1\"";
+  json += ",\"proxy\":";
+  json += proxy_on_ ? "true" : "false";
+  json += ",\"proxyPeer\":\"";
+  json += proxy_peer_;
+  json += "\"";
+  json += "}";
+}
+
+void UsbDeviceNode::notifyMounted(bool on) {
+  mounted_ = on;
+  if (!on) {
+    suspended_ = false;
+  }
+}
+void UsbDeviceNode::notifySuspended(bool on) { suspended_ = on; }
+
+const char *UsbDeviceNode::otgState() const {
+  if (!begin_ok_) {
+    return "disabled";
+  }
+  if (mounted_ && suspended_) {
+    return "suspended";
+  }
+  if (mounted_) {
+    return "connected";
+  }
+  if (USB) {
+    return "connected";
+  }
+  return "waiting";
+}
+
 bool UsbDeviceNode::begin() {
+  g_self = this;
   Serial.println("[device] TinyUSB MSC gadget bring-up (Gate 2)");
-  Serial.println("[device] CLAIM: gadget present to host — not wire capture, not MITM");
-  Serial.println("[device] Debug: UART/COM only; OTG port is the gadget toward PC/HU");
+  Serial.println(
+      "[device] CLAIM: gadget present to host — not wire capture, not MITM");
+  Serial.println(
+      "[device] Debug: UART/COM only; OTG port is the gadget toward Host/PC");
+  Serial.println("[device] MSC pattern=lab_sector_v1 for OTG-loop probes");
 
   USB.onEvent(onEvent);
   g_msc.vendorID("MPB");
@@ -58,21 +182,27 @@ bool UsbDeviceNode::begin() {
   g_msc.productRevision("0001");
   g_msc.onRead(onRead);
   g_msc.onStartStop(onStartStop);
-  // 256 KiB virtual disk (512 B × 512)
   g_msc.mediaPresent(true);
   g_msc.begin(512, 512);
 
   USB.begin();
   begin_ok_ = true;
   ready_ = true;
+  mounted_ = static_cast<bool>(USB);
   Serial.println("[device] USB.begin() issued — wait for host enumeration");
-  Serial.println("[device] NOTE: SET_ADDRESS ≠ mounted; mount at SET_CONFIGURATION");
+  Serial.printf("[device] otg_state=%s\n", otgState());
   (void)g_sector;
   return begin_ok_;
 }
 
 void UsbDeviceNode::loop() {
-  // TinyUSB runs in its own task under Arduino-ESP32.
+  if (begin_ok_) {
+    const bool now = static_cast<bool>(USB);
+    if (now != mounted_) {
+      mounted_ = now;
+      Serial.printf("[device] otg_state → %s\n", otgState());
+    }
+  }
 }
 
 } // namespace usb_analyzer
@@ -86,6 +216,18 @@ bool UsbDeviceNode::begin() {
   return false;
 }
 void UsbDeviceNode::loop() {}
+const char *UsbDeviceNode::otgState() const { return "disabled"; }
+void UsbDeviceNode::notifyMounted(bool) {}
+void UsbDeviceNode::notifySuspended(bool) {}
+void UsbDeviceNode::noteRead(uint32_t) {}
+void UsbDeviceNode::setProxy(DataPlane *, const String &) {}
+bool UsbDeviceNode::fillFromProxy(uint32_t, uint32_t, uint8_t *, uint32_t) {
+  return false;
+}
+void UsbDeviceNode::appendStatusJson(String &json) const {
+  json += ",\"gadget\":{\"readOps\":0,\"readBytes\":0,\"proxy\":false}";
+  (void)json;
+}
 
 } // namespace usb_analyzer
 

@@ -40,15 +40,16 @@ function renderNodes(nodes) {
     return;
   }
   for (const n of nodes) {
+    const id = n.registry_key || n.node_id;
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML =
       `<div><div class="title">${n.node_id}</div>` +
-      `<div class="sub">${n.ip} · role=${roleOf(n)} · usb=${n.usb_devices ?? 0}</div></div>` +
+      `<div class="sub">${n.ip || "?"} · ${n.mac || "?"} · role=${roleOf(n)} · usb=${n.usb_devices ?? 0} · fw ${n.fw || "?"}</div></div>` +
       `<div class="actions">` +
-      `<button data-act="ping" data-id="${n.node_id}">ping</button>` +
-      `<button data-act="role" data-id="${n.node_id}" data-role="host">→ host</button>` +
-      `<button data-act="role" data-id="${n.node_id}" data-role="device">→ device</button>` +
+      `<button data-act="ping" data-id="${id}">ping</button>` +
+      `<button data-act="role" data-id="${id}" data-role="host">→ host</button>` +
+      `<button data-act="role" data-id="${id}" data-role="device">→ device</button>` +
       `</div>`;
     nodesEl.appendChild(card);
   }

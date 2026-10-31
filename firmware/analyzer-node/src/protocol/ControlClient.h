@@ -16,6 +16,7 @@ class UsbHostNode;
 class ControlClient {
 public:
   void begin(const String &deviceId, const String &controllerHost, uint16_t port);
+  void setDeviceId(const String &deviceId) { device_id_ = deviceId; }
   void setRole(Role role) { role_ = role; }
   Role role() const { return role_; }
   void setHostNode(UsbHostNode *node) { host_node_ = node; }

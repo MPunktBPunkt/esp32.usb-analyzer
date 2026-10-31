@@ -26,7 +26,14 @@ From hu-probe OTA while still on 0.3.x:
 ./tools/flash_lab_ota.sh 192.168.178.89
 ```
 
-After analyzer FW is running there is **no HTTP OTA** until a web/OTA module exists — recovery via UART/`pio run -t upload`.
+Analyzer FW (≥0.0.3) uses esp-hub Stufe A WebUi on port 80:
+
+- `http://192.168.178.88/` — Status/OTA tabs (gzip)  
+- `GET /api/status` · `GET /events` · `POST /ota-upload` · `/api/diag/*`  
+- Hub register: `192.168.178.113:8093` (FW distribute)  
+- OTA: `./tools/flash_lab_ota.sh 192.168.178.88` or Hub push  
+
+First bring-up without HTTP: UART/`pio run -t upload` on COM.
 
 ## Restore hu-probe
 

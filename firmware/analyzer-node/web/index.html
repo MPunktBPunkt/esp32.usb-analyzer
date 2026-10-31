@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>usb-analyzer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:sans-serif;font-size:14px}
+header{background:#161b22;border-bottom:1px solid #30363d;padding:14px 20px;display:flex;align-items:center;gap:12px}
+h1{font-size:18px;color:#58a6ff}
+.badge{background:rgba(88,166,255,.15);color:#58a6ff;border:1px solid rgba(88,166,255,.3);padding:2px 8px;border-radius:10px;font-size:11px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot-on{background:#3fb950;box-shadow:0 0 6px #3fb950}.dot-off{background:#f85149}
+.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;padding:0 20px}
+.tab{padding:10px 20px;border-bottom:2px solid transparent;color:#8b949e;background:none;border-top:none;border-left:none;border-right:none;cursor:pointer;font:inherit;font-weight:500}
+.tab.active,.tab:hover{color:#58a6ff;border-bottom-color:#58a6ff}
+.content{padding:20px;max-width:800px}
+.panel{display:none}.panel.active{display:block}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:14px}
+.card h3{font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:7px 10px;border-bottom:1px solid #21262d}
+td:first-child{color:#8b949e;width:40%}
+.bar{height:6px;background:#21262d;border-radius:3px;margin-top:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.green{background:#3fb950}.yellow{background:#e3b341}.red{background:#f85149}
+.mono{font-family:monospace;color:#58a6ff}
+.drop{border:2px dashed #30363d;border-radius:8px;padding:32px;text-align:center;cursor:pointer;color:#8b949e}
+.drop:hover{border-color:#58a6ff;color:#e6edf3}
+input[type=file]{display:none}
+.btn{background:#238636;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;margin-top:14px;width:100%}
+.btn:hover{background:#2ea043}
+.prog{display:none;margin-top:14px}
+.prog .bar{height:8px;border-radius:4px}
+.prog .bar-fill{background:#58a6ff;transition:width .3s}
+.msg{margin-top:10px;font-size:13px;color:#8b949e;text-align:center}
+.warn{background:rgba(227,179,65,.1);border:1px solid rgba(227,179,65,.3);border-radius:6px;padding:12px;color:#e3b341;font-size:13px;margin-bottom:14px}
+.muted{color:#8b949e;font-size:13px;line-height:1.45}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.stat{background:#1c2128;border:1px solid #30363d;border-radius:6px;padding:12px;text-align:center}
+.stat .v{font-size:20px;font-weight:700;color:#58a6ff;font-family:monospace}
+.stat .k{font-size:11px;color:#8b949e;margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
+.chart-box{height:160px;border:1px solid #30363d;border-radius:8px;color:#8b949e;font-size:12px;background:#0d1117;margin-top:8px;padding:8px 10px;position:relative}
+.chart-box svg{width:100%;height:120px;display:block}
+.chart-empty{display:flex;align-items:center;justify-content:center;height:120px;color:#8b949e}
+.perf-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.perf-row input{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:8px 10px;font:inherit;font-family:monospace;min-width:140px}
+.btn-sec{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:8px 14px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
+.btn-sec:hover{border-color:#58a6ff;color:#58a6ff}
+.btn-sec:disabled{opacity:.5;cursor:wait}
+.tl{max-height:280px;overflow:auto;font-family:monospace;font-size:11px;line-height:1.45;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;margin-top:8px}
+.tl .e{border-bottom:1px solid #21262d;padding:4px 0;color:#c9d1d9}
+.tl .e .t{color:#58a6ff}
+.tl .e .bad{color:#f85149}
+.tl .e .ok{color:#3fb950}
+.tl .meta{color:#8b949e}
+.led-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.btn-led{border:1px solid #30363d;background:#21262d;color:#e6edf3;padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
+.btn-led:hover{border-color:#58a6ff}
+.btn-led.active{outline:2px solid #58a6ff;outline-offset:1px}
+.btn-led.red{background:#3d1215;border-color:#f85149;color:#ff7b72}
+.btn-led.green{background:#12261a;border-color:#3fb950;color:#56d364}
+.btn-led.blue{background:#121b2e;border-color:#58a6ff;color:#79c0ff}
+.btn-led.cyan{background:#122226;border-color:#39c5cf;color:#76e3ea}
+.btn-led.magenta{background:#2a1226;border-color:#db61a2;color:#f778ba}
+.btn-led.yellow{background:#2a2412;border-color:#e3b341;color:#e3b341}
+.btn-led.white{background:#2d333b;border-color:#c9d1d9;color:#f0f6fc}
+.btn-led.identify{background:#238636;border-color:#2ea043;color:#fff;width:100%;margin-top:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1><span id="h-name">usb-analyzer</span></h1>
+  <span class="badge" id="h-ver">…</span>
+  <span style="margin-left:auto;font-size:12px;color:#8b949e">
+    <span class="dot dot-off" id="sse-dot"></span>
+    <span id="sse-lbl">Verbinde...</span>
+  </span>
+</header>
+<div class="tabs">
+  <button type="button" class="tab active" data-tab="analyzer">Analyzer</button>
+  <button type="button" class="tab" data-tab="status">Status</button>
+  <button type="button" class="tab" data-tab="ota">OTA Update</button>
+</div>
+<div class="content">
+  <div class="panel" id="panel-status">
+    <div class="card"><h3>Geraet</h3><table>
+      <tr><td>Name</td><td id="d-name">-</td></tr>
+      <tr><td>Hardware</td><td id="d-hw" style="font-size:12px;line-height:1.45;color:#c9d1d9">-</td></tr>
+      <tr><td>Rolle</td><td id="d-role">-</td></tr>
+      <tr><td>MAC</td><td class="mono" id="d-mac">-</td></tr>
+      <tr><td>IP-Adresse</td><td class="mono" id="d-ip">-</td></tr>
+      <tr><td>WLAN RSSI</td><td id="d-rssi">-</td></tr>
+      <tr><td>Uptime</td><td id="d-uptime">-</td></tr>
+      <tr><td>Firmware</td><td id="d-ver">-</td></tr>
+      <tr><td>Git</td><td class="mono" id="d-git">-</td></tr>
+    </table></div>
+    <div class="card"><h3>Speicher</h3><table>
+      <tr><td>Flash gesamt</td><td id="d-flash">-</td></tr>
+      <tr><td>OTA-Slot frei</td><td>
+        <span id="d-sketch">-</span>
+        <div class="bar"><div class="bar-fill" id="b-sketch"></div></div>
+      </td></tr>
+      <tr><td>Freier RAM</td><td>
+        <span id="d-heap">-</span>
+        <div class="bar"><div class="bar-fill" id="b-heap"></div></div>
+      </td></tr>
+      <tr id="row-psram" style="display:none"><td>PSRAM frei</td><td>
+        <span id="d-psram">-</span>
+        <div class="bar"><div class="bar-fill" id="b-psram"></div></div>
+      </td></tr>
+    </table></div>
+    <div class="card"><h3>ESP-Hub</h3><table>
+      <tr><td>Hub-Adresse</td><td class="mono" id="d-hub">-</td></tr>
+      <tr><td>Heartbeat</td><td id="d-interval">-</td></tr>
+      <tr><td>Debian controller</td><td class="mono" id="d-ctrl">-</td></tr>
+      <tr><td>OTA state</td><td id="d-ota">-</td></tr>
+    </table></div>
+    <div class="card">
+      <h3>RGB LED</h3>
+      <p class="muted">Farbe setzen oder blinken lassen, um Host- und Device-ESP zu unterscheiden. (YD: ggf. RGB-Lötbrücke schließen)</p>
+      <div class="led-row" id="led-colors">
+        <button type="button" class="btn-led" data-color="off">Aus</button>
+        <button type="button" class="btn-led red" data-color="red">Rot</button>
+        <button type="button" class="btn-led green" data-color="green">Grün</button>
+        <button type="button" class="btn-led blue" data-color="blue">Blau</button>
+        <button type="button" class="btn-led cyan" data-color="cyan">Cyan</button>
+        <button type="button" class="btn-led magenta" data-color="magenta">Magenta</button>
+        <button type="button" class="btn-led yellow" data-color="yellow">Gelb</button>
+        <button type="button" class="btn-led white" data-color="white">Weiß</button>
+      </div>
+      <button type="button" class="btn-led identify" id="btn-identify">Identifizieren (5&nbsp;s blinken)</button>
+      <div class="msg" id="led-msg"></div>
+    </div>
+  </div>
+  <div class="panel active" id="panel-analyzer">
+    <div class="card">
+      <h3>USB OTG</h3>
+      <p class="muted" id="a-otg-hint">Host wartet auf DUT am OTG. Device zeigt connected nur wenn OTG-Gadget am USB-Host gemountet ist (nicht UART/COM).</p>
+      <table>
+        <tr><td>Mode</td><td id="a-otg-mode">—</td></tr>
+        <tr><td>State</td><td id="a-otg-state">—</td></tr>
+        <tr><td>Connected</td><td id="a-otg-conn">—</td></tr>
+        <tr><td>DUT</td><td class="mono" id="a-dut">—</td></tr>
+        <tr><td>Details</td><td class="mono" id="a-otg-detail">—</td></tr>
+      </table>
+      <div class="perf-row" id="usb-probe-row" style="display:none">
+        <button type="button" class="btn-sec" id="btn-usb-probe">USB-OTG Probe (MSC)</button>
+        <span class="muted" id="usb-probe-msg"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Capture Timeline (L1 lab)</h3>
+      <p class="muted">Stack-/Lab-Events (Enum, MSC, Proxy, TCP) — <b>kein</b> D+/D− Wire-Capture. Gate&nbsp;5 Slice.</p>
+      <div class="perf-row">
+        <button type="button" class="btn-sec" id="btn-cap-refresh">Timeline laden</button>
+        <span class="muted" id="cap-meta">—</span>
+      </div>
+      <div class="tl" id="cap-tl"><div class="meta">Noch keine Events geladen.</div></div>
+    </div>
+    <div class="card">
+      <h3>RX / TX (Data plane)</h3>
+      <p class="muted">TCP Integrity Gate&nbsp;3. USB→USB Proxy = Gate&nbsp;4 (braucht DUT am Host-OTG).</p>
+      <div class="stat-grid" style="margin-top:12px">
+        <div class="stat"><div class="v" id="a-tx">—</div><div class="k">TX bytes</div></div>
+        <div class="stat"><div class="v" id="a-rx">—</div><div class="k">RX bytes</div></div>
+        <div class="stat"><div class="v" id="a-gaps">—</div><div class="k">Gaps</div></div>
+        <div class="stat"><div class="v" id="a-rate">—</div><div class="k">kB/s</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Durchsatz / Latenz</h3>
+      <p class="muted">WiFi-TCP-Brücke (Gate&nbsp;3). Peer = anderer Lab-ESP. USB→USB folgt erst mit Gate&nbsp;4.</p>
+      <div class="perf-row">
+        <label class="muted" for="perf-peer">Peer</label>
+        <input id="perf-peer" value="192.168.178.89" spellcheck="false">
+        <button type="button" class="btn-sec" id="btn-perf">Bridge-Perf starten</button>
+        <span class="muted" id="perf-msg"></span>
+      </div>
+      <div class="chart-box" id="chart-throughput"><div class="chart-empty">Throughput — noch kein Lauf</div></div>
+      <div class="chart-box" id="chart-latency"><div class="chart-empty">Latenz — noch kein Lauf</div></div>
+    </div>
+    <div class="card">
+      <h3>Integrity check</h3>
+      <p class="muted">Ziel: ESP-A sendet Muster, ESP-B empfängt byte-identisch (seq + CRC).</p>
+      <table>
+        <tr><td>Link state</td><td id="a-link">offline (no data plane yet)</td></tr>
+        <tr><td>Last pattern</td><td class="mono" id="a-pattern">—</td></tr>
+        <tr><td>Match</td><td id="a-match">—</td></tr>
+        <tr><td>Last rate</td><td id="a-last-rate">—</td></tr>
+        <tr><td>RTT p50</td><td id="a-last-rtt">—</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="panel" id="panel-ota">
+    <div class="card">
+      <h3>Firmware hochladen</h3>
+      <div class="warn">Nach dem Hochladen startet der ESP neu.</div>
+      <div class="drop" id="drop" onclick="document.getElementById('fw').click()">
+        <b>.bin</b> Datei hierher ziehen oder klicken
+      </div>
+      <input type="file" id="fw" accept=".bin">
+      <div id="fname" style="margin-top:8px;font-size:12px;color:#8b949e;text-align:center"></div>
+      <button type="button" class="btn" onclick="startUpload()">Flashen</button>
+      <div class="prog" id="prog">
+        <div class="bar"><div class="bar-fill" id="bar"></div></div>
+        <div class="msg" id="msg">Lade hoch...</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function showTab(id){
+    document.querySelectorAll('.tab').forEach(function(t){
+      t.classList.toggle('active', t.getAttribute('data-tab')===id);
+    });
+    document.querySelectorAll('.panel').forEach(function(p){
+      p.classList.toggle('active', p.id==='panel-'+id);
+    });
+    var path = id==='ota' ? '/ota' : (id==='analyzer' ? '/analyzer' : '/');
+    if(location.pathname!==path) history.replaceState(null,'',path);
+  }
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){ showTab(t.getAttribute('data-tab')); });
+  });
+  if(location.pathname.indexOf('ota')>=0 || location.hash==='#ota') showTab('ota');
+  else if(location.pathname.indexOf('status')>=0 || location.hash==='#status') showTab('status');
+  else showTab('analyzer');
+
+  function fmtKB(b){return Math.round(b/1024)+' KB';}
+  function barColor(p){return p>40?'green':p>20?'yellow':'red';}
+  var perfSweep=[];
+  var peerTouched=false;
+  function applyStatus(s){
+    var ver='v'+(s.version||'');
+    document.getElementById('h-name').textContent=s.name||'';
+    document.getElementById('h-ver').textContent=ver;
+    document.getElementById('d-name').textContent=s.name||'';
+    document.getElementById('d-hw').textContent=s.hwSummary||(s.chip||'-');
+    document.getElementById('d-role').textContent=s.role||'-';
+    document.getElementById('d-mac').textContent=s.mac||'';
+    document.getElementById('d-ip').innerHTML='<a href="http://'+s.ip+'" style="color:#58a6ff">'+s.ip+'</a>';
+    document.getElementById('d-rssi').textContent=(s.rssi||0)+' dBm';
+    document.getElementById('d-uptime').textContent=s.uptime||(s.uptime_s!=null?(s.uptime_s+'s'):'-');
+    document.getElementById('d-ver').textContent=ver+(s.git?(' · '+s.git):'');
+    document.getElementById('d-git').textContent=s.git||'-';
+    document.getElementById('d-hub').textContent=s.hub||'-';
+    document.getElementById('d-interval').textContent=s.interval?('alle '+s.interval+' s'):'-';
+    document.getElementById('d-ctrl').textContent=s.controller||'-';
+    document.getElementById('d-ota').textContent=
+      (s.otaState||'-')+(s.otaProgress!=null?(' '+s.otaProgress+'%'):'');
+    var flashKb=s.flashKb||0, flashReal=s.flashRealMb||0;
+    document.getElementById('d-flash').textContent=
+      (flashReal?flashReal+' MiB':'?')+(flashKb?(' (Build '+Math.round(flashKb/1024)+' MiB)'):'');
+    var sk=s.sketch||0, used=s.sketchUsed||0, slot=used+sk;
+    var spct=slot>0?Math.min(100,Math.round(sk*100/slot)):0;
+    document.getElementById('d-sketch').textContent=fmtKB(sk)+(slot?(' / '+fmtKB(slot)):'');
+    var bs=document.getElementById('b-sketch');bs.style.width=spct+'%';bs.className='bar-fill '+barColor(spct);
+    var hp=s.heap||0,hpct=Math.min(100,Math.round(hp/3276));
+    document.getElementById('d-heap').textContent=fmtKB(hp);
+    var bh=document.getElementById('b-heap');bh.style.width=hpct+'%';bh.className='bar-fill '+barColor(hpct);
+    var rowPs=document.getElementById('row-psram');
+    var psz=s.psramSize||0,psf=s.psram||0;
+    if(psz>0){
+      rowPs.style.display='';
+      var ppct=Math.min(100,Math.round(psf/(psz/100)));
+      document.getElementById('d-psram').textContent=fmtKB(psf)+' / '+fmtKB(psz);
+      var bp=document.getElementById('b-psram');bp.style.width=ppct+'%';bp.className='bar-fill '+barColor(ppct);
+    }else{rowPs.style.display='none';}
+    // Analyzer tab (filled once data-plane counters exist in /api/status)
+    var tx=s.txBytes, rx=s.rxBytes, gaps=s.gaps, rate=s.rateKBs;
+    document.getElementById('a-tx').textContent=tx!=null?tx:'—';
+    document.getElementById('a-rx').textContent=rx!=null?rx:'—';
+    document.getElementById('a-gaps').textContent=gaps!=null?gaps:'—';
+    document.getElementById('a-rate').textContent=rate!=null?rate:'—';
+    document.getElementById('a-link').textContent=s.dataPlane||'offline (no data plane yet)';
+    document.getElementById('a-pattern').textContent=s.lastPattern||'—';
+    document.getElementById('a-match').textContent=s.integrityMatch!=null?(s.integrityMatch?'OK':'FAIL'):'—';
+    var li=s.lastIntegrity;
+    if(li){
+      document.getElementById('a-last-rate').textContent=
+        (li.rate_kBs!=null?li.rate_kBs+' kB/s':'—')+
+        (li.duration_ms!=null?(' · '+li.duration_ms+' ms'):'');
+      var rtt=li.rtt_us||{};
+      document.getElementById('a-last-rtt').textContent=
+        rtt.p50!=null?(rtt.p50+' µs (p50)'):'—';
+      if(!perfSweep.length) drawLatency(rtt);
+    }else{
+      document.getElementById('a-last-rate').textContent='—';
+      document.getElementById('a-last-rtt').textContent='—';
+    }
+    if(s.ip && !peerTouched){
+      var tip=s.ip.indexOf('.88')>=0?'192.168.178.89':'192.168.178.88';
+      document.getElementById('perf-peer').value=tip;
+    }
+    var o=s.otg||{};
+    document.getElementById('a-otg-mode').textContent=o.mode||'—';
+    document.getElementById('a-otg-state').textContent=o.state||'—';
+    var conn=o.connected===true?'yes':(o.connected===false?'no':'—');
+    document.getElementById('a-otg-conn').innerHTML=
+      '<span class="dot '+(o.connected?'dot-on':'dot-off')+'"></span> '+conn;
+    var det='—';
+    var hint=document.getElementById('a-otg-hint');
+    var dut=s.dut||{};
+    var dutEl=document.getElementById('a-dut');
+    if(dut.present){
+      dutEl.textContent=(dut.id||'?')+' · '+(dut.product||'')+' · '+(dut.serial||'')+' · '+(dut.speed||'');
+    }else if(s.gadget){
+      dutEl.textContent='gadget reads='+(s.gadget.readOps||0)+' bytes='+(s.gadget.readBytes||0);
+    }else{
+      dutEl.textContent='—';
+    }
+    var probeRow=document.getElementById('usb-probe-row');
+    if(o.mode==='host'){
+      probeRow.style.display='flex';
+      det='DUT devices='+(o.devices!=null?o.devices:0)+' (OTG→PC zeigt kein Gadget)';
+      hint.textContent='Host-Rolle: connected = DUT am OTG (Stick oder Device-ESP in OTG-Schleife). UART/COM ist ein anderer Stecker.';
+      if(s.lastUsbProbe){
+        var up=s.lastUsbProbe;
+        document.getElementById('usb-probe-msg').textContent=
+          (up.ok?'OK':'FAIL')+' · '+up.rate_kBs+' kB/s · pattern='+(up.pattern_ok?'ok':'no');
+      }
+    }else if(o.mode==='device'){
+      probeRow.style.display='none';
+      det=o.suspended?'gadget suspended':'gadget '+(o.connected?'mounted on USB host':'waiting for host');
+      hint.textContent='Device-Rolle: connected = OTG am USB-Host (PC oder Host-ESP). COM-Kabel zaehlt nicht.';
+    }else{
+      probeRow.style.display='none';
+      hint.textContent='Host: DUT am OTG. Device: OTG zum USB-Host. COM/UART ist nicht OTG.';
+    }
+    document.getElementById('a-otg-detail').textContent=det;
+    var led=(s.led&&s.led.color)||'off';
+    document.querySelectorAll('#led-colors .btn-led').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-color')===led && !(s.led&&s.led.identify));
+    });
+    if(s.led&&s.led.identify){
+      document.getElementById('led-msg').textContent='Identifizieren…';
+    }
+    var cap=s.capture;
+    if(cap){
+      document.getElementById('cap-meta').textContent=
+        'seq='+cap.seq+' stored='+cap.stored+'/'+cap.capacity+
+        ' dropped='+cap.dropped+(cap.overflow?' OVERFLOW':'')+
+        ' · wire=no';
+    }
+  }
+  function setLed(qs){
+    var msg=document.getElementById('led-msg');
+    msg.textContent='…';
+    fetch('/api/led?'+qs,{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      if(j.ok){
+        msg.textContent=j.identify?'Identifizieren läuft':'LED: '+(j.color||'?');
+      }else{
+        msg.textContent='Fehler: '+(j.err||'request failed');
+      }
+    }).catch(function(){msg.textContent='Verbindungsfehler';});
+  }
+  document.querySelectorAll('#led-colors .btn-led').forEach(function(b){
+    b.addEventListener('click',function(){setLed('color='+encodeURIComponent(b.getAttribute('data-color')));});
+  });
+  document.getElementById('btn-identify').addEventListener('click',function(){
+    setLed('identify=1&ms=5000');
+  });
+
+  document.getElementById('perf-peer').addEventListener('input',function(){peerTouched=true;});
+
+  function barChart(el, labels, values, unit, color){
+    var max=Math.max.apply(null, values.concat([1]));
+    var w=560, h=120, padL=36, padB=22, padT=10, padR=10;
+    var innerW=w-padL-padR, innerH=h-padT-padB;
+    var bw=innerW/values.length*0.62;
+    var gap=innerW/values.length;
+    var parts=['<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'];
+    parts.push('<line x1="'+padL+'" y1="'+(padT+innerH)+'" x2="'+(w-padR)+'" y2="'+(padT+innerH)+'" stroke="#30363d"/>');
+    for(var i=0;i<values.length;i++){
+      var vh=Math.max(2, values[i]/max*innerH);
+      var x=padL+i*gap+(gap-bw)/2;
+      var y=padT+innerH-vh;
+      parts.push('<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+vh+'" rx="3" fill="'+color+'"/>');
+      parts.push('<text x="'+(x+bw/2)+'" y="'+(h-6)+'" text-anchor="middle" fill="#8b949e" font-size="11">'+labels[i]+'</text>');
+      parts.push('<text x="'+(x+bw/2)+'" y="'+(y-3)+'" text-anchor="middle" fill="#e6edf3" font-size="10">'+values[i]+'</text>');
+    }
+    parts.push('<text x="4" y="12" fill="#8b949e" font-size="10">'+unit+'</text>');
+    parts.push('</svg>');
+    el.innerHTML=parts.join('');
+  }
+  function drawThroughput(points){
+    var el=document.getElementById('chart-throughput');
+    if(!points||!points.length){el.innerHTML='<div class="chart-empty">Throughput — noch kein Lauf</div>';return;}
+    barChart(el, points.map(function(p){return p.size;}), points.map(function(p){return p.kBs;}), 'kB/s', '#58a6ff');
+  }
+  function drawLatency(rtt){
+    var el=document.getElementById('chart-latency');
+    if(!rtt||rtt.p50==null){el.innerHTML='<div class="chart-empty">Latenz — noch kein Lauf</div>';return;}
+    var labels=['min','p50','avg','p95','max'];
+    var values=labels.map(function(k){return Math.round((rtt[k]||0)/1000);}); // ms
+    barChart(el, labels, values, 'ms', '#3fb950');
+  }
+  function runIntegrity(peer, frames, frameBytes){
+    var q='peer='+encodeURIComponent(peer)+'&frames='+frames+'&frame_bytes='+frameBytes;
+    return fetch('/api/lab/integrity?'+q,{method:'POST'}).then(function(r){return r.json();});
+  }
+  var capSince=0;
+  function loadCapture(reset){
+    if(reset) capSince=0;
+    fetch('/api/capture?since='+capSince+'&limit=80').then(function(r){return r.json();}).then(function(j){
+      var el=document.getElementById('cap-tl');
+      var ev=j.events||[];
+      if(!ev.length && reset){el.innerHTML='<div class="meta">Keine Events.</div>';return;}
+      if(reset) el.innerHTML='';
+      ev.forEach(function(e){
+        if(e.seq>capSince) capSince=e.seq;
+        var d=e.decoded||{};
+        var line=document.createElement('div');
+        line.className='e';
+        var st=(e.status==='ok')?'ok':'bad';
+        line.innerHTML='<span class="t">#'+e.seq+'</span> '+
+          '<span class="meta">'+e.timestamp_us+'µs</span> '+
+          e.role+' <b>'+e.event_type+'</b> '+
+          '<span class="'+st+'">'+e.status+'</span> '+
+          'len='+e.length+
+          (d.lba!=null?(' lba='+d.lba+' n='+d.transfer_length):'')+
+          (d.vid!=null?(' '+d.vid.toString(16)+':'+d.pid.toString(16)):'')+
+          (e.note?(' · '+e.note):'');
+        el.appendChild(line);
+      });
+      el.scrollTop=el.scrollHeight;
+      document.getElementById('cap-meta').textContent=
+        'next='+j.next_seq+' dropped='+j.dropped+(j.overflow?' OVERFLOW':'')+' · '+j.note;
+    }).catch(function(e){
+      document.getElementById('cap-meta').textContent='Capture-Fehler: '+e;
+    });
+  }
+  document.getElementById('btn-cap-refresh').addEventListener('click',function(){loadCapture(true);});
+  setInterval(function(){ if(document.getElementById('panel-analyzer').classList.contains('active')) loadCapture(false); }, 4000);
+
+  document.getElementById('btn-usb-probe').addEventListener('click',function(){
+    var btn=document.getElementById('btn-usb-probe');
+    var msg=document.getElementById('usb-probe-msg');
+    btn.disabled=true;
+    msg.textContent='MSC probe…';
+    fetch('/api/lab/usb-host-probe?blocks=128',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false;
+      if(j.ok){
+        msg.textContent='OK · '+j.rate_kBs+' kB/s · pattern='+(j.pattern_ok?'ok':'mismatch')+
+          ' · p50='+((j.rtt_us&&j.rtt_us.p50)||'?')+' µs · '+((j.inquiry&&j.inquiry.product)||'');
+        drawLatency(j.rtt_us||{});
+        drawThroughput([{size:'USB',kBs:j.rate_kBs||0}]);
+      }else{
+        msg.textContent='FAIL: '+(j.err||'probe');
+      }
+      pollStatus();
+    }).catch(function(e){btn.disabled=false;msg.textContent='Fehler: '+e;});
+  });
+
+  document.getElementById('btn-perf').addEventListener('click',function(){
+    var btn=document.getElementById('btn-perf');
+    var msg=document.getElementById('perf-msg');
+    var peer=document.getElementById('perf-peer').value.trim();
+    if(!peer){msg.textContent='Peer-IP fehlt';return;}
+    btn.disabled=true;
+    perfSweep=[];
+    drawThroughput([]);
+    var sizes=[256,512,1024,2048,4096];
+    var i=0;
+    function step(){
+      if(i>=sizes.length){
+        btn.disabled=false;
+        msg.textContent='Fertig · peak '+Math.max.apply(null,perfSweep.map(function(p){return p.kBs;}))+' kB/s';
+        if(perfSweep.length) drawLatency(perfSweep[perfSweep.length-1].rtt||{});
+        pollStatus();
+        return;
+      }
+      var sz=sizes[i++];
+      msg.textContent='Laufe size='+sz+'… ('+i+'/'+sizes.length+')';
+      runIntegrity(peer, 64, sz).then(function(j){
+        perfSweep.push({
+          size: String(sz),
+          kBs: j.rate_kBs||0,
+          ok: !!j.ok,
+          rtt: j.rtt_us||{}
+        });
+        drawThroughput(perfSweep);
+        if(j.rtt_us) drawLatency(j.rtt_us);
+        step();
+      }).catch(function(e){
+        msg.textContent='Fehler bei size='+sz+': '+e;
+        btn.disabled=false;
+      });
+    }
+    step();
+  });
+
+  var es=new EventSource('/events');
+  var dot=document.getElementById('sse-dot'),lbl=document.getElementById('sse-lbl');
+  es.onopen=function(){dot.className='dot dot-on';lbl.textContent='Live';};
+  es.onerror=function(){dot.className='dot dot-off';lbl.textContent='Getrennt';setTimeout(pollStatus,3000);};
+  es.onmessage=function(e){try{applyStatus(JSON.parse(e.data));}catch(ex){}};
+  function pollStatus(){
+    fetch('/api/status').then(function(r){return r.json();}).then(applyStatus).catch(function(){});
+  }
+  pollStatus();
+
+  var inp=document.getElementById('fw'),drop=document.getElementById('drop');
+  inp.addEventListener('change',function(){
+    if(inp.files[0])document.getElementById('fname').textContent=inp.files[0].name+' ('+Math.round(inp.files[0].size/1024)+' KB)';
+  });
+  drop.addEventListener('dragover',function(e){e.preventDefault();drop.style.borderColor='#58a6ff';});
+  drop.addEventListener('dragleave',function(){drop.style.borderColor='#30363d';});
+  drop.addEventListener('drop',function(e){
+    e.preventDefault();drop.style.borderColor='#30363d';
+    var f=e.dataTransfer.files[0];
+    if(f&&f.name.endsWith('.bin')){var dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;
+      document.getElementById('fname').textContent=f.name+' ('+Math.round(f.size/1024)+' KB)';}
+  });
+  window.startUpload=function(){
+    if(!inp.files[0]){alert('Bitte zuerst eine .bin Datei auswaehlen!');return;}
+    var fd=new FormData();fd.append('firmware',inp.files[0]);
+    var xhr=new XMLHttpRequest();xhr.open('POST','/ota-upload');
+    document.getElementById('prog').style.display='block';
+    xhr.upload.onprogress=function(e){
+      if(e.lengthComputable){var pct=Math.round(e.loaded/e.total*100);
+        document.getElementById('bar').style.width=pct+'%';
+        document.getElementById('msg').textContent='Hochladen: '+pct+'%';}
+    };
+    xhr.onload=function(){
+      if(xhr.status===200){document.getElementById('bar').style.width='100%';
+        document.getElementById('bar').style.background='#3fb950';
+        document.getElementById('msg').textContent='Erfolgreich! ESP startet neu...';}
+      else{document.getElementById('msg').textContent='Fehler: '+xhr.responseText;
+        document.getElementById('bar').style.background='#f85149';}
+    };
+    xhr.onerror=function(){document.getElementById('msg').textContent='Verbindungsfehler.';};
+    xhr.send(fd);
+  };
+})();
+</script>
+</body>
+</html>

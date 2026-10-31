@@ -74,13 +74,7 @@ def handle_client(conn: socket.socket, addr, auto_role: Optional[str]) -> None:
                             "body": {"role": auto_role},
                         }
                         _send(conn, assign)
-                        # registry key may be device_id or device_id@ip
-                        for view in REGISTRY.list_views_keyed():
-                            if view["node_id"] == device_id and view["ip"] == body.get("ip"):
-                                REGISTRY.set_assigned_role(view["registry_key"], auto_role)
-                                break
-                        else:
-                            REGISTRY.set_assigned_role(device_id, auto_role)
+                        REGISTRY.set_assigned_role(state.registry_key or device_id, auto_role)
                         print(
                             f"[{utc_now()}] assign_role {device_id} -> {auto_role}",
                             flush=True,

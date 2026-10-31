@@ -42,7 +42,6 @@ void netBootstrap(NetConfig &cfg) {
   const String derivedId = makeDeviceId();
   prefs.begin("usb-an", false);
   cfg.deviceName = prefs.getString("name", derivedId);
-  // First boot under Host FW may have saved usb-analyzer-0000 before MAC was ready.
   if (cfg.deviceName.endsWith("-0000") || cfg.deviceName.length() < 8) {
     cfg.deviceName = derivedId;
   }
@@ -50,7 +49,21 @@ void netBootstrap(NetConfig &cfg) {
       prefs.getString("ctrl_host", CONTROLLER_HOST_DEFAULT);
   cfg.controllerPort =
       prefs.getUShort("ctrl_port", CONTROLLER_PORT_DEFAULT);
+  cfg.hubHost = prefs.getString("hub_host", HUB_HOST);
+  cfg.hubPort = prefs.getUShort("hub_port", static_cast<uint16_t>(HUB_PORT));
   prefs.end();
+
+  // Hub rename may have written NVS namespace "esphub".
+  {
+    Preferences hubPrefs;
+    if (hubPrefs.begin("esphub", true)) {
+      const String hubName = hubPrefs.getString("name", "");
+      hubPrefs.end();
+      if (hubName.length() >= 8 && !hubName.endsWith("-0000")) {
+        cfg.deviceName = hubName;
+      }
+    }
+  }
 
   WiFi.mode(WIFI_STA);
   wm.setConfigPortalTimeout(WIFI_PORTAL_TIMEOUT_S);
@@ -63,9 +76,17 @@ void netBootstrap(NetConfig &cfg) {
   snprintf(port_buf, sizeof(port_buf), "%u",
            static_cast<unsigned>(cfg.controllerPort));
   WiFiManagerParameter p_port("ctrl_port", "Controller port", port_buf, 6);
+  WiFiManagerParameter p_hub("hub_host", "ESP-Hub host", cfg.hubHost.c_str(),
+                             40);
+  char hub_port_buf[8];
+  snprintf(hub_port_buf, sizeof(hub_port_buf), "%u",
+           static_cast<unsigned>(cfg.hubPort));
+  WiFiManagerParameter p_hub_port("hub_port", "ESP-Hub port", hub_port_buf, 6);
   wm.addParameter(&p_name);
   wm.addParameter(&p_host);
   wm.addParameter(&p_port);
+  wm.addParameter(&p_hub);
+  wm.addParameter(&p_hub_port);
 
   Serial.printf("[net] portal SSID %s (if no saved WiFi)\n", WIFI_AP_NAME);
   const bool ok = wm.autoConnect(WIFI_AP_NAME);
@@ -73,7 +94,8 @@ void netBootstrap(NetConfig &cfg) {
     Serial.println("[net] WiFi portal failed/timeout — continuing offline for "
                    "USB Host bring-up");
   } else {
-    Serial.printf("[net] WiFi OK ip=%s rssi=%d\n",
+    WiFi.setSleep(false); // data-plane latency; analyzer nodes stay powered
+    Serial.printf("[net] WiFi OK ip=%s rssi=%d sleep=off\n",
                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
   }
 
@@ -81,6 +103,9 @@ void netBootstrap(NetConfig &cfg) {
   cfg.controllerHost = p_host.getValue();
   cfg.controllerPort =
       static_cast<uint16_t>(atoi(p_port.getValue()) & 0xffff);
+  cfg.hubHost = p_hub.getValue();
+  cfg.hubPort =
+      static_cast<uint16_t>(atoi(p_hub_port.getValue()) & 0xffff);
   if (cfg.deviceName.isEmpty()) {
     cfg.deviceName = makeDeviceId();
   }
@@ -90,11 +115,25 @@ void netBootstrap(NetConfig &cfg) {
   if (cfg.controllerPort == 0) {
     cfg.controllerPort = CONTROLLER_PORT_DEFAULT;
   }
+  if (cfg.hubHost.isEmpty()) {
+    cfg.hubHost = HUB_HOST;
+  }
+  if (cfg.hubPort == 0) {
+    cfg.hubPort = static_cast<uint16_t>(HUB_PORT);
+  }
 
   prefs.begin("usb-an", false);
   prefs.putString("name", cfg.deviceName);
   prefs.putString("ctrl_host", cfg.controllerHost);
   prefs.putUShort("ctrl_port", cfg.controllerPort);
+  prefs.putString("hub_host", cfg.hubHost);
+  prefs.putUShort("hub_port", cfg.hubPort);
+  prefs.end();
+}
+
+void netPersistDeviceName(const String &name) {
+  prefs.begin("usb-an", false);
+  prefs.putString("name", name);
   prefs.end();
 }
 
