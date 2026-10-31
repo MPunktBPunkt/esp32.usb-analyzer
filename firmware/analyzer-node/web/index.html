@@ -146,7 +146,8 @@ input[type=file]{display:none}
         <tr><td>Details</td><td class="mono" id="a-otg-detail">—</td></tr>
       </table>
       <div class="perf-row" id="usb-probe-row" style="display:none">
-        <button type="button" class="btn-sec" id="btn-usb-probe">USB-OTG Probe (MSC)</button>
+        <button type="button" class="btn-sec" id="btn-usb-probe">USB READ Probe</button>
+        <button type="button" class="btn-sec" id="btn-usb-write">USB WRITE Probe</button>
         <span class="muted" id="usb-probe-msg"></span>
       </div>
     </div>
@@ -436,24 +437,28 @@ input[type=file]{display:none}
   document.getElementById('btn-cap-refresh').addEventListener('click',function(){loadCapture(true);});
   setInterval(function(){ if(document.getElementById('panel-analyzer').classList.contains('active')) loadCapture(false); }, 4000);
 
-  document.getElementById('btn-usb-probe').addEventListener('click',function(){
-    var btn=document.getElementById('btn-usb-probe');
+  function runUsbProbe(dir){
+    var btnR=document.getElementById('btn-usb-probe');
+    var btnW=document.getElementById('btn-usb-write');
     var msg=document.getElementById('usb-probe-msg');
-    btn.disabled=true;
-    msg.textContent='MSC probe…';
-    fetch('/api/lab/usb-host-probe?blocks=128',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
-      btn.disabled=false;
+    btnR.disabled=true; btnW.disabled=true;
+    msg.textContent='MSC '+dir+'…';
+    var q='blocks='+(dir==='write'?64:128)+'&chunk=4&dir='+encodeURIComponent(dir);
+    fetch('/api/lab/usb-host-probe?'+q,{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      btnR.disabled=false; btnW.disabled=false;
       if(j.ok){
-        msg.textContent='OK · '+j.rate_kBs+' kB/s · pattern='+(j.pattern_ok?'ok':'mismatch')+
-          ' · p50='+((j.rtt_us&&j.rtt_us.p50)||'?')+' µs · '+((j.inquiry&&j.inquiry.product)||'');
+        msg.textContent=(j.dir||dir).toUpperCase()+' OK · '+j.rate_kBs+' kB/s · pattern='+(j.pattern_ok?'ok':'mismatch');
         drawLatency(j.rtt_us||{});
-        drawThroughput([{size:'USB',kBs:j.rate_kBs||0}]);
+        drawThroughput([{size:(j.dir||dir).toUpperCase(),kBs:j.rate_kBs||0}]);
+        loadCapture(false);
       }else{
         msg.textContent='FAIL: '+(j.err||'probe');
       }
       pollStatus();
-    }).catch(function(e){btn.disabled=false;msg.textContent='Fehler: '+e;});
-  });
+    }).catch(function(e){btnR.disabled=false;btnW.disabled=false;msg.textContent='Fehler: '+e;});
+  }
+  document.getElementById('btn-usb-probe').addEventListener('click',function(){runUsbProbe('read');});
+  document.getElementById('btn-usb-write').addEventListener('click',function(){runUsbProbe('write');});
 
   document.getElementById('btn-perf').addEventListener('click',function(){
     var btn=document.getElementById('btn-perf');

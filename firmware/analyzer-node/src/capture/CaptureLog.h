@@ -15,12 +15,15 @@ enum class CapType : uint8_t {
   Detach = 2,
   EnumInfo = 3,
   MscRead = 4,
-  MscProxyReq = 5,
-  MscProxyRsp = 6,
-  TcpBulk = 7,
-  Error = 8,
-  Overflow = 9,
-  SyncMarker = 10,
+  MscWrite = 5,
+  MscProxyReq = 6,
+  MscProxyRsp = 7,
+  TcpBulk = 8,
+  BotCbw = 9,  // lab-inferred from class API — not wire CBW
+  BotCsw = 10,
+  Error = 11,
+  Overflow = 12,
+  SyncMarker = 13,
 };
 
 struct CapEvent {

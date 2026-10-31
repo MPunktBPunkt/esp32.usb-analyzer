@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""OTG-loop MSC probe: Host ESP reads Device ESP over the USB-C cable.
+"""OTG-loop MSC probe: Host ESP ↔ Device ESP over the USB-C cable.
 
 Path: .88 Host OTG ──cable── .89 Device MSC
 Not WiFi. Not Gate-4 MITM proxy.
+
+dir=read  — lab_sector_v1 verify
+dir=write — patterned WRITE + immediate readback
 """
 from __future__ import annotations
 
@@ -12,8 +15,11 @@ import urllib.parse
 import urllib.request
 
 
-def probe(ip: str, blocks: int, lba: int = 0) -> dict:
-    q = urllib.parse.urlencode({"blocks": blocks, "lba": lba})
+def probe(ip: str, blocks: int, lba: int = 0, chunk: int = 4,
+          direction: str = "read") -> dict:
+    q = urllib.parse.urlencode(
+        {"blocks": blocks, "lba": lba, "chunk": chunk, "dir": direction}
+    )
     req = urllib.request.Request(
         f"http://{ip}/api/lab/usb-host-probe?{q}", method="POST", data=b""
     )
@@ -26,16 +32,21 @@ def main() -> int:
     ap.add_argument("--host", default="192.168.178.88", help="USB Host ESP IP")
     ap.add_argument("--blocks", type=int, default=128)
     ap.add_argument("--lba", type=int, default=0)
+    ap.add_argument("--chunk", type=int, default=4)
+    ap.add_argument("--dir", choices=("read", "write"), default="read")
     args = ap.parse_args()
 
-    print(f"==> USB OTG MSC probe on {args.host}  blocks={args.blocks}")
+    print(
+        f"==> USB OTG MSC {args.dir} probe on {args.host}  "
+        f"blocks={args.blocks} chunk={args.chunk} lba={args.lba}"
+    )
     try:
-        r = probe(args.host, args.blocks, args.lba)
+        r = probe(args.host, args.blocks, args.lba, args.chunk, args.dir)
     except Exception as e:
         print("FAIL", e)
         return 1
     print(json.dumps(r, indent=2))
-    ok = bool(r.get("ok"))
+    ok = bool(r.get("ok")) and bool(r.get("pattern_ok", True))
     print(
         "RESULT",
         "OK" if ok else "FAIL",

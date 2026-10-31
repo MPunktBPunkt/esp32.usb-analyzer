@@ -434,7 +434,120 @@ bool UsbHostNode::readBlocks(uint32_t lba, uint32_t blocks, uint8_t *out) {
   CaptureLog::instance().push(CapRole::Host, CapType::MscRead, ok ? 0 : 1,
                               blocks * 512u, lba, blocks, dur,
                               ok ? "proxy_read" : "proxy_fail");
+  CaptureLog::instance().push(CapRole::Host, CapType::BotCbw, ok ? 0 : 1, 31, lba,
+                              blocks, 0, "READ10_inferred");
+  CaptureLog::instance().push(CapRole::Host, CapType::BotCsw, ok ? 0 : 1, 13, lba,
+                              0, dur, ok ? "CSW_ok_inferred" : "CSW_fail");
   return ok;
+}
+
+bool UsbHostNode::writeBlocks(uint32_t lba, uint32_t blocks, const uint8_t *in) {
+  if (!begin_ok_ || !in || blocks == 0 || blocks > 8 || deviceCount() == 0) {
+    return false;
+  }
+  if (!g_usb.mscWaitReady(ESP_USB_HOST_ANY_ADDRESS, 2000, 1000)) {
+    return false;
+  }
+  const int64_t t0 = esp_timer_get_time();
+  const bool ok = g_usb.mscWriteBlocks(lba, in, blocks);
+  const uint32_t dur = static_cast<uint32_t>(esp_timer_get_time() - t0);
+  CaptureLog::instance().push(CapRole::Host, CapType::MscWrite, ok ? 0 : 1,
+                              blocks * 512u, lba, blocks, dur,
+                              ok ? "host_write" : "write_fail");
+  CaptureLog::instance().push(CapRole::Host, CapType::BotCbw, ok ? 0 : 1, 31, lba,
+                              blocks, 0, "WRITE10_inferred");
+  CaptureLog::instance().push(CapRole::Host, CapType::BotCsw, ok ? 0 : 1, 13, lba,
+                              0, dur, ok ? "CSW_ok_inferred" : "CSW_fail");
+  return ok;
+}
+
+HostMscProbeResult UsbHostNode::runMscWriteProbe(uint32_t blocks,
+                                                 uint32_t start_lba,
+                                                 uint32_t chunk,
+                                                 bool readback) {
+  HostMscProbeResult r;
+  if (!begin_ok_ || deviceCount() == 0) {
+    r.error = begin_ok_ ? "no_dut" : "host_disabled";
+    last_probe_ = r;
+    has_last_probe_ = true;
+    return r;
+  }
+  if (blocks == 0) {
+    blocks = 64;
+  }
+  if (blocks > 256) {
+    blocks = 256; // device write-cache is 64 LBAs — keep probe modest
+  }
+  if (chunk == 0) {
+    chunk = 1;
+  }
+  if (chunk > 8) {
+    chunk = 8;
+  }
+  r.chunk = chunk;
+  char id[12];
+  snprintf(id, sizeof(id), "%04x:%04x", dut_vid_, dut_pid_);
+  r.dut_id = id;
+  if (!g_usb.mscWaitReady(ESP_USB_HOST_ANY_ADDRESS, 3000, 1000)) {
+    r.error = "msc_not_ready";
+    last_probe_ = r;
+    has_last_probe_ = true;
+    return r;
+  }
+  r.msc_ready = true;
+  r.block_size = 512;
+
+  static uint8_t buf[512 * 8];
+  static uint8_t rb[512 * 8];
+  uint32_t done = 0;
+  bool pattern_all = true;
+  const uint32_t t0 = millis();
+  while (done < blocks) {
+    uint32_t n = chunk;
+    if (done + n > blocks) {
+      n = blocks - done;
+    }
+    const uint32_t lba = start_lba + done;
+    for (uint32_t b = 0; b < n; b++) {
+      fillLabSector(buf + b * 512, 512, lba + b, 0);
+      // Distinct write marker so readback ≠ default pattern alone
+      buf[b * 512] = static_cast<uint8_t>(0xA5 ^ (lba + b));
+    }
+    if (!writeBlocks(lba, n, buf)) {
+      r.error = "write_fail_lba_" + String(lba);
+      r.blocks_read = done;
+      r.duration_ms = millis() - t0;
+      last_probe_ = r;
+      has_last_probe_ = true;
+      return r;
+    }
+    r.transfers++;
+    r.bytes_read += n * 512u; // misuse field as bytes_xfer for write probe
+    if (readback) {
+      memset(rb, 0, n * 512u);
+      if (!readBlocks(lba, n, rb) || memcmp(buf, rb, n * 512u) != 0) {
+        pattern_all = false;
+        r.pattern_fail_bytes += n * 512u;
+      }
+    }
+    done += n;
+  }
+  r.blocks_read = done;
+  r.duration_ms = millis() - t0;
+  r.pattern_ok = readback ? pattern_all : true;
+  if (r.duration_ms > 0) {
+    r.rate_kBs = static_cast<uint32_t>(
+        (static_cast<uint64_t>(r.bytes_read) * 1000ull / r.duration_ms) /
+        1024ull);
+  }
+  r.ok = (r.blocks_read == blocks && r.error.length() == 0);
+  last_probe_ = r;
+  has_last_probe_ = true;
+  CaptureLog::instance().push(
+      CapRole::Host, CapType::MscWrite, r.ok && r.pattern_ok ? 0 : 1, r.bytes_read,
+      start_lba, blocks, r.duration_ms * 1000u,
+      r.pattern_ok ? "write_probe_ok" : "write_probe_fail");
+  return r;
 }
 
 void UsbHostNode::printNoDeviceHints() const {
@@ -474,6 +587,17 @@ HostMscProbeResult UsbHostNode::runMscProbe(uint32_t, uint32_t, uint32_t) {
   return r;
 }
 bool UsbHostNode::readBlocks(uint32_t, uint32_t, uint8_t *) { return false; }
+bool UsbHostNode::writeBlocks(uint32_t, uint32_t, const uint8_t *) {
+  return false;
+}
+HostMscProbeResult UsbHostNode::runMscWriteProbe(uint32_t, uint32_t, uint32_t,
+                                                 bool) {
+  HostMscProbeResult r;
+  r.error = "host_disabled";
+  last_probe_ = r;
+  has_last_probe_ = true;
+  return r;
+}
 void UsbHostNode::printNoDeviceHints() const {}
 void UsbHostNode::clearDut() {}
 

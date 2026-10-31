@@ -316,6 +316,7 @@ void AnalyzerStatusModule::handleUsbHostProbe() {
   uint32_t blocks = 64;
   uint32_t lba = 0;
   uint32_t chunk = 1;
+  String dir = server_->arg("dir");
   if (server_->hasArg("blocks")) {
     blocks = static_cast<uint32_t>(server_->arg("blocks").toInt());
   }
@@ -328,8 +329,12 @@ void AnalyzerStatusModule::handleUsbHostProbe() {
   if (blocks == 0) {
     blocks = 64;
   }
+  dir.toLowerCase();
+  const bool do_write = (dir == "write" || dir == "w" || dir == "out");
 
-  const HostMscProbeResult r = host_->runMscProbe(blocks, lba, chunk);
+  const HostMscProbeResult r =
+      do_write ? host_->runMscWriteProbe(blocks, lba, chunk, true)
+               : host_->runMscProbe(blocks, lba, chunk);
   String j = "{";
   j += "\"ok\":";
   j += r.ok ? "true" : "false";
@@ -359,7 +364,12 @@ void AnalyzerStatusModule::handleUsbHostProbe() {
   j += ",\"p95\":" + String(r.rtt_p95_us);
   j += ",\"max\":" + String(r.rtt_max_us);
   j += "}";
-  j += ",\"path\":\"usb_otg_host_to_device_msc\"";
+  j += ",\"dir\":\"";
+  j += do_write ? "write" : "read";
+  j += "\"";
+  j += ",\"path\":\"";
+  j += do_write ? "usb_otg_host_write_device_msc" : "usb_otg_host_to_device_msc";
+  j += "\"";
   j += ",\"note\":\"direct_otg_cable_not_wifi_mitm\"";
   if (r.error.length()) {
     j += ",\"err\":\"" + r.error + "\"";

@@ -73,12 +73,18 @@ const char *CaptureLog::typeName(CapType t) {
     return "enum_info";
   case CapType::MscRead:
     return "msc_read";
+  case CapType::MscWrite:
+    return "msc_write";
   case CapType::MscProxyReq:
     return "msc_proxy_req";
   case CapType::MscProxyRsp:
     return "msc_proxy_rsp";
   case CapType::TcpBulk:
     return "tcp_bulk";
+  case CapType::BotCbw:
+    return "bot_cbw";
+  case CapType::BotCsw:
+    return "bot_csw";
   case CapType::Error:
     return "error";
   case CapType::Overflow:
@@ -116,13 +122,36 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
   out += ",\"status\":\"" + String(e.status == 0 ? "ok" : "error") + "\"";
   out += ",\"length\":" + String(e.length);
   out += ",\"duration_us\":" + String(e.duration_us);
+  out += ",\"transfer_type\":\"bulk\"";
   out += ",\"layer\":\"L1_lab\"";
   out += ",\"claim\":\"not_wire_phy\"";
-  if (e.type == CapType::MscRead || e.type == CapType::MscProxyReq ||
-      e.type == CapType::MscProxyRsp) {
-    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"READ_10\"";
+  const bool note_write =
+      e.note[0] && (strstr(e.note, "WRITE") != nullptr ||
+                    strstr(e.note, "write") != nullptr);
+  if (e.type == CapType::MscWrite ||
+      (e.type == CapType::BotCbw && note_write)) {
+    out += ",\"direction\":\"out\"";
+    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"WRITE_10\"";
+    out += ",\"scsi_opcode\":42"; // 0x2A — decimal for valid JSON
     out += ",\"lba\":" + String(e.arg0);
     out += ",\"transfer_length\":" + String(e.arg1);
+    out += ",\"source\":\"class_api_inferred\"";
+    out += "}";
+  } else if (e.type == CapType::MscRead || e.type == CapType::MscProxyReq ||
+             e.type == CapType::MscProxyRsp || e.type == CapType::BotCbw) {
+    out += ",\"direction\":\"in\"";
+    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"READ_10\"";
+    out += ",\"scsi_opcode\":40"; // 0x28
+    out += ",\"lba\":" + String(e.arg0);
+    out += ",\"transfer_length\":" + String(e.arg1);
+    out += ",\"source\":\"class_api_inferred\"";
+    out += "}";
+  } else if (e.type == CapType::BotCsw) {
+    out += ",\"direction\":\"in\"";
+    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"CSW\"";
+    out += ",\"lba\":" + String(e.arg0);
+    out += ",\"residue\":" + String(e.arg1);
+    out += ",\"source\":\"class_api_inferred\"";
     out += "}";
   } else if (e.type == CapType::Attach || e.type == CapType::EnumInfo) {
     out += ",\"decoded\":{\"vid\":" + String(e.arg0);

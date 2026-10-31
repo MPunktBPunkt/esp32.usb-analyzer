@@ -7,6 +7,7 @@
 #include "capture/CaptureLog.h"
 #include "protocol/DataPlane.h"
 
+#include <cstring>
 #include <usb_analyzer/UsbLabPattern.h>
 
 namespace usb_analyzer {
@@ -25,7 +26,7 @@ int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
                                 lba, bufsize / 512u, 0, "from_host_dut");
     return static_cast<int32_t>(bufsize);
   }
-  // Lab pattern (OTG loop / no proxy). Sample-rate limit: log every 32nd call.
+  // Prefer sectors previously written by Host (write cache), else lab pattern.
   uint32_t done = 0;
   while (done < bufsize) {
     const uint32_t abs_off = offset + done;
@@ -36,7 +37,15 @@ int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
     if (n > room) {
       n = room;
     }
-    fillLabSector(out + done, n, cur_lba, cur_off);
+    uint8_t cached[512];
+    if (g_self && cur_off == 0 && n == 512 &&
+        g_self->loadCachedSector(cur_lba, cached)) {
+      memcpy(out + done, cached, 512);
+    } else if (g_self && g_self->loadCachedSector(cur_lba, cached)) {
+      memcpy(out + done, cached + cur_off, n);
+    } else {
+      fillLabSector(out + done, n, cur_lba, cur_off);
+    }
     done += n;
   }
   if (g_self) {
@@ -44,8 +53,30 @@ int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
     if ((g_self->readOps() & 31u) == 1u) {
       CaptureLog::instance().push(CapRole::Device, CapType::MscRead, 0, bufsize,
                                   lba, bufsize / 512u, 0, "gadget_pattern");
+      CaptureLog::instance().push(CapRole::Device, CapType::BotCbw, 0, 31, lba,
+                                  bufsize / 512u, 0, "READ10_inferred");
+      CaptureLog::instance().push(CapRole::Device, CapType::BotCsw, 0, 13, lba, 0,
+                                  0, "CSW_ok_inferred");
     }
   }
+  return static_cast<int32_t>(bufsize);
+}
+
+int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer,
+                uint32_t bufsize) {
+  if (!g_self) {
+    return -1;
+  }
+  if (!g_self->storeWrite(lba, offset, buffer, bufsize)) {
+    return -1;
+  }
+  g_self->noteWrite(bufsize);
+  CaptureLog::instance().push(CapRole::Device, CapType::MscWrite, 0, bufsize, lba,
+                              bufsize / 512u, 0, "gadget_write");
+  CaptureLog::instance().push(CapRole::Device, CapType::BotCbw, 0, 31, lba,
+                              bufsize / 512u, 0, "WRITE10_inferred");
+  CaptureLog::instance().push(CapRole::Device, CapType::BotCsw, 0, 13, lba, 0, 0,
+                              "CSW_ok_inferred");
   return static_cast<int32_t>(bufsize);
 }
 
@@ -92,6 +123,60 @@ void UsbDeviceNode::noteRead(uint32_t bytes) {
   read_bytes_ += bytes;
 }
 
+void UsbDeviceNode::noteWrite(uint32_t bytes) {
+  write_ops_++;
+  write_bytes_ += bytes;
+}
+
+bool UsbDeviceNode::storeWrite(uint32_t lba, uint32_t offset, const uint8_t *in,
+                               uint32_t bufsize) {
+  if (!in || bufsize == 0) {
+    return false;
+  }
+  uint32_t done = 0;
+  while (done < bufsize) {
+    const uint32_t abs_off = offset + done;
+    const uint32_t cur_lba = lba + (abs_off / 512u);
+    const uint32_t cur_off = abs_off % 512u;
+    uint32_t n = bufsize - done;
+    const uint32_t room = 512u - cur_off;
+    if (n > room) {
+      n = room;
+    }
+    // Find or allocate cache entry for this LBA.
+    WriteCacheEntry *slot = nullptr;
+    for (size_t i = 0; i < kWriteCache; i++) {
+      if (write_cache_[i].valid && write_cache_[i].lba == cur_lba) {
+        slot = &write_cache_[i];
+        break;
+      }
+    }
+    if (!slot) {
+      slot = &write_cache_[write_cache_i_ % kWriteCache];
+      write_cache_i_++;
+      slot->lba = cur_lba;
+      slot->valid = true;
+      fillLabSector(slot->data, 512, cur_lba, 0); // base then overlay
+    }
+    memcpy(slot->data + cur_off, in + done, n);
+    done += n;
+  }
+  return true;
+}
+
+bool UsbDeviceNode::loadCachedSector(uint32_t lba, uint8_t *out512) const {
+  if (!out512) {
+    return false;
+  }
+  for (size_t i = 0; i < kWriteCache; i++) {
+    if (write_cache_[i].valid && write_cache_[i].lba == lba) {
+      memcpy(out512, write_cache_[i].data, 512);
+      return true;
+    }
+  }
+  return false;
+}
+
 void UsbDeviceNode::setProxy(DataPlane *plane, const String &peer_ip) {
   proxy_plane_ = plane;
   proxy_peer_ = peer_ip;
@@ -134,6 +219,10 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += String(read_ops_);
   json += ",\"readBytes\":";
   json += String(read_bytes_);
+  json += ",\"writeOps\":";
+  json += String(write_ops_);
+  json += ",\"writeBytes\":";
+  json += String(write_bytes_);
   json += ",\"pattern\":\"lab_sector_v1\"";
   json += ",\"proxy\":";
   json += proxy_on_ ? "true" : "false";
@@ -181,8 +270,10 @@ bool UsbDeviceNode::begin() {
   g_msc.productID("ANALYZER");
   g_msc.productRevision("0001");
   g_msc.onRead(onRead);
+  g_msc.onWrite(onWrite);
   g_msc.onStartStop(onStartStop);
   g_msc.mediaPresent(true);
+  g_msc.isWritable(true);
   g_msc.begin(512, 512);
 
   USB.begin();
@@ -220,12 +311,17 @@ const char *UsbDeviceNode::otgState() const { return "disabled"; }
 void UsbDeviceNode::notifyMounted(bool) {}
 void UsbDeviceNode::notifySuspended(bool) {}
 void UsbDeviceNode::noteRead(uint32_t) {}
+void UsbDeviceNode::noteWrite(uint32_t) {}
 void UsbDeviceNode::setProxy(DataPlane *, const String &) {}
 bool UsbDeviceNode::fillFromProxy(uint32_t, uint32_t, uint8_t *, uint32_t) {
   return false;
 }
+bool UsbDeviceNode::storeWrite(uint32_t, uint32_t, const uint8_t *, uint32_t) {
+  return false;
+}
+bool UsbDeviceNode::loadCachedSector(uint32_t, uint8_t *) const { return false; }
 void UsbDeviceNode::appendStatusJson(String &json) const {
-  json += ",\"gadget\":{\"readOps\":0,\"readBytes\":0,\"proxy\":false}";
+  json += ",\"gadget\":{\"readOps\":0,\"readBytes\":0,\"writeOps\":0,\"proxy\":false}";
   (void)json;
 }
 

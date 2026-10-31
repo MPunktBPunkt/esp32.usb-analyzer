@@ -10,6 +10,8 @@
 - MEASURED baseline: `docs/evidence/LAB_BASELINE_MEASURED.md` — USB ~934 kB/s / 0 loss; TCP ~139 kB/s
 - FW 0.0.15: Gate‑4 slice — windowed TCP bulk (`window=`), MSC READ proxy Device→Host (`/api/lab/usb-proxy`)
 - FW 0.0.16: Gate‑5 slice — `CaptureLog` + `GET /api/capture` + Analyzer Timeline (L1 lab, not wire)
+- FW 0.0.17: Gate‑6 slice — MSC WRITE probe + readback; capture DECODE READ10/WRITE10 + inferred bot_cbw/csw
+- FW 0.0.18: Capture JSON fix (`scsi_opcode` decimal); bot_cbw WRITE vs READ; CSW decode; gadget write-cache 64 LBA; READ bot markers
 
 - Debian Slice A: `controller.run` HTTP `:8080` + SSE + lab Web UI
 - Gate 2 scaffold: `analyzer-s3-device` MSC gadget (build OK; lab flash pending)

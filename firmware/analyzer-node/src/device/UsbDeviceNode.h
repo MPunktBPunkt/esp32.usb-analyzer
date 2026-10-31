@@ -30,13 +30,19 @@ public:
   const String &proxyPeer() const { return proxy_peer_; }
 
   void noteRead(uint32_t bytes);
+  void noteWrite(uint32_t bytes);
   uint32_t readOps() const { return read_ops_; }
   uint32_t readBytes() const { return read_bytes_; }
+  uint32_t writeOps() const { return write_ops_; }
+  uint32_t writeBytes() const { return write_bytes_; }
   void appendStatusJson(String &json) const;
 
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
                      uint32_t bufsize);
+  bool storeWrite(uint32_t lba, uint32_t offset, const uint8_t *in,
+                  uint32_t bufsize);
+  bool loadCachedSector(uint32_t lba, uint8_t *out512) const;
 
 private:
   bool ready_ = false;
@@ -45,9 +51,20 @@ private:
   bool suspended_ = false;
   uint32_t read_ops_ = 0;
   uint32_t read_bytes_ = 0;
+  uint32_t write_ops_ = 0;
+  uint32_t write_bytes_ = 0;
   DataPlane *proxy_plane_ = nullptr;
   String proxy_peer_;
   bool proxy_on_ = false;
+
+  static constexpr size_t kWriteCache = 64; // covers typical lab write probe
+  struct WriteCacheEntry {
+    uint32_t lba = 0;
+    bool valid = false;
+    uint8_t data[512];
+  };
+  WriteCacheEntry write_cache_[kWriteCache]{};
+  size_t write_cache_i_ = 0;
 };
 
 } // namespace usb_analyzer

@@ -56,10 +56,15 @@ public:
                                  uint32_t chunk = 1);
 
   /**
-   * Raw MSC READ into caller buffer (Gate 4 proxy).
-   * @param out must hold blocks * 512 bytes; blocks 1..8.
+   * Raw MSC READ/WRITE into caller buffer (Gate 4/6).
+   * @param buf must hold blocks * 512 bytes; blocks 1..8.
    */
   bool readBlocks(uint32_t lba, uint32_t blocks, uint8_t *out);
+  bool writeBlocks(uint32_t lba, uint32_t blocks, const uint8_t *in);
+
+  /** WRITE then optional READ-back verify (OTG loop reverse direction). */
+  HostMscProbeResult runMscWriteProbe(uint32_t blocks, uint32_t start_lba = 0,
+                                      uint32_t chunk = 1, bool readback = true);
 
   bool hasLastProbe() const { return has_last_probe_; }
   const HostMscProbeResult &lastProbe() const { return last_probe_; }
