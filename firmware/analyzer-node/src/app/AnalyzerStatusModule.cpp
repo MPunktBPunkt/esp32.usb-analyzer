@@ -544,6 +544,9 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleUsbProxySelftest(); });
   server.on("/api/lab/usb-ctrl-forward", HTTP_ANY,
             [this]() { handleUsbCtrlForward(); });
+  server.on("/api/lab/aoa-respond", HTTP_ANY, [this]() { handleAoaRespond(); });
+  server.on("/api/lab/aoa-handshake", HTTP_ANY,
+            [this]() { handleAoaHandshake(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -695,6 +698,101 @@ void AnalyzerStatusModule::handleUsbCtrlForward() {
   j += ",\"note\":\"not_usb_control_mitm\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleAoaRespond() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  const String en = server_->arg("enable");
+  bool on = true;
+  if (en == "0" || en == "false" || en == "off") {
+    on = false;
+  } else if (en == "1" || en == "true" || en == "on" || en.isEmpty()) {
+    on = true;
+  }
+  bool reenum = true;
+  if (server_->hasArg("reenum")) {
+    const String r = server_->arg("reenum");
+    reenum = !(r == "0" || r == "false" || r == "off");
+  }
+  // Proxy OFF recommended — AOA lab is control path on OTG loop.
+  if (on && device_->proxyEnabled()) {
+    device_->setProxy(nullptr, "");
+  }
+  device_->setAoaRespond(on, reenum);
+  String j = "{\"ok\":true,\"respond\":";
+  j += on ? "true" : "false";
+  j += ",\"reenumOnStart\":";
+  j += reenum ? "true" : "false";
+  j += ",\"claim\":\"aoa_control_handshake_lab\"";
+  j += ",\"note\":\"not_hu_wire_not_bcl_not_accessory_bulk\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(200, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleAoaHandshake() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  String profile = server_->arg("profile");
+  if (profile.isEmpty()) {
+    profile = "lab";
+  }
+  bool wait_reenum = true;
+  if (server_->hasArg("wait_reenum")) {
+    const String w = server_->arg("wait_reenum");
+    wait_reenum = !(w == "0" || w == "false" || w == "off");
+  }
+  const UsbHostNode::AoaHandshakeResult r =
+      host_->runAoaHandshake(profile.c_str(), wait_reenum);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"profile\":\"";
+  j += r.profile;
+  j += "\",\"protocol\":";
+  j += String(r.protocol);
+  j += ",\"protocolOk\":";
+  j += r.protocol_ok ? "true" : "false";
+  j += ",\"stringsOk\":";
+  j += String(r.strings_ok);
+  j += ",\"startOk\":";
+  j += r.start_ok ? "true" : "false";
+  j += ",\"reenumOk\":";
+  j += r.reenum_ok ? "true" : "false";
+  j += ",\"dutBefore\":\"";
+  {
+    char id[12];
+    snprintf(id, sizeof(id), "%04x:%04x", r.dut_vid_before, r.dut_pid_before);
+    j += id;
+  }
+  j += "\",\"dutAfter\":\"";
+  {
+    char id[12];
+    snprintf(id, sizeof(id), "%04x:%04x", r.dut_vid_after, r.dut_pid_after);
+    j += id;
+  }
+  j += "\",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"aoa_control_handshake_lab\"";
+  j += ",\"note\":\"not_hu_wire_not_bcl_not_accessory_bulk\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }
 
 void AnalyzerStatusModule::handleCapture() {

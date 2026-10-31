@@ -81,6 +81,29 @@ public:
                        uint16_t w_value, uint16_t w_index, uint8_t *data,
                        uint16_t w_length, uint16_t *actual_len);
 
+  /**
+   * Lab AOA accessory handshake against DUT: 51 → 52×6 → 53.
+   * Optional wait for re-enum to 18D1:2D00 (Device responder soft-reenum).
+   * Claim: aoa_control_handshake_lab — NOT HU/BCL/accessory bulk.
+   */
+  struct AoaHandshakeResult {
+    bool ok = false;
+    uint16_t protocol = 0;
+    bool protocol_ok = false;
+    uint8_t strings_ok = 0;
+    bool start_ok = false;
+    bool reenum_ok = false;
+    uint16_t dut_vid_before = 0;
+    uint16_t dut_pid_before = 0;
+    uint16_t dut_vid_after = 0;
+    uint16_t dut_pid_after = 0;
+    uint32_t duration_ms = 0;
+    String profile;
+    String error;
+  };
+  AoaHandshakeResult runAoaHandshake(const char *profile = "lab",
+                                     bool wait_reenum = true);
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;

@@ -5,6 +5,7 @@
 #include "USB.h"
 #include "USBMSC.h"
 #include "capture/CaptureLog.h"
+#include "device/AoaLabResponder.h"
 #include "esp32-hal-tinyusb.h"
 #include "protocol/DataPlane.h"
 #include "tusb.h"
@@ -362,6 +363,41 @@ void UsbDeviceNode::applyLabIdentity() {
   identity_applied_ = false;
 }
 
+void UsbDeviceNode::setAoaRespond(bool on, bool reenum_on_start) {
+  AoaLabResponder &aoa = AoaLabResponder::instance();
+  aoa.bind(this);
+  aoa.setReenumOnStart(reenum_on_start);
+  aoa.setEnabled(on);
+  if (!on) {
+    // Restore lab MSC identity if we previously switched to accessory VID.
+    if (applied_vid_ == 0x18D1) {
+      applyLabIdentity();
+      scheduleSoftReenum();
+    }
+  }
+}
+
+bool UsbDeviceNode::aoaRespondEnabled() const {
+  return AoaLabResponder::instance().enabled();
+}
+
+void UsbDeviceNode::applyAoaAccessoryIdentity() {
+  // AOSP after START: Google VID + accessory PID. Lab keeps MSC IF —
+  // claim is control-handshake + VID switch only, not accessory bulk.
+  g_dev_desc.idVendor = 0x18D1;
+  g_dev_desc.idProduct = 0x2D00;
+  copyField(g_str_mfr, sizeof(g_str_mfr), "Google", "Google");
+  copyField(g_str_product, sizeof(g_str_product), "AOA Lab", "AOA Lab");
+  copyField(g_str_serial, sizeof(g_str_serial), "aoa-lab", "aoa-lab");
+  setMscInquiry("Google", "AOA Lab", "0001");
+  applied_vid_ = g_dev_desc.idVendor;
+  applied_pid_ = g_dev_desc.idProduct;
+  identity_applied_ = true;
+  Serial.printf("[device] AOA accessory identity %04x:%04x (MSC IF remains)\n",
+                applied_vid_, applied_pid_);
+  scheduleSoftReenum();
+}
+
 bool UsbDeviceNode::applyDutIdentity(const DutInfoSnapshot &snap) {
   if (!snap.present || snap.vid == 0) {
     return false;
@@ -547,6 +583,7 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += ",\"proxyBytes\":";
   json += String(proxy_bytes_);
   json += ",\"claim\":\"gadget_identity_from_dut_snapshot\"";
+  AoaLabResponder::instance().appendStatusJson(json);
   json += ",\"proxiedDut\":{";
   json += "\"present\":";
   json += proxied_dut_.present ? "true" : "false";
@@ -607,6 +644,7 @@ bool UsbDeviceNode::begin() {
   Serial.println("[device] MSC pattern=lab_sector_v1 for OTG-loop probes");
 
   applyLabIdentity();
+  AoaLabResponder::instance().bind(this);
   // Also seed Arduino USB.* before begin (used if weak override fails to link).
   USB.VID(g_dev_desc.idVendor);
   USB.PID(g_dev_desc.idProduct);
@@ -640,6 +678,9 @@ void UsbDeviceNode::loop() {
       mounted_ = now;
       Serial.printf("[device] otg_state → %s\n", otgState());
     }
+  }
+  if (AoaLabResponder::instance().consumeStartPending()) {
+    applyAoaAccessoryIdentity();
   }
   if (pending_reenum_ && static_cast<int32_t>(millis() - reenum_at_ms_) >= 0) {
     pending_reenum_ = false;
@@ -682,6 +723,9 @@ bool UsbDeviceNode::copyLocalDeviceDescriptor(uint8_t *) const { return false; }
 bool UsbDeviceNode::localStringAscii(uint8_t, char *, size_t) const {
   return false;
 }
+void UsbDeviceNode::setAoaRespond(bool, bool) {}
+bool UsbDeviceNode::aoaRespondEnabled() const { return false; }
+void UsbDeviceNode::applyAoaAccessoryIdentity() {}
 bool UsbDeviceNode::writeThroughProxy(uint32_t, uint32_t, const uint8_t *,
                                       uint32_t) {
   return false;

@@ -622,6 +622,116 @@ bool UsbHostNode::controlTransfer(uint8_t bm_request_type, uint8_t b_request,
   return ok;
 }
 
+UsbHostNode::AoaHandshakeResult
+UsbHostNode::runAoaHandshake(const char *profile, bool wait_reenum) {
+  AoaHandshakeResult r;
+  r.profile = profile ? profile : "lab";
+  const uint32_t t0 = millis();
+
+  // String profiles — Desk/lab only (hu-probe lab_aoa_iface STRING_PROFILES).
+  // bmw_lab is hypothesis for Connected experiments — NOT measured NBT values.
+  const char *strings[6] = {"LabHost", "usb-analyzer", "Lab AOA Host", "0.1",
+                            "https://local/lab", "LAB001"};
+  if (r.profile == "bmw_lab") {
+    strings[0] = "BMW";
+    strings[1] = "NBT Evo";
+    strings[2] = "Headunit";
+    strings[3] = "1.0";
+    strings[4] = "http://www.bmw.com";
+    strings[5] = "USB-ANALYZER-LAB";
+  } else if (r.profile == "minimal") {
+    strings[0] = "Android";
+    strings[1] = "AOA";
+    strings[2] = "Accessory";
+    strings[3] = "1.0";
+    strings[4] = "http://localhost";
+    strings[5] = "1";
+  }
+
+  if (!begin_ok_ || deviceCount() == 0) {
+    r.error = "no_dut";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  r.dut_vid_before = dut_vid_;
+  r.dut_pid_before = dut_pid_;
+
+  // 51 GET_PROTOCOL — IN | VENDOR
+  uint8_t proto[2] = {0, 0};
+  uint16_t actual = 0;
+  if (!controlTransfer(0xC0, 51, 0, 0, proto, 2, &actual) || actual < 2) {
+    r.error = "aoa51_fail";
+    r.duration_ms = millis() - t0;
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 1, actual, 51,
+                                0, 0, "aoa51_fail");
+    return r;
+  }
+  r.protocol = static_cast<uint16_t>(proto[0] | (proto[1] << 8));
+  r.protocol_ok = (r.protocol != 0);
+  CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, actual, 51,
+                              r.protocol, 0, "aoa51_ok");
+  if (!r.protocol_ok) {
+    r.error = "protocol_zero";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  // 52 SEND_STRING × 6 — OUT | VENDOR, index = string ID
+  for (uint8_t i = 0; i < 6; i++) {
+    uint8_t buf[64];
+    size_t n = strlen(strings[i]);
+    if (n > 62) {
+      n = 62;
+    }
+    memcpy(buf, strings[i], n);
+    buf[n] = 0; // AOSP: zero-terminated
+    uint16_t act = 0;
+    if (!controlTransfer(0x40, 52, 0, i, buf, static_cast<uint16_t>(n + 1),
+                         &act)) {
+      r.error = String("aoa52_fail_idx_") + String(i);
+      r.duration_ms = millis() - t0;
+      return r;
+    }
+    r.strings_ok++;
+  }
+
+  // 53 START — OUT | VENDOR, no data
+  actual = 0;
+  if (!controlTransfer(0x40, 53, 0, 0, nullptr, 0, &actual)) {
+    r.error = "aoa53_fail";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  r.start_ok = true;
+  CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 0, 53, 0, 0,
+                              "aoa53_ok");
+
+  if (wait_reenum) {
+    // Soft-reenum on Device ~80ms + host rediscovery
+    for (int i = 0; i < 40; i++) {
+      delay(50);
+      loop(); // refresh DUT cache
+      if (dut_present_ && dut_vid_ == 0x18D1 &&
+          (dut_pid_ == 0x2D00 || dut_pid_ == 0x2D01)) {
+        r.reenum_ok = true;
+        break;
+      }
+    }
+    r.dut_vid_after = dut_vid_;
+    r.dut_pid_after = dut_pid_;
+    if (!r.reenum_ok) {
+      r.error = "reenum_timeout";
+    }
+  } else {
+    r.reenum_ok = true; // not required
+  }
+
+  r.ok = r.protocol_ok && r.strings_ok == 6 && r.start_ok &&
+         (!wait_reenum || r.reenum_ok);
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
 void UsbHostNode::printNoDeviceHints() const {
   Serial.println();
   Serial.println("--- no device enumerated (check order) ---");
@@ -679,6 +789,12 @@ bool UsbHostNode::fillDutSnapshot(DutInfoSnapshot &out) {
 bool UsbHostNode::controlTransfer(uint8_t, uint8_t, uint16_t, uint16_t,
                                   uint8_t *, uint16_t, uint16_t *) {
   return false;
+}
+UsbHostNode::AoaHandshakeResult UsbHostNode::runAoaHandshake(const char *,
+                                                             bool) {
+  AoaHandshakeResult r;
+  r.error = "host_disabled";
+  return r;
 }
 
 } // namespace usb_analyzer

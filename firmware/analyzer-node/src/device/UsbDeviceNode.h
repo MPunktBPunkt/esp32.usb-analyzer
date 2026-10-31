@@ -56,6 +56,12 @@ public:
   /** ASCII view of string index 1=mfr 2=product 3=serial. */
   bool localStringAscii(uint8_t index, char *out, size_t out_len) const;
 
+  /** Lab AOA EP0 responder (51/52/53) — see AoaLabResponder. */
+  void setAoaRespond(bool on, bool reenum_on_start = true);
+  bool aoaRespondEnabled() const;
+  /** Soft-reenum as Google accessory VID/PID after START (MSC IF remains). */
+  void applyAoaAccessoryIdentity();
+
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
                      uint32_t bufsize);

@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.29: Lab AOA control handshake (51→52×6→53) — Device EP0 responder + Host `/api/lab/aoa-handshake`; optional soft-reenum `18D1:2D00`; `tools/lab_aoa_handshake_verify.py` — Desk FACT from technology-audit/`usb-aoa` + hu-probe C1b lab; **not** HU wire / BCL / accessory bulk
 - FW 0.0.28: EP0 string-descriptor forward (`desc=string&index=`); dual-lane session timestamp display after sync — **not** hard µs lock / control MITM
 - FW 0.0.27: Gate‑8 sync markers (`/api/lab/sync-marker`, controller `/api/v1/sync`, `lab_sync_offset.py`) + Gate‑4 EP0 GET_DESCRIPTOR forward (`kCmdCtrl*`, `/api/lab/usb-ctrl-forward`, `lab_usb_ctrl_loop_verify.py`) — **not** hard µs lock / control MITM
 - FW 0.0.26: Gate‑6 TinyUSB class-hook CBW/CSW — vendored `msc_device.c` (0.18.0) + `class_hook_mscd_xfer` capture payload; Device drops App-inferred bot markers; `tools/lab_bot_class_hook_verify.py` — **not** wire PHY / MITM

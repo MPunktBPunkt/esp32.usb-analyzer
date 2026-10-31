@@ -1,13 +1,13 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.28-blue)
+![Version](https://img.shields.io/badge/version-0.0.29-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.28** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + bulk selftest, class-hook CBW/CSW, sync-offset (+ session lane display), EP0 device+string forward.  
-> **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, USB-IF Compliance.
+> **v0.0.29** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + bulk selftest, class-hook CBW/CSW, sync-offset, EP0 forward, **Lab AOA 51/52/53 Handshake**.  
+> **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
 
@@ -65,6 +65,7 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **Class-hook BOT CBW/CSW** | vendored TinyUSB `mscd_xfer_cb` / `send_csw` | `source: class_hook_mscd_xfer` + `payload_hex` | Class driver bytes — **not** D+/D− wire |
 | **Cross-node sync offset** | `lab_sync_offset.py` / `POST /api/v1/sync` | median `offset_us` ± residual | Estimate — **not** hard µs lock |
 | **EP0 GET_DESCRIPTOR forward** | Device→Host WiFi ctrl (`lab_usb_ctrl_loop_verify.py`) | match local gadget desc (OTG loop) | Lab echo — **not** control MITM |
+| **AOA control handshake** | Host 51→52×6→53 vs Device EP0 responder (`lab_aoa_handshake_verify.py`) | protocol≥1, strings+START, optional `18d1:2d00` | Lab OTG — **not** HU/BCL/accessory bulk |
 | **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
 
 ### ESP Web UI (per node, port 80)
@@ -88,6 +89,7 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_bot_class_hook_verify.py               # Gate-6 real CBW/CSW (OTG loop)
 ./tools/lab_sync_offset.py                         # Gate-8 offset estimate (WiFi)
 ./tools/lab_usb_ctrl_loop_verify.py                # Gate-4 EP0 forward (OTG loop)
+./tools/lab_aoa_handshake_verify.py                # Lab AOA 51→52→53 (OTG loop)
 ./tools/lab_perf_sweep.py
 ./tools/lab_baseline_campaign.py                 # USB + TCP campaign → docs/evidence/
 ```

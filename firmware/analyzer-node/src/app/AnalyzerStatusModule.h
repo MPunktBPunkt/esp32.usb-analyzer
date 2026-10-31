@@ -43,6 +43,8 @@ private:
   void handleUsbProxy();
   void handleUsbProxySelftest();
   void handleUsbCtrlForward();
+  void handleAoaRespond();
+  void handleAoaHandshake();
   void handleSyncMarker();
   void handleCapture();
 };
