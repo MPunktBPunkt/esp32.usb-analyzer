@@ -82,6 +82,35 @@ main { padding: 1rem 1.5rem 2rem; display: grid; gap: 1rem; }
   white-space: pre-wrap;
 }
 
+.mono { font-family: var(--mono); }
+
+.cap-list {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  max-height: 18rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: #0c1216;
+}
+.cap-row {
+  padding: 0.2rem 0.45rem;
+  border-bottom: 1px solid #152028;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cap-row .t { color: #5a7380; margin-right: 0.35rem; }
+.cap-row .et { color: var(--text); }
+.cap-row .cmd { color: var(--host); margin-left: 0.25rem; }
+#lane-device .cap-row .cmd { color: var(--device); }
+.cap-row .note { color: #5a7380; }
+.cap-row.err { color: var(--fail); }
+.cap-row.msc_write .et,
+.cap-row.bot_cbw .et { color: var(--warn); }
+.cap-row.attach .et,
+.cap-row.enum_info .et { color: var(--device); }
+
 .panel {
   border-top: 1px solid var(--line);
   padding-top: 0.75rem;

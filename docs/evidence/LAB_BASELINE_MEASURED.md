@@ -70,13 +70,26 @@ DUT: `303a:1001` · speed **full** · Inquiry `MPB`/`ANALYZER` · capacity **512
 | Frame errors | **0** in this sweep |
 | Relation to USB cable | TCP ≪ USB OTG MSC; WiFi hop is the bottleneck for Mode‑A data plane today |
 
+## C) USB OTG MSC WRITE (cable) — Host → Device — FW 0.0.18
+
+**Date:** 2026-10-31 · OTG loop · write-cache 64 LBA · immediate readback
+
+| blocks | chunk | kB/s | pattern_ok |
+|-------:|------:|-----:|:----------:|
+| 64 | 1 | **246** | ✓ |
+| 64 | 4 | **410** | ✓ |
+| 64 | 8 | **463** | ✓ |
+
+WRITE ≪ READ (~888–934 kB/s) on this stack — expected (BOT OUT + gadget store + readback).
+
 ## Audit takeaways
 
 1. **USB OTG loop is integrity-clean** at measured loads (pattern match, 0 fail bytes).  
 2. **Useful USB ceiling on this lab path ≈ 0.93 MB/s** with 4 KiB MSC READs — not wire-rate.  
 3. **WiFi TCP ACK-each ≈ 0.14 MB/s**; with **window=8** bulk (0.0.15) ≈ **0.26 MB/s** MEASURED — still ≪ USB cable; window=16 can regress.  
 4. **MSC proxy Host serve** (0.0.15): TCP `MscReq`→Host READ DUT→payload OK + pattern match (lab).  
-5. **Not claimed:** transparent MITM, HU timing fidelity, or L0 bit-level visibility.
+5. **MSC WRITE** (0.0.18): ~0.25–0.46 MB/s with readback OK; pollutes `lab_sector_v1` at written LBAs.  
+6. **Not claimed:** transparent MITM, HU timing fidelity, or L0 bit-level visibility.
 
 ## Earlier false positive (document for audit hygiene)
 

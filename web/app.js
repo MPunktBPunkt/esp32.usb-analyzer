@@ -1,8 +1,17 @@
 const logEl = document.getElementById("log");
 const nodesEl = document.getElementById("nodes");
 const healthEl = document.getElementById("health");
-const streamHost = document.getElementById("stream-host");
-const streamDevice = document.getElementById("stream-device");
+const capHost = document.getElementById("cap-host");
+const capDevice = document.getElementById("cap-device");
+const capMetaHost = document.getElementById("cap-meta-host");
+const capMetaDevice = document.getElementById("cap-meta-device");
+
+let capPaused = false;
+let sinceHost = 0;
+let sinceDevice = 0;
+const seenHost = new Set();
+const seenDevice = new Set();
+const MAX_ROWS = 120;
 
 function log(line) {
   const t = new Date().toISOString().slice(11, 19);
@@ -79,6 +88,93 @@ nodesEl.addEventListener("click", async (ev) => {
   }
 });
 
+function fmtEvent(e) {
+  const dec = e.decoded || {};
+  const cmd = dec.command || "";
+  const lba = dec.lba != null ? ` lba=${dec.lba}` : "";
+  const n = dec.transfer_length != null ? ` n=${dec.transfer_length}` : "";
+  const note = e.note ? ` ${e.note}` : "";
+  const t = ((e.timestamp_us || 0) / 1000).toFixed(1);
+  return {
+    cls: e.status === "error" ? "err" : e.event_type || "",
+    html:
+      `<span class="t">${t}ms</span> ` +
+      `<span class="et">${e.event_type || "?"}</span> ` +
+      `<span class="cmd">${cmd}</span>${lba}${n}` +
+      `<span class="note">${note}</span>`,
+  };
+}
+
+function appendEvents(listEl, seen, events) {
+  if (!listEl || !events || !events.length) return;
+  for (const e of events) {
+    const key = `${e.node_id || ""}:${e.seq}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const row = document.createElement("div");
+    const f = fmtEvent(e);
+    row.className = `cap-row ${f.cls}`;
+    row.innerHTML = f.html;
+    listEl.prepend(row);
+  }
+  while (listEl.children.length > MAX_ROWS) {
+    listEl.removeChild(listEl.lastChild);
+  }
+}
+
+function setMeta(el, batch, role) {
+  if (!el) return;
+  const px = (batch && batch._proxy) || {};
+  const err = batch && batch.error;
+  if (err) {
+    el.textContent = `${role} ${px.ip || "?"} OFFLINE · ${err}`;
+    return;
+  }
+  el.textContent =
+    `${px.ip || "?"} · seq→${batch.next_seq ?? "?"} · dropped ${batch.dropped ?? 0}` +
+    (batch.overflow ? " · overflow" : "") +
+    ` · ${batch.layer || "L1_lab"}`;
+}
+
+async function pollCapture() {
+  if (capPaused) return;
+  try {
+    const q = new URLSearchParams({
+      since_host: String(sinceHost),
+      since_device: String(sinceDevice),
+      limit: "48",
+    });
+    const j = await (await fetch(`/api/v1/capture/dual?${q}`)).json();
+    const host = j.host || {};
+    const device = j.device || {};
+    setMeta(capMetaHost, host, "host");
+    setMeta(capMetaDevice, device, "device");
+    appendEvents(capHost, seenHost, host.events || []);
+    appendEvents(capDevice, seenDevice, device.events || []);
+    // /api/capture since is exclusive lower bound (seq > since)
+    for (const e of host.events || []) {
+      if (e.seq > sinceHost) sinceHost = e.seq;
+    }
+    for (const e of device.events || []) {
+      if (e.seq > sinceDevice) sinceDevice = e.seq;
+    }
+  } catch (e) {
+    if (capMetaHost) capMetaHost.textContent = `poll error ${e}`;
+  }
+}
+
+document.getElementById("btn-cap-pause")?.addEventListener("click", (ev) => {
+  capPaused = !capPaused;
+  ev.target.textContent = capPaused ? "Resume" : "Pause";
+});
+
+document.getElementById("btn-cap-clear")?.addEventListener("click", () => {
+  if (capHost) capHost.innerHTML = "";
+  if (capDevice) capDevice.innerHTML = "";
+  seenHost.clear();
+  seenDevice.clear();
+});
+
 async function refresh() {
   try {
     const h = await (await fetch("/api/v1/health")).json();
@@ -90,25 +186,16 @@ async function refresh() {
   }
 }
 
-function pushStream(role, text) {
-  const el = role === "device" ? streamDevice : streamHost;
-  el.textContent = text + "\n" + el.textContent;
-}
-
 function connectSSE() {
   const es = new EventSource("/api/v1/stream");
   es.addEventListener("snapshot", (ev) => {
     const data = JSON.parse(ev.data);
     renderNodes(data.nodes || []);
-    log(`snapshot ${ (data.nodes || []).length } nodes`);
+    log(`snapshot ${(data.nodes || []).length} nodes`);
   });
   es.addEventListener("hello", (ev) => {
     const n = JSON.parse(ev.data);
     log(`HELLO ${n.node_id} role=${roleOf(n)} usb=${n.usb_devices ?? 0}`);
-    const role = roleOf(n);
-    if (role === "host" || role === "device") {
-      pushStream(role, `HELLO usb_devices=${n.usb_devices ?? 0} rssi=${n.wifi_rssi}`);
-    }
     refresh();
   });
   es.addEventListener("node_gone", (ev) => {
@@ -126,3 +213,5 @@ function connectSSE() {
 refresh();
 connectSSE();
 setInterval(refresh, 5000);
+pollCapture();
+setInterval(pollCapture, 1500);

@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.18-blue)
+![Version](https://img.shields.io/badge/version-0.0.19-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Gate](https://img.shields.io/badge/gate-6%20decode%20slice-yellow)](docs/GATE6_STATUS.md)
+[![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.18** Zwischenstand — Host/Device FW, OTG-loop MSC READ+WRITE, WiFi TCP bulk, MSC-proxy slice, L1 capture + inferred BOT/SCSI decode.  
+> **v0.0.19** Zwischenstand — Host/Device FW, OTG-loop MSC READ+WRITE, WiFi TCP bulk, MSC-proxy slice, L1 capture + inferred BOT/SCSI decode.  
 > **Nicht claimed:** transparent MITM, D+/D− Wire-Capture, USB-IF Compliance.
 
 ## Goal architecture
@@ -57,7 +57,8 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **WiFi TCP integrity** both ways | `POST /api/lab/integrity?peer=&frames=&frame_bytes=` | 0 frame fails | Not USB MITM |
 | **WiFi TCP bulk throughput** | same + `window=4…12` | ~**140 kB/s** (ack-each) → ~**260–360 kB/s** (windowed) | Protocol RTT-bound |
 | **MSC proxy Host serve** | TCP `MscReq`→Host READ DUT→payload | CRC/pattern OK on loop DUT | Gate‑4 slice; MITM wiring separate |
-| **L1/lab capture timeline** | `GET /api/capture` · Analyzer-Tab | attach/enum/msc_read/msc_write/bot_cbw/csw/tcp_bulk | **Not** D+/D− packets |
+| **L1/lab capture timeline** | `GET /api/capture` · Analyzer-Tab · Debian dual lanes | attach/enum/msc_read/msc_write/bot_cbw/csw/tcp_bulk | **Not** D+/D− packets |
+| **Dual-node lab UI** | `GET /api/v1/capture/dual` · `:8080` Host/Device lanes | live poll both ESPs | clocks local, not synced |
 | **Inferred BOT/SCSI decode** | capture `decoded.command` READ_10 / WRITE_10 / CSW | `source: class_api_inferred` | Not wire CBW bytes |
 | **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
 
@@ -115,7 +116,7 @@ esp32.usb-analyzer/
 |-----|---------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Planes, modes |
 | [`docs/GATES.md`](docs/GATES.md) | Gate 0–10 |
-| [`docs/GATE3_STATUS.md`](docs/GATE3_STATUS.md) · [`GATE4`](docs/GATE4_STATUS.md) · [`GATE5`](docs/GATE5_STATUS.md) · [`GATE6`](docs/GATE6_STATUS.md) | Current gate notes |
+| [`docs/GATE3_STATUS.md`](docs/GATE3_STATUS.md) · [`GATE4`](docs/GATE4_STATUS.md) · [`GATE5`](docs/GATE5_STATUS.md) · [`GATE6`](docs/GATE6_STATUS.md) · [`GATE7`](docs/GATE7_STATUS.md) | Current gate notes |
 | [`docs/CAPTURE.md`](docs/CAPTURE.md) | Capture layers / schema |
 | [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) | Lab baseline numbers |
 | [`docs/LAB_INVENTORY.md`](docs/LAB_INVENTORY.md) | `.88` / `.89` boards |

@@ -1,4 +1,4 @@
-"""HTTP API + SSE + static Web UI (Slice A)."""
+"""HTTP API + SSE + static Web UI (Slice A + Gate 7 capture proxy)."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import json
 import queue
 import threading
 import time
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -15,6 +17,49 @@ from controller.node_registry.registry import REGISTRY
 
 WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 STARTED = time.time()
+
+# Lab fallbacks when HELLO role is missing / unassigned
+LAB_HOST_IP = "192.168.178.88"
+LAB_DEVICE_IP = "192.168.178.89"
+
+
+def _role_of(view: Dict[str, Any]) -> str:
+    return str(view.get("assigned_role") or view.get("role") or "unassigned")
+
+
+def _node_ip_for_role(role: str) -> Optional[str]:
+    role = role.lower().strip()
+    for n in REGISTRY.list_views_keyed():
+        if _role_of(n) == role and n.get("ip"):
+            return str(n["ip"])
+    if role == "host":
+        return LAB_HOST_IP
+    if role == "device":
+        return LAB_DEVICE_IP
+    return None
+
+
+def fetch_node_capture(ip: str, since: int = 0, limit: int = 64) -> Dict[str, Any]:
+    url = f"http://{ip}/api/capture?since={int(since)}&limit={int(limit)}"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+            data["_proxy"] = {"ip": ip, "ok": True}
+            return data
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        return {
+            "version": 1,
+            "msg": "capture_batch",
+            "events": [],
+            "dropped": 0,
+            "overflow": False,
+            "next_seq": since,
+            "layer": "L1_lab",
+            "error": str(exc),
+            "_proxy": {"ip": ip, "ok": False},
+        }
 
 
 class EventBus:
@@ -119,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "uptime_s": int(time.time() - STARTED),
                     "nodes": len(REGISTRY.list_views_keyed()),
-                    "version": "0.0.1",
+                    "version": "0.0.19",
                 },
             )
             return
@@ -141,6 +186,41 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/v1/stream":
             self._sse()
+            return
+
+        if path == "/api/v1/capture":
+            qs = parse_qs(parsed.query)
+            role = (qs.get("role") or ["host"])[0]
+            since = int((qs.get("since") or ["0"])[0] or 0)
+            limit = int((qs.get("limit") or ["64"])[0] or 64)
+            ip = (qs.get("ip") or [None])[0] or _node_ip_for_role(role)
+            if not ip:
+                self._json(404, {"ok": False, "err": "no_node_for_role", "role": role})
+                return
+            batch = fetch_node_capture(ip, since=since, limit=limit)
+            batch["role"] = role
+            self._json(200, batch)
+            return
+
+        if path == "/api/v1/capture/dual":
+            qs = parse_qs(parsed.query)
+            since_h = int((qs.get("since_host") or ["0"])[0] or 0)
+            since_d = int((qs.get("since_device") or ["0"])[0] or 0)
+            limit = int((qs.get("limit") or ["48"])[0] or 48)
+            host = fetch_node_capture(_node_ip_for_role("host") or LAB_HOST_IP, since_h, limit)
+            device = fetch_node_capture(
+                _node_ip_for_role("device") or LAB_DEVICE_IP, since_d, limit
+            )
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "timestamp_domain": "local_per_node",
+                    "note": "Dual L1_lab lanes — clocks not synchronized",
+                    "host": host,
+                    "device": device,
+                },
+            )
             return
 
         # static

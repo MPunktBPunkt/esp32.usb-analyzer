@@ -16,16 +16,25 @@
     <section class="lanes">
       <article class="lane" id="lane-host">
         <h2>HOST</h2>
-        <p class="muted">RX / TX — Capture events ab Gate 5</p>
+        <p class="muted">L1 lab capture · <span class="mono" id="cap-meta-host">—</span></p>
         <div class="node-slot" data-role="host">kein Node</div>
-        <div class="stream" id="stream-host"></div>
+        <div class="cap-list" id="cap-host"></div>
       </article>
       <article class="lane" id="lane-device">
         <h2>DEVICE</h2>
-        <p class="muted">RX / TX — Capture events ab Gate 5</p>
+        <p class="muted">L1 lab capture · <span class="mono" id="cap-meta-device">—</span></p>
         <div class="node-slot" data-role="device">kein Node</div>
-        <div class="stream" id="stream-device"></div>
+        <div class="cap-list" id="cap-device"></div>
       </article>
+    </section>
+
+    <section class="panel">
+      <h2>Capture</h2>
+      <p class="muted">timestamp_domain=<span class="mono">local_per_node</span> — clocks not synchronized · not D+/D−</p>
+      <div class="actions" style="margin-bottom:0.5rem">
+        <button type="button" id="btn-cap-pause">Pause</button>
+        <button type="button" id="btn-cap-clear">Clear lanes</button>
+      </div>
     </section>
 
     <section class="panel">
