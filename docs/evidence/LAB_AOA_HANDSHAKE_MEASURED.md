@@ -63,4 +63,5 @@ AOA AOSP defines **order**, not handshake deadlines. Documented elsewhere:
 | Soft-reenum presents Google accessory VID/PID (MSC+Vendor composite) | **MEASURED** |
 | Vendor bulk echo Host↔Device after/without START | **MEASURED** (lab Rohr) |
 | Lab BCL 8-byte BE + init over AOA bulk echo | **MEASURED** (0.0.33 desk header) |
+| BCL RX-parse + host unit negatives + lab series | **MEASURED** (0.0.34) — still lab Rohr |
 | This proves HU AOA or BCL-on-HU-wire | **REJECTED** / not claimed |

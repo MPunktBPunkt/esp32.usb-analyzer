@@ -46,3 +46,6 @@ credentials.json
 # Logs
 *.log
 diag/*.log
+
+# Host unit-test binaries
+tests/host/test_bcl_lab_frame

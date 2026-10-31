@@ -115,6 +115,8 @@ public:
     uint32_t tx = 0;
     uint32_t rx = 0;
     bool match = false;
+    uint8_t rx_buf[64]{};
+    uint8_t rx_len = 0;
     uint32_t duration_ms = 0;
     String error;
   };
@@ -123,7 +125,7 @@ public:
 
   /**
    * Lab BCL 8-byte BE frame over AOA vendor bulk (echo round-trip).
-   * Desk FACT header layout (bmw-bcl); claim lab_bcl_on_aoa_bulk — NOT HU wire.
+   * Parses **RX** bytes (not TX frame). Desk FACT bmw-bcl; NOT HU wire.
    */
   struct AoaBclResult {
     bool ok = false;
@@ -139,8 +141,15 @@ public:
     uint32_t duration_ms = 0;
     String error;
   };
+  /**
+   * @param explicit_payload  false → synthetic 6-byte lab payload;
+   *                          true → use payload/payload_len (len 0 = header-only).
+   */
   AoaBclResult runAoaBclRoundtrip(uint16_t cmd = 4, uint16_t dest = 0x0FA4,
-                                  bool send_init = true);
+                                  bool send_init = true,
+                                  const uint8_t *payload = nullptr,
+                                  size_t payload_len = 0,
+                                  bool explicit_payload = false);
 
 private:
   bool ready_ = false;

@@ -46,6 +46,44 @@ inline bool bclParseHeader(const uint8_t *buf, size_t n, BclLabHeader &out) {
   return true;
 }
 
+/**
+ * Validate full frame: header present and n == 8 + data_len.
+ * Truncated / oversized / short buffers return false.
+ */
+inline bool bclValidateFrame(const uint8_t *buf, size_t n, BclLabHeader &out) {
+  if (!bclParseHeader(buf, n, out)) {
+    return false;
+  }
+  return n == (8u + static_cast<size_t>(out.data_len));
+}
+
+/**
+ * Find first offset of a plausible lab BCL header (resync helper).
+ * Accepts only known cmds 1..6 and frames that fit in remaining buffer (≤64).
+ */
+inline bool bclFindHeader(const uint8_t *buf, size_t n, size_t &offset_out,
+                          BclLabHeader &out) {
+  if (!buf || n < 8) {
+    return false;
+  }
+  for (size_t i = 0; i + 8 <= n; i++) {
+    BclLabHeader h{};
+    if (!bclParseHeader(buf + i, n - i, h)) {
+      continue;
+    }
+    if (h.command < 1 || h.command > 6) {
+      continue;
+    }
+    const size_t need = 8u + static_cast<size_t>(h.data_len);
+    if (need <= (n - i) && need <= 64u) {
+      offset_out = i;
+      out = h;
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Pack header (+ optional payload) into out; returns total bytes or 0 on error. */
 inline size_t bclPack(uint8_t *out, size_t out_cap, const BclLabHeader &h,
                       const uint8_t *payload, size_t payload_len) {

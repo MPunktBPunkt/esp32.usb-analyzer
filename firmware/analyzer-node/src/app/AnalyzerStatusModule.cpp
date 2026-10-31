@@ -864,8 +864,43 @@ void AnalyzerStatusModule::handleAoaBcl() {
     const String i = server_->arg("init");
     send_init = !(i == "0" || i == "false" || i == "off");
   }
-  const UsbHostNode::AoaBclResult r =
-      host_->runAoaBclRoundtrip(cmd, dest, send_init);
+  // Optional plhex= (even empty) → explicit payload; omit → synthetic default.
+  uint8_t pl_buf[56];
+  size_t pl_len = 0;
+  bool explicit_pl = false;
+  if (server_->hasArg("plhex")) {
+    explicit_pl = true;
+    const String hx = server_->arg("plhex");
+    for (unsigned i = 0; i + 1 < static_cast<unsigned>(hx.length()) && pl_len < sizeof(pl_buf);
+         i += 2) {
+      char a = hx.charAt(i);
+      char b = hx.charAt(i + 1);
+      auto nib = [](char c) -> int {
+        if (c >= '0' && c <= '9')
+          return c - '0';
+        if (c >= 'a' && c <= 'f')
+          return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F')
+          return c - 'A' + 10;
+        return -1;
+      };
+      const int hi = nib(a);
+      const int lo = nib(b);
+      if (hi < 0 || lo < 0) {
+        server_->send(400, F("application/json"),
+                      F("{\"ok\":false,\"err\":\"bad_plhex\"}"));
+        return;
+      }
+      pl_buf[pl_len++] = static_cast<uint8_t>((hi << 4) | lo);
+    }
+    if ((hx.length() % 2) != 0) {
+      server_->send(400, F("application/json"),
+                    F("{\"ok\":false,\"err\":\"odd_plhex\"}"));
+      return;
+    }
+  }
+  const UsbHostNode::AoaBclResult r = host_->runAoaBclRoundtrip(
+      cmd, dest, send_init, explicit_pl ? pl_buf : nullptr, pl_len, explicit_pl);
   String j = "{\"ok\":";
   j += r.ok ? "true" : "false";
   j += ",\"initOk\":";

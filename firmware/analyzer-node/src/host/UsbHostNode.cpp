@@ -806,6 +806,8 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const uint8_t *data,
     return r;
   }
   r.rx = static_cast<uint32_t>(actual);
+  r.rx_len = static_cast<uint8_t>(actual > 64 ? 64 : actual);
+  memcpy(r.rx_buf, buf, r.rx_len);
   r.match = (actual == n && memcmp(buf, data, n) == 0);
   CaptureLog::instance().push(CapRole::Host, CapType::TcpBulk, r.match ? 0 : 1,
                               r.rx, r.tx, 0, 0,
@@ -818,15 +820,14 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const uint8_t *data,
   return r;
 }
 
-UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t cmd,
-                                                          uint16_t dest,
-                                                          bool send_init) {
+UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(
+    uint16_t cmd, uint16_t dest, bool send_init, const uint8_t *payload,
+    size_t payload_len, bool explicit_payload) {
   AoaBclResult r;
   const uint32_t t0 = millis();
 
   if (send_init) {
-    AoaBulkResult init =
-        runAoaBulkEcho(kBclLabInit, sizeof(kBclLabInit));
+    AoaBulkResult init = runAoaBulkEcho(kBclLabInit, sizeof(kBclLabInit));
     r.init_ok = init.ok;
     if (!init.ok) {
       r.error = String("init_") + (init.error.length() ? init.error : "fail");
@@ -839,16 +840,28 @@ UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t cmd,
     r.init_ok = true;
   }
 
-  // Synthetic payload (version=1, instance=0x1AB1, bufHint=4096) — lab only.
-  const uint8_t payload[6] = {0x00, 0x01, 0x1A, 0xB1, 0x10, 0x00};
+  // Default lab payload unless caller passes explicit (may be empty).
+  const uint8_t default_pl[6] = {0x00, 0x01, 0x1A, 0xB1, 0x10, 0x00};
+  const uint8_t *pl = payload;
+  size_t pl_len = payload_len;
+  if (!explicit_payload) {
+    pl = default_pl;
+    pl_len = sizeof(default_pl);
+  }
+  if (pl_len > 56) {
+    r.error = "payload_too_long";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
   BclLabHeader hdr{};
   hdr.command = cmd;
   hdr.src = 0x0001;
   hdr.dest = dest;
-  hdr.data_len = sizeof(payload);
+  hdr.data_len = static_cast<uint16_t>(pl_len);
 
   uint8_t frame[64];
-  const size_t flen = bclPack(frame, sizeof(frame), hdr, payload, sizeof(payload));
+  const size_t flen = bclPack(frame, sizeof(frame), hdr, pl, pl_len);
   if (flen == 0) {
     r.error = "pack_fail";
     r.duration_ms = millis() - t0;
@@ -865,18 +878,19 @@ UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t cmd,
     return r;
   }
 
-  // Re-read via a dedicated parse of what we sent (echo matched bytes).
+  // Parse **RX** buffer (independent of TX frame pointer).
   BclLabHeader got{};
-  r.parse_ok = bclParseHeader(frame, flen, got) &&
-               (8u + got.data_len == flen) && (got.command == cmd) &&
-               (got.dest == dest);
+  r.parse_ok = bclValidateFrame(round.rx_buf, round.rx_len, got) &&
+               (got.command == cmd) && (got.dest == dest) &&
+               (got.src == hdr.src) && (got.data_len == hdr.data_len);
   r.cmd = got.command;
   r.src = got.src;
   r.dest = got.dest;
   r.data_len = got.data_len;
   CaptureLog::instance().pushPayload(
-      CapRole::Host, CapType::EnumInfo, r.parse_ok ? 0 : 1, flen, got.command,
-      got.dest, 0, "bcl_frame", frame, 8);
+      CapRole::Host, CapType::EnumInfo, r.parse_ok ? 0 : 1, round.rx_len,
+      got.command, got.dest, 0, "bcl_frame", round.rx_buf,
+      round.rx_len >= 8 ? 8 : round.rx_len);
   r.ok = r.init_ok && r.frame_ok && r.parse_ok;
   if (!r.ok && r.error.length() == 0) {
     r.error = "parse_fail";
@@ -960,7 +974,8 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const uint8_t *, size_t) 
   return r;
 }
 UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t, uint16_t,
-                                                          bool) {
+                                                          bool, const uint8_t *,
+                                                          size_t, bool) {
   AoaBclResult r;
   r.error = "host_disabled";
   return r;
