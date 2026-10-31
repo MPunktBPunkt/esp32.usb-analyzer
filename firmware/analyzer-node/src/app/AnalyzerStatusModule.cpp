@@ -547,6 +547,7 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/aoa-respond", HTTP_ANY, [this]() { handleAoaRespond(); });
   server.on("/api/lab/aoa-handshake", HTTP_ANY,
             [this]() { handleAoaHandshake(); });
+  server.on("/api/lab/aoa-bulk", HTTP_ANY, [this]() { handleAoaBulk(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -791,6 +792,51 @@ void AnalyzerStatusModule::handleAoaHandshake() {
   }
   j += ",\"claim\":\"aoa_control_handshake_lab\"";
   j += ",\"note\":\"not_hu_wire_not_bcl_not_accessory_bulk\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleAoaBulk() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  String payload = server_->arg("payload");
+  if (payload.isEmpty()) {
+    payload = "AOA-LAB";
+  }
+  const UsbHostNode::AoaBulkResult r = host_->runAoaBulkEcho(payload.c_str());
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"opened\":";
+  j += r.opened ? "true" : "false";
+  j += ",\"epOut\":";
+  j += String(r.ep_out);
+  j += ",\"epIn\":";
+  j += String(r.ep_in);
+  j += ",\"pktOut\":";
+  j += String(r.pkt_out);
+  j += ",\"pktIn\":";
+  j += String(r.pkt_in);
+  j += ",\"tx\":";
+  j += String(r.tx);
+  j += ",\"rx\":";
+  j += String(r.rx);
+  j += ",\"match\":";
+  j += r.match ? "true" : "false";
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"aoa_bulk_echo_lab\"";
+  j += ",\"note\":\"not_bcl_not_hu_wire\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }

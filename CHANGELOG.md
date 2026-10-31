@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.31: AOA via USBVendor.onRequest (MSC+Vendor soft-composite); `/api/lab/aoa-bulk` scaffold — Host vendorOpen/OUT ok, Device RX still **UNKNOWN**/fail; handshake Lab A/B remains PASS — **not** BCL/HU wire
 - FW 0.0.30: AOA capture decode (`protocol:aoa` GET_PROTOCOL/SEND_STRING/START) + Lab A/B in `lab_aoa_handshake_verify.py` + `docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md` — **not** HU/BCL/bulk
 - FW 0.0.29: Lab AOA control handshake (51→52×6→53) — Device EP0 responder + Host `/api/lab/aoa-handshake`; optional soft-reenum `18D1:2D00`; `tools/lab_aoa_handshake_verify.py` — Desk FACT from technology-audit/`usb-aoa` + hu-probe C1b lab; **not** HU wire / BCL / accessory bulk
 - FW 0.0.28: EP0 string-descriptor forward (`desc=string&index=`); dual-lane session timestamp display after sync — **not** hard µs lock / control MITM

@@ -2,6 +2,7 @@
 
 #if ANALYZER_ENABLE_USB_DEVICE
 
+#include "USBVendor.h"
 #include "capture/CaptureLog.h"
 #include "device/UsbDeviceNode.h"
 #include "tusb.h"
@@ -18,13 +19,14 @@ AoaLabResponder &AoaLabResponder::instance() {
 void AoaLabResponder::setEnabled(bool on) {
   enabled_ = on;
   resetCounters();
-  Serial.printf("[aoa] lab responder %s reenum_on_start=%d\n",
-                on ? "ON" : "OFF", reenum_on_start_ ? 1 : 0);
+  Serial.printf("[aoa] lab responder %s reenum=%d bulk_echo=%d\n",
+                on ? "ON" : "OFF", reenum_on_start_ ? 1 : 0,
+                bulk_echo_ ? 1 : 0);
 }
 
 void AoaLabResponder::resetCounters() {
   setup_count_ = aoa51_ = aoa52_ = aoa53_ = aoa51_ok_ = 0;
-  string_bytes_ = 0;
+  string_bytes_ = bulk_rx_ = bulk_tx_ = 0;
   last_string_index_ = 0xff;
   last_string_[0] = '\0';
   string_scratch_len_ = 0;
@@ -47,6 +49,10 @@ void AoaLabResponder::appendStatusJson(String &json) const {
   json += enabled_ ? "true" : "false";
   json += ",\"reenumOnStart\":";
   json += reenum_on_start_ ? "true" : "false";
+  json += ",\"bulkEcho\":";
+  json += bulk_echo_ ? "true" : "false";
+  json += ",\"vendorMounted\":";
+  json += (vendor_ && vendor_->mounted()) ? "true" : "false";
   json += ",\"setup\":";
   json += String(setup_count_);
   json += ",\"aoa51\":";
@@ -59,6 +65,10 @@ void AoaLabResponder::appendStatusJson(String &json) const {
   json += String(aoa51_ok_);
   json += ",\"stringBytes\":";
   json += String(string_bytes_);
+  json += ",\"bulkRx\":";
+  json += String(bulk_rx_);
+  json += ",\"bulkTx\":";
+  json += String(bulk_tx_);
   json += ",\"lastStringIndex\":";
   json += String(last_string_index_);
   if (last_string_[0]) {
@@ -71,32 +81,62 @@ void AoaLabResponder::appendStatusJson(String &json) const {
   json += "}";
 }
 
-bool AoaLabResponder::onControl(uint8_t rhport, uint8_t stage,
-                                const void *request_void) {
-  if (!enabled_ || !request_void) {
+void AoaLabResponder::pollBulkEcho() {
+  // Echo whenever vendor is mounted — respond gate only for EP0 AOA.
+  // (Host may bulk-test after START while Device loop is busy with re-enum.)
+  if (!bulk_echo_ || !vendor_) {
+    return;
+  }
+  if (!vendor_->mounted()) {
+    return;
+  }
+  uint8_t buf[64];
+  int guard = 0;
+  while (vendor_->available() > 0 && guard++ < 8) {
+    const int n = vendor_->read(buf, sizeof(buf));
+    if (n <= 0) {
+      break;
+    }
+    bulk_rx_ += static_cast<uint32_t>(n);
+    // No delay here — may run from USBVendor DATA event (USB task).
+    const size_t w = vendor_->write(buf, static_cast<size_t>(n));
+    bulk_tx_ += static_cast<uint32_t>(w);
+    if (enabled_) {
+      CaptureLog::instance().push(CapRole::Device, CapType::TcpBulk,
+                                  (w == static_cast<size_t>(n)) ? 0 : 1,
+                                  static_cast<uint32_t>(n),
+                                  static_cast<uint32_t>(w), 0, 0,
+                                  (w == static_cast<size_t>(n)) ? "aoa_bulk_echo"
+                                                                : "aoa_bulk_short");
+    }
+  }
+}
+
+bool AoaLabResponder::onVendorRequest(uint8_t rhport, uint8_t stage,
+                                      const void *request_void) {
+  if (!enabled_ || !request_void || !vendor_) {
     return false;
   }
   auto const *request =
-      reinterpret_cast<tusb_control_request_t const *>(request_void);
+      reinterpret_cast<arduino_usb_control_request_t const *>(request_void);
 
-  const uint8_t bm = request->bmRequestType;
+  const uint8_t bm = static_cast<uint8_t>(
+      (request->bmRequestDirection << 7) | (request->bmRequestType << 5) |
+      request->bmRequestRecipient);
   const uint8_t br = request->bRequest;
-  const uint16_t wv = request->wValue;
   const uint16_t wi = request->wIndex;
   const uint16_t wl = request->wLength;
-  const bool vendor = ((bm >> 5) & 0x3) == 2;
+  const bool vendor_type = ((bm >> 5) & 0x3) == 2;
 
-  // DATA/ACK after successful SETUP respond — must not stall EP0
-  // (hu-probe Lab: 51 Pipe error when complete returned false).
+  // DATA/ACK after SETUP respond — must return true (hu-probe Lab 51 Pipe fix)
   if (stage != CONTROL_STAGE_SETUP && respond_in_flight_) {
-    if (vendor && br == 52 && stage == CONTROL_STAGE_DATA &&
+    if (vendor_type && br == 52 && stage == CONTROL_STAGE_DATA &&
         string_scratch_len_ > 0) {
-      const size_t n = string_scratch_len_ < sizeof(last_string_) - 1
-                           ? string_scratch_len_
-                           : sizeof(last_string_) - 1;
+      size_t n = string_scratch_len_ < sizeof(last_string_) - 1
+                     ? string_scratch_len_
+                     : sizeof(last_string_) - 1;
       memcpy(last_string_, string_scratch_, n);
       last_string_[n] = '\0';
-      // Strip trailing NULs for display
       size_t end = n;
       while (end > 0 && last_string_[end - 1] == '\0') {
         end--;
@@ -113,10 +153,7 @@ bool AoaLabResponder::onControl(uint8_t rhport, uint8_t stage,
     return true;
   }
 
-  if (stage != CONTROL_STAGE_SETUP) {
-    return false;
-  }
-  if (!vendor) {
+  if (stage != CONTROL_STAGE_SETUP || !vendor_type) {
     return false;
   }
 
@@ -124,9 +161,8 @@ bool AoaLabResponder::onControl(uint8_t rhport, uint8_t stage,
   bool handled = false;
 
   if (br == 51 && (bm & 0x80)) {
-    // GET_PROTOCOL — IN|VENDOR, 2 bytes LE
     aoa51_++;
-    handled = tud_control_xfer(rhport, request, &protocol_le_, 2);
+    handled = vendor_->sendResponse(rhport, request, &protocol_le_, 2);
     if (handled) {
       aoa51_ok_++;
     }
@@ -134,25 +170,23 @@ bool AoaLabResponder::onControl(uint8_t rhport, uint8_t stage,
                                 handled ? 0 : 1, 2, 51, protocol_le_, 0,
                                 handled ? "aoa51_ok" : "aoa51_fail");
   } else if (br == 52 && !(bm & 0x80)) {
-    // SEND_STRING — OUT|VENDOR, index = string ID
     aoa52_++;
     last_string_index_ = static_cast<uint8_t>(wi & 0xff);
     string_scratch_len_ =
         wl > sizeof(string_scratch_) ? sizeof(string_scratch_) : wl;
     memset(string_scratch_, 0, sizeof(string_scratch_));
     if (string_scratch_len_ == 0) {
-      handled = tud_control_status(rhport, request);
+      handled = vendor_->sendResponse(rhport, request, nullptr, 0);
     } else {
-      handled =
-          tud_control_xfer(rhport, request, string_scratch_, string_scratch_len_);
+      handled = vendor_->sendResponse(rhport, request, string_scratch_,
+                                      string_scratch_len_);
     }
     CaptureLog::instance().push(CapRole::Device, CapType::EnumInfo,
                                 handled ? 0 : 1, wl, 52, wi, 0,
                                 handled ? "aoa52_ok" : "aoa52_fail");
   } else if (br == 53 && !(bm & 0x80)) {
-    // START — OUT|VENDOR, no data
     aoa53_++;
-    handled = tud_control_status(rhport, request);
+    handled = vendor_->sendResponse(rhport, request, nullptr, 0);
     if (handled && reenum_on_start_) {
       start_pending_ = true;
     }
@@ -160,23 +194,14 @@ bool AoaLabResponder::onControl(uint8_t rhport, uint8_t stage,
                                 handled ? 0 : 1, 0, 53, 0, 0,
                                 handled ? "aoa53_ok" : "aoa53_fail");
   } else if (br == 58 && !(bm & 0x80)) {
-    // AOAv2 SET_AUDIO_MODE — accept status only (lab)
-    handled = tud_control_status(rhport, request);
+    handled = vendor_->sendResponse(rhport, request, nullptr, 0);
   }
 
-  (void)wv;
   respond_in_flight_ = handled;
   return handled;
 }
 
 } // namespace usb_analyzer
-
-// Strong override of weak stub in esp32-hal-tinyusb.c
-extern "C" bool tinyusb_vendor_control_request_cb(
-    uint8_t rhport, uint8_t stage, tusb_control_request_t const *request) {
-  return usb_analyzer::AoaLabResponder::instance().onControl(rhport, stage,
-                                                             request);
-}
 
 #else
 
@@ -193,7 +218,10 @@ void AoaLabResponder::appendStatusJson(String &json) const {
   json += ",\"aoa\":{\"respond\":false}";
   (void)json;
 }
-bool AoaLabResponder::onControl(uint8_t, uint8_t, const void *) { return false; }
+void AoaLabResponder::pollBulkEcho() {}
+bool AoaLabResponder::onVendorRequest(uint8_t, uint8_t, const void *) {
+  return false;
+}
 
 } // namespace usb_analyzer
 

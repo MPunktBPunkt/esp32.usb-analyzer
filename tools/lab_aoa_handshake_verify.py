@@ -78,8 +78,12 @@ def main() -> int:
                     help="skip post-53 soft-reenum wait")
     ap.add_argument("--no-ab", action="store_true",
                     help="skip Lab B (responder off) negative check")
+    ap.add_argument("--bulk", action="store_true",
+                    help="after Lab A re-enum, vendor bulk OUT/IN echo")
     args = ap.parse_args()
     wait_reenum = not args.no_reenum
+    if args.bulk:
+        wait_reenum = True
 
     h = get(f"http://{args.host}/api/status")
     d = get(f"http://{args.device}/api/status")
@@ -152,6 +156,19 @@ def main() -> int:
     if aoa_ev:
         sample = aoa_ev[-1].get("decoded") or {"note": aoa_ev[-1].get("note")}
         print("  last", json.dumps(sample)[:200])
+
+    if args.bulk and not failed:
+        # Keep responder ON so Device echo loop runs
+        bq = urllib.parse.urlencode({"payload": "AOA-LAB"})
+        bulk = post(f"http://{args.host}/api/lab/aoa-bulk?{bq}", timeout=20)
+        print("Lab bulk", json.dumps(bulk, indent=2)[:400])
+        aoa_d = ((get(f"http://{args.device}/api/status").get("gadget")
+                  or {}).get("aoa") or {})
+        print("Device bulkRx/Tx", aoa_d.get("bulkRx"), aoa_d.get("bulkTx"),
+              "vendorMounted", aoa_d.get("vendorMounted"))
+        if not bulk.get("ok") or not bulk.get("match"):
+            print("FAIL Lab bulk echo", bulk.get("err"))
+            failed = True
 
     # Restore lab identity before Lab B
     post(f"http://{args.device}/api/lab/aoa-respond?enable=0")

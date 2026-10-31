@@ -104,6 +104,22 @@ public:
   AoaHandshakeResult runAoaHandshake(const char *profile = "lab",
                                      bool wait_reenum = true);
 
+  /** After accessory VID present: vendor bulk OUT + sync IN (echo). */
+  struct AoaBulkResult {
+    bool ok = false;
+    bool opened = false;
+    uint8_t ep_out = 0;
+    uint8_t ep_in = 0;
+    uint16_t pkt_out = 0;
+    uint16_t pkt_in = 0;
+    uint32_t tx = 0;
+    uint32_t rx = 0;
+    bool match = false;
+    uint32_t duration_ms = 0;
+    String error;
+  };
+  AoaBulkResult runAoaBulkEcho(const char *payload = "AOA-LAB");
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;

@@ -45,6 +45,7 @@ private:
   void handleUsbCtrlForward();
   void handleAoaRespond();
   void handleAoaHandshake();
+  void handleAoaBulk();
   void handleSyncMarker();
   void handleCapture();
 };

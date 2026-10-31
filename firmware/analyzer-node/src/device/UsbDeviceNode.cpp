@@ -4,6 +4,7 @@
 
 #include "USB.h"
 #include "USBMSC.h"
+#include "USBVendor.h"
 #include "capture/CaptureLog.h"
 #include "device/AoaLabResponder.h"
 #include "esp32-hal-tinyusb.h"
@@ -17,8 +18,25 @@ namespace usb_analyzer {
 namespace {
 
 USBMSC g_msc;
+USBVendor g_vendor(64);
 static uint8_t g_sector[512];
 static UsbDeviceNode *g_self = nullptr;
+
+static bool onAoaVendorRequest(uint8_t rhport, uint8_t stage,
+                               arduino_usb_control_request_t const *request) {
+  return AoaLabResponder::instance().onVendorRequest(rhport, stage, request);
+}
+
+static void onAoaVendorEvent(void *arg, esp_event_base_t event_base,
+                             int32_t event_id, void *event_data) {
+  (void)arg;
+  (void)event_base;
+  (void)event_data;
+  if (event_id == ARDUINO_USB_VENDOR_DATA_EVENT) {
+    // Echo ASAP from RX event — Host may vendorReadSync before Arduino loop runs.
+    AoaLabResponder::instance().pollBulkEcho();
+  }
+}
 
 // Own device/string descriptors so we can re-ident after USB.begin()
 // (Arduino ESPUSB has no end(); VID/PID setters no-op once started).
@@ -366,6 +384,7 @@ void UsbDeviceNode::applyLabIdentity() {
 void UsbDeviceNode::setAoaRespond(bool on, bool reenum_on_start) {
   AoaLabResponder &aoa = AoaLabResponder::instance();
   aoa.bind(this);
+  aoa.setVendor(&g_vendor);
   aoa.setReenumOnStart(reenum_on_start);
   aoa.setEnabled(on);
   if (!on) {
@@ -645,6 +664,7 @@ bool UsbDeviceNode::begin() {
 
   applyLabIdentity();
   AoaLabResponder::instance().bind(this);
+  AoaLabResponder::instance().setVendor(&g_vendor);
   // Also seed Arduino USB.* before begin (used if weak override fails to link).
   USB.VID(g_dev_desc.idVendor);
   USB.PID(g_dev_desc.idProduct);
@@ -659,12 +679,16 @@ bool UsbDeviceNode::begin() {
   g_msc.mediaPresent(true);
   g_msc.isWritable(true);
   g_msc.begin(gadget_blocks_, gadget_block_size_);
+  // Soft-composite MSC+Vendor for lab AOA bulk echo (OTG ESP↔ESP only — not HU fingerprint).
+  g_vendor.onRequest(onAoaVendorRequest);
+  g_vendor.onEvent(onAoaVendorEvent);
+  g_vendor.begin();
 
   USB.begin();
   begin_ok_ = true;
   ready_ = true;
   mounted_ = static_cast<bool>(USB);
-  Serial.println("[device] USB.begin() issued — wait for host enumeration");
+  Serial.println("[device] USB.begin() issued — MSC+Vendor lab composite");
   Serial.printf("[device] otg_state=%s id=%04x:%04x\n", otgState(),
                 g_dev_desc.idVendor, g_dev_desc.idProduct);
   (void)g_sector;
@@ -682,6 +706,7 @@ void UsbDeviceNode::loop() {
   if (AoaLabResponder::instance().consumeStartPending()) {
     applyAoaAccessoryIdentity();
   }
+  AoaLabResponder::instance().pollBulkEcho();
   if (pending_reenum_ && static_cast<int32_t>(millis() - reenum_at_ms_) >= 0) {
     pending_reenum_ = false;
     runSoftReenum();

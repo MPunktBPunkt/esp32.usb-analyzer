@@ -732,6 +732,84 @@ UsbHostNode::runAoaHandshake(const char *profile, bool wait_reenum) {
   return r;
 }
 
+UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
+  AoaBulkResult r;
+  const uint32_t t0 = millis();
+  if (!begin_ok_ || deviceCount() == 0) {
+    r.error = "no_dut";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  if (!dut_present_) {
+    r.error = "no_dut";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  // Lab allows bulk against composite MSC+Vendor at any VID (incl. before START).
+  const char *msg = (payload && payload[0]) ? payload : "AOA-LAB";
+  const size_t n = strlen(msg);
+  if (n == 0 || n > 64) {
+    r.error = "bad_payload";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  // Prefer on-demand reads; continuous can also work if Device echoes slowly.
+  if (!g_usb.vendorOpen(ESP_USB_HOST_ANY_ADDRESS, 0xff,
+                        ESP_USB_HOST_VENDOR_READ_ON_DEMAND, 64)) {
+    r.error = "vendor_open_fail";
+    r.duration_ms = millis() - t0;
+    CaptureLog::instance().push(CapRole::Host, CapType::Error, 1, 0, dut_vid_,
+                                dut_pid_, 0, "aoa_bulk_open");
+    return r;
+  }
+  r.opened = true;
+  r.ep_out = g_usb.vendorOutEndpoint();
+  r.ep_in = g_usb.vendorInEndpoint();
+  r.pkt_out = g_usb.vendorOutPacketSize();
+  r.pkt_in = g_usb.vendorInPacketSize();
+  Serial.printf("[aoa] vendor open epOUT=0x%02x epIN=0x%02x pkt=%u/%u\n",
+                r.ep_out, r.ep_in, r.pkt_out, r.pkt_in);
+  if (r.ep_out == 0 || r.ep_in == 0) {
+    r.error = "vendor_ep_missing";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  if (!g_usb.vendorWrite(reinterpret_cast<const uint8_t *>(msg), n)) {
+    r.error = "vendor_write_fail";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  r.tx = static_cast<uint32_t>(n);
+  CaptureLog::instance().push(CapRole::Host, CapType::TcpBulk, 0, r.tx, 0, 0, 0,
+                              "aoa_bulk_out");
+
+  // Yield so Device event/loop can echo before IN.
+  for (int i = 0; i < 10; i++) {
+    delay(20);
+  }
+  uint8_t buf[64];
+  memset(buf, 0, sizeof(buf));
+  size_t actual = 0;
+  if (!g_usb.vendorReadSync(buf, sizeof(buf), &actual, 2000)) {
+    r.error = "vendor_read_fail";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  r.rx = static_cast<uint32_t>(actual);
+  r.match = (actual == n && memcmp(buf, msg, n) == 0);
+  CaptureLog::instance().push(CapRole::Host, CapType::TcpBulk, r.match ? 0 : 1,
+                              r.rx, r.tx, 0, 0,
+                              r.match ? "aoa_bulk_in_ok" : "aoa_bulk_mismatch");
+  r.ok = r.match;
+  if (!r.ok && r.error.length() == 0) {
+    r.error = "echo_mismatch";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
 void UsbHostNode::printNoDeviceHints() const {
   Serial.println();
   Serial.println("--- no device enumerated (check order) ---");
@@ -793,6 +871,11 @@ bool UsbHostNode::controlTransfer(uint8_t, uint8_t, uint16_t, uint16_t,
 UsbHostNode::AoaHandshakeResult UsbHostNode::runAoaHandshake(const char *,
                                                              bool) {
   AoaHandshakeResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *) {
+  AoaBulkResult r;
   r.error = "host_disabled";
   return r;
 }
