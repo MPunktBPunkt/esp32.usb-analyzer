@@ -119,6 +119,28 @@ public:
     String error;
   };
   AoaBulkResult runAoaBulkEcho(const char *payload = "AOA-LAB");
+  AoaBulkResult runAoaBulkEcho(const uint8_t *data, size_t len);
+
+  /**
+   * Lab BCL 8-byte BE frame over AOA vendor bulk (echo round-trip).
+   * Desk FACT header layout (bmw-bcl); claim lab_bcl_on_aoa_bulk — NOT HU wire.
+   */
+  struct AoaBclResult {
+    bool ok = false;
+    bool init_ok = false;
+    bool frame_ok = false;
+    bool parse_ok = false;
+    uint16_t cmd = 0;
+    uint16_t src = 0;
+    uint16_t dest = 0;
+    uint16_t data_len = 0;
+    uint32_t tx = 0;
+    uint32_t rx = 0;
+    uint32_t duration_ms = 0;
+    String error;
+  };
+  AoaBclResult runAoaBclRoundtrip(uint16_t cmd = 4, uint16_t dest = 0x0FA4,
+                                  bool send_init = true);
 
 private:
   bool ready_ = false;

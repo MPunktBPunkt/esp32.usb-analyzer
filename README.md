@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.32-blue)
+![Version](https://img.shields.io/badge/version-0.0.33-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.32** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + selftest, class-hook CBW/CSW, sync-offset, EP0 forward, **Lab AOA 51→52→53** (A/B + capture-decode).  
+> **v0.0.33** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + selftest, class-hook CBW/CSW, sync-offset, EP0 forward, **Lab AOA 51→52→53** (A/B + capture-decode).  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -43,7 +43,7 @@ Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debi
 | **A — DIRECT** | ESP1 ══ TCP ══ ESP2 | Gate 3 bulk + Gate 4 MSC-proxy slice |
 | **B — RELAY** | via Debian | discovery/control; USB data not relayed yet |
 
-## What we can measure today (0.0.32)
+## What we can measure today (0.0.33)
 
 Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) · AOA: [`LAB_AOA_HANDSHAKE_MEASURED.md`](docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md)
 
@@ -68,6 +68,7 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **AOA control handshake** | Host 51→52×6→53 vs Device responder; Lab A/B (`lab_aoa_handshake_verify.py`) | protocol≥1, 52×6+START, `18d1:2d00` ~0,55–0,6 s; Lab B STALL | Lab OTG — **not** HU/BCL |
 | **AOA capture decode** | `decoded.protocol=aoa` on Host capture | GET_PROTOCOL / SEND_STRING / START | EP0 lab markers — **not** wire |
 | **AOA vendor-bulk echo** | Host `/api/lab/aoa-bulk` · verify `--bulk` | byte-exact echo (TinyUSB FIFO path) | Lab Rohr MSC+Vendor — **not** BCL/HU |
+| **Lab BCL on AOA bulk** | 8-byte BE header + init `12345678` (`lab_aoa_bcl_verify.py`) | HANDSHAKE echo parse cmd/dest | Desk FACT framing — **not** HU wire |
 | **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
 
 ### ESP Web UI (per node, port 80)

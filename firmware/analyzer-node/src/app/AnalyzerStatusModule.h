@@ -46,6 +46,7 @@ private:
   void handleAoaRespond();
   void handleAoaHandshake();
   void handleAoaBulk();
+  void handleAoaBcl();
   void handleSyncMarker();
   void handleCapture();
 };

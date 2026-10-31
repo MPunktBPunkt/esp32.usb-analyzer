@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstring>
 #include <esp_timer.h>
+#include <usb_analyzer/BclLabFrame.h>
 #include <usb_analyzer/UsbLabPattern.h>
 
 namespace usb_analyzer {
@@ -733,28 +734,25 @@ UsbHostNode::runAoaHandshake(const char *profile, bool wait_reenum) {
 }
 
 UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
+  const char *msg = (payload && payload[0]) ? payload : "AOA-LAB";
+  return runAoaBulkEcho(reinterpret_cast<const uint8_t *>(msg), strlen(msg));
+}
+
+UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const uint8_t *data,
+                                                       size_t n) {
   AoaBulkResult r;
   const uint32_t t0 = millis();
-  if (!begin_ok_ || deviceCount() == 0) {
+  if (!begin_ok_ || deviceCount() == 0 || !dut_present_) {
     r.error = "no_dut";
     r.duration_ms = millis() - t0;
     return r;
   }
-  if (!dut_present_) {
-    r.error = "no_dut";
-    r.duration_ms = millis() - t0;
-    return r;
-  }
-  // Lab allows bulk against composite MSC+Vendor at any VID (incl. before START).
-  const char *msg = (payload && payload[0]) ? payload : "AOA-LAB";
-  const size_t n = strlen(msg);
-  if (n == 0 || n > 64) {
+  if (!data || n == 0 || n > 64) {
     r.error = "bad_payload";
     r.duration_ms = millis() - t0;
     return r;
   }
 
-  // Continuous IN first so Device echo can land while we still hold the pipe.
   if (!g_usb.vendorOpen(ESP_USB_HOST_ANY_ADDRESS, 0xff,
                         ESP_USB_HOST_VENDOR_READ_CONTINUOUS, 64)) {
     r.error = "vendor_open_fail";
@@ -768,16 +766,14 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
   r.ep_in = g_usb.vendorInEndpoint();
   r.pkt_out = g_usb.vendorOutPacketSize();
   r.pkt_in = g_usb.vendorInPacketSize();
-  Serial.printf("[aoa] vendor open epOUT=0x%02x epIN=0x%02x pkt=%u/%u\n",
-                r.ep_out, r.ep_in, r.pkt_out, r.pkt_in);
   if (r.ep_out == 0 || r.ep_in == 0) {
     r.error = "vendor_ep_missing";
     r.duration_ms = millis() - t0;
     return r;
   }
 
-  delay(20); // Device loop polls TinyUSB FIFO
-  if (!g_usb.vendorWrite(reinterpret_cast<const uint8_t *>(msg), n)) {
+  delay(20);
+  if (!g_usb.vendorWrite(data, n)) {
     r.error = "vendor_write_fail";
     r.duration_ms = millis() - t0;
     return r;
@@ -786,7 +782,6 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
   CaptureLog::instance().push(CapRole::Host, CapType::TcpBulk, 0, r.tx, 0, 0, 0,
                               "aoa_bulk_out");
 
-  // Drain continuous RX / fallback sync for up to ~2s
   uint8_t buf[64];
   memset(buf, 0, sizeof(buf));
   size_t actual = 0;
@@ -811,13 +806,80 @@ UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *payload) {
     return r;
   }
   r.rx = static_cast<uint32_t>(actual);
-  r.match = (actual == n && memcmp(buf, msg, n) == 0);
+  r.match = (actual == n && memcmp(buf, data, n) == 0);
   CaptureLog::instance().push(CapRole::Host, CapType::TcpBulk, r.match ? 0 : 1,
                               r.rx, r.tx, 0, 0,
                               r.match ? "aoa_bulk_in_ok" : "aoa_bulk_mismatch");
   r.ok = r.match;
   if (!r.ok && r.error.length() == 0) {
     r.error = "echo_mismatch";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
+UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t cmd,
+                                                          uint16_t dest,
+                                                          bool send_init) {
+  AoaBclResult r;
+  const uint32_t t0 = millis();
+
+  if (send_init) {
+    AoaBulkResult init =
+        runAoaBulkEcho(kBclLabInit, sizeof(kBclLabInit));
+    r.init_ok = init.ok;
+    if (!init.ok) {
+      r.error = String("init_") + (init.error.length() ? init.error : "fail");
+      r.duration_ms = millis() - t0;
+      return r;
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 4, 0x1234,
+                                0x5678, 0, "bcl_init");
+  } else {
+    r.init_ok = true;
+  }
+
+  // Synthetic payload (version=1, instance=0x1AB1, bufHint=4096) — lab only.
+  const uint8_t payload[6] = {0x00, 0x01, 0x1A, 0xB1, 0x10, 0x00};
+  BclLabHeader hdr{};
+  hdr.command = cmd;
+  hdr.src = 0x0001;
+  hdr.dest = dest;
+  hdr.data_len = sizeof(payload);
+
+  uint8_t frame[64];
+  const size_t flen = bclPack(frame, sizeof(frame), hdr, payload, sizeof(payload));
+  if (flen == 0) {
+    r.error = "pack_fail";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  AoaBulkResult round = runAoaBulkEcho(frame, flen);
+  r.tx = round.tx;
+  r.rx = round.rx;
+  r.frame_ok = round.ok;
+  if (!round.ok) {
+    r.error = String("frame_") + (round.error.length() ? round.error : "fail");
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  // Re-read via a dedicated parse of what we sent (echo matched bytes).
+  BclLabHeader got{};
+  r.parse_ok = bclParseHeader(frame, flen, got) &&
+               (8u + got.data_len == flen) && (got.command == cmd) &&
+               (got.dest == dest);
+  r.cmd = got.command;
+  r.src = got.src;
+  r.dest = got.dest;
+  r.data_len = got.data_len;
+  CaptureLog::instance().pushPayload(
+      CapRole::Host, CapType::EnumInfo, r.parse_ok ? 0 : 1, flen, got.command,
+      got.dest, 0, "bcl_frame", frame, 8);
+  r.ok = r.init_ok && r.frame_ok && r.parse_ok;
+  if (!r.ok && r.error.length() == 0) {
+    r.error = "parse_fail";
   }
   r.duration_ms = millis() - t0;
   return r;
@@ -889,6 +951,17 @@ UsbHostNode::AoaHandshakeResult UsbHostNode::runAoaHandshake(const char *,
 }
 UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const char *) {
   AoaBulkResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::AoaBulkResult UsbHostNode::runAoaBulkEcho(const uint8_t *, size_t) {
+  AoaBulkResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::AoaBclResult UsbHostNode::runAoaBclRoundtrip(uint16_t, uint16_t,
+                                                          bool) {
+  AoaBclResult r;
   r.error = "host_disabled";
   return r;
 }

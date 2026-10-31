@@ -192,6 +192,32 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
                          : ",\"source\":\"class_api_inferred\"";
     out += "}";
   } else if (e.type == CapType::EnumInfo && e.note[0] &&
+             (strncmp(e.note, "bcl_frame", 9) == 0 ||
+              strncmp(e.note, "bcl_echo", 8) == 0)) {
+    out += ",\"direction\":\"out\"";
+    out += ",\"decoded\":{\"protocol\":\"bcl\",\"command\":";
+    // arg0 = cmd, arg1 = dest
+    out += String(e.arg0);
+    out += ",\"cmd_name\":\"";
+    if (e.arg0 == 1)
+      out += "OPEN";
+    else if (e.arg0 == 2)
+      out += "DATA";
+    else if (e.arg0 == 3)
+      out += "CLOSE";
+    else if (e.arg0 == 4)
+      out += "HANDSHAKE";
+    else if (e.arg0 == 5)
+      out += "SELECTPROTO";
+    else if (e.arg0 == 6)
+      out += "DATAACK";
+    else
+      out += "CMD";
+    out += "\",\"dest\":" + String(e.arg1);
+    out += ",\"source\":\"lab_bcl_on_aoa_bulk\"";
+    out += ",\"claim\":\"lab_bcl_on_aoa_bulk\"";
+    out += "}";
+  } else if (e.type == CapType::EnumInfo && e.note[0] &&
              strncmp(e.note, "aoa", 3) == 0) {
     // Lab AOA EP0: arg0=bRequest (51/52/53), arg1=protocol or string index
     const uint32_t br = e.arg0;

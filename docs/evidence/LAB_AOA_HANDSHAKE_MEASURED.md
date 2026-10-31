@@ -62,4 +62,5 @@ AOA AOSP defines **order**, not handshake deadlines. Documented elsewhere:
 | ESP Host can drive AOA control against ESP Device responder | **MEASURED** |
 | Soft-reenum presents Google accessory VID/PID (MSC+Vendor composite) | **MEASURED** |
 | Vendor bulk echo Host↔Device after/without START | **MEASURED** (lab Rohr) |
-| This proves HU AOA or BCL-on-Bulk | **REJECTED** / not claimed |
+| Lab BCL 8-byte BE + init over AOA bulk echo | **MEASURED** (0.0.33 desk header) |
+| This proves HU AOA or BCL-on-HU-wire | **REJECTED** / not claimed |

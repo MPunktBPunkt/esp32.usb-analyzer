@@ -548,6 +548,7 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/aoa-handshake", HTTP_ANY,
             [this]() { handleAoaHandshake(); });
   server.on("/api/lab/aoa-bulk", HTTP_ANY, [this]() { handleAoaBulk(); });
+  server.on("/api/lab/aoa-bcl", HTTP_ANY, [this]() { handleAoaBcl(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -837,6 +838,63 @@ void AnalyzerStatusModule::handleAoaBulk() {
   }
   j += ",\"claim\":\"aoa_bulk_echo_lab\"";
   j += ",\"note\":\"not_bcl_not_hu_wire\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleAoaBcl() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  uint16_t cmd = 4; // HANDSHAKE
+  uint16_t dest = 0x0FA4;
+  bool send_init = true;
+  if (server_->hasArg("cmd")) {
+    cmd = static_cast<uint16_t>(server_->arg("cmd").toInt());
+  }
+  if (server_->hasArg("dest")) {
+    dest = static_cast<uint16_t>(strtoul(server_->arg("dest").c_str(), nullptr, 0));
+  }
+  if (server_->hasArg("init")) {
+    const String i = server_->arg("init");
+    send_init = !(i == "0" || i == "false" || i == "off");
+  }
+  const UsbHostNode::AoaBclResult r =
+      host_->runAoaBclRoundtrip(cmd, dest, send_init);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"initOk\":";
+  j += r.init_ok ? "true" : "false";
+  j += ",\"frameOk\":";
+  j += r.frame_ok ? "true" : "false";
+  j += ",\"parseOk\":";
+  j += r.parse_ok ? "true" : "false";
+  j += ",\"cmd\":";
+  j += String(r.cmd);
+  j += ",\"src\":";
+  j += String(r.src);
+  j += ",\"dest\":";
+  j += String(r.dest);
+  j += ",\"dataLen\":";
+  j += String(r.data_len);
+  j += ",\"tx\":";
+  j += String(r.tx);
+  j += ",\"rx\":";
+  j += String(r.rx);
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"lab_bcl_on_aoa_bulk\"";
+  j += ",\"note\":\"desk_header_fact_not_hu_wire\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }

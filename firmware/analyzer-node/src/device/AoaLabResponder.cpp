@@ -8,6 +8,7 @@
 #include "tusb.h"
 
 #include <cstring>
+#include <usb_analyzer/BclLabFrame.h>
 
 namespace usb_analyzer {
 
@@ -108,15 +109,24 @@ void AoaLabResponder::pollBulkEcho() {
         break;
       }
       bulk_rx_ += n;
+      BclLabHeader bh{};
+      const bool looks_bcl =
+          bclParseHeader(buf, n, bh) && (8u + bh.data_len == n);
       uint32_t w = 0;
       if (tud_vendor_n_write_available(0) >= n) {
         w = tud_vendor_n_write(0, buf, n);
         tud_vendor_n_write_flush(0);
       }
       bulk_tx_ += w;
-      CaptureLog::instance().push(CapRole::Device, CapType::TcpBulk,
-                                  (w == n) ? 0 : 1, n, w, 0, 0,
-                                  (w == n) ? "aoa_tud_echo" : "aoa_tud_short");
+      if (looks_bcl) {
+        CaptureLog::instance().pushPayload(
+            CapRole::Device, CapType::EnumInfo, (w == n) ? 0 : 1, n, bh.command,
+            bh.dest, 0, "bcl_echo", buf, 8);
+      } else {
+        CaptureLog::instance().push(CapRole::Device, CapType::TcpBulk,
+                                    (w == n) ? 0 : 1, n, w, 0, 0,
+                                    (w == n) ? "aoa_tud_echo" : "aoa_tud_short");
+      }
       avail = tud_vendor_n_available(0);
     }
   }

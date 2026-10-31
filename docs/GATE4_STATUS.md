@@ -20,6 +20,7 @@
 | Lab AOA control handshake (51→52→53 + optional `18D1:2D00`) | done (0.0.29) — OTG loop; Desk `usb-aoa` / hu-probe C1b; **not** HU/BCL |
 | AOA capture decode + Lab A/B (respond on/off) | done (0.0.30) — `LAB_AOA_HANDSHAKE_MEASURED.md`; **not** accessory bulk |
 | Lab AOA vendor-bulk echo (soft-composite) | done (0.0.32) — TinyUSB FIFO echo; Host continuous RX; **not** BCL |
+| Lab BCL frame on AOA bulk | done (0.0.33) — init+HANDSHAKE echo; **not** HU wire |
 | Live SETUP interception / transparent control MITM | **not yet** |
 | Transparency claim | **not claimed** |
 

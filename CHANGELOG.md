@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.33: Lab BCL 8-byte BE frame over AOA bulk (`/api/lab/aoa-bcl`, `lab_aoa_bcl_verify.py`) — Desk header FACT; **not** HU wire / Etch/SAS
 - FW 0.0.32: AOA bulk echo MEASURED — TinyUSB `tud_vendor_*` FIFO path + Host continuous RX; `lab_aoa_handshake_verify.py --bulk` — **not** BCL/HU
 - FW 0.0.31: AOA via USBVendor.onRequest (MSC+Vendor soft-composite); `/api/lab/aoa-bulk` scaffold — Host vendorOpen/OUT ok, Device RX still **UNKNOWN**/fail; handshake Lab A/B remains PASS — **not** BCL/HU wire
 - FW 0.0.30: AOA capture decode (`protocol:aoa` GET_PROTOCOL/SEND_STRING/START) + Lab A/B in `lab_aoa_handshake_verify.py` + `docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md` — **not** HU/BCL/bulk
