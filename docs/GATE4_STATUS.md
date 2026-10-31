@@ -24,6 +24,8 @@
 | BCL host units + RX parse + lab series | done (0.0.34) — `tests/host/`, DATA/`plhex`/empty; **not** HU wire |
 | USB enum outcome (addr/config + GET_CONFIGURATION) | done (0.0.35) — post-enum; soft-reenum optional; **not** SETUP MITM |
 | HID interrupt lab (keyboard inject→Host) | done (0.0.35) — MSC+Vendor+HID composite; **not** L0/HU |
+| Bus Suspend/Resume (HPRT + post EP0) | done (0.0.36) — Device TinyUSB SUSPEND UNKNOWN on HPRT path; **not** L0 PHY |
+| EP0 control-neg series | done (0.0.36) — TinyUSB MEASURED expects; **not** SETUP MITM |
 | Live SETUP interception / transparent control MITM | **not yet** |
 | Transparency claim | **not claimed** |
 

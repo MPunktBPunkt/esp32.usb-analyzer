@@ -191,6 +191,46 @@ public:
   };
   HidObserveResult runHidObserve(uint32_t wait_ms = 2000, bool clear = true);
 
+  /**
+   * Host root-port Suspend/Resume via DWC HPRT (lab).
+   * Claim: usb_bus_suspend_resume_lab — stack HPRT, NOT L0 PHY / MITM.
+   */
+  struct SuspendResumeResult {
+    bool ok = false;
+    bool suspended = false;
+    bool resumed = false;
+    bool post_traffic_ok = false;
+    uint32_t hold_ms = 0;
+    uint32_t duration_ms = 0;
+    String error;
+  };
+  SuspendResumeResult runBusSuspend(uint32_t hold_ms = 100);
+  SuspendResumeResult runBusResume();
+  /** Suspend → hold → resume → GET_DESCRIPTOR smoke. */
+  SuspendResumeResult runBusSuspendResume(uint32_t hold_ms = 100);
+
+  /**
+   * EP0 negative / robustness series (caller-initiated).
+   * Claim: usb_ctrl_neg_lab — NOT transparent SETUP MITM.
+   */
+  struct CtrlCaseResult {
+    const char *name = "";
+    bool ok = false;       // transfer completed
+    bool expect_ok = true; // whether we expected success
+    bool pass = false;     // ok==expect_ok
+    uint16_t actual = 0;
+    int host_err = 0;
+  };
+  struct CtrlNegResult {
+    bool ok = false;
+    uint8_t cases = 0;
+    uint8_t passed = 0;
+    CtrlCaseResult detail[8]{};
+    uint32_t duration_ms = 0;
+    String error;
+  };
+  CtrlNegResult runCtrlNegSeries();
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;

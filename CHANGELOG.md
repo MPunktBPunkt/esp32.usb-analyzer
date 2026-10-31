@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.36: Bus Suspend/Resume lab (Host HPRT + post EP0; Device TinyUSB SUSPEND UNKNOWN on HPRT path) + EP0 control-neg series (`usb-ctrl-neg`) — **not** L0 PHY / SETUP MITM
 - FW 0.0.35: Control-state enum outcome (`/api/lab/usb-enum-observe`, soft-reenum) + HID interrupt lab (Device keyboard inject / Host observe) — **not** SETUP MITM / L0 / HU
 - FW 0.0.34: BCL coverage — Host unit tests (`tests/host/`), RX-side `bclValidateFrame` (not TX re-parse), lab series HANDSHAKE/DATA/`plhex`/header-only, `bclFindHeader` resync — **not** HU wire / parser-on-wire
 - FW 0.0.33: Lab BCL 8-byte BE frame over AOA bulk (`/api/lab/aoa-bcl`, `lab_aoa_bcl_verify.py`) — Desk header FACT; **not** HU wire / Etch/SAS

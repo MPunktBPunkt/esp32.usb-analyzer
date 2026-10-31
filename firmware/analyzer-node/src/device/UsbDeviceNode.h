@@ -21,6 +21,8 @@ public:
   /** TinyUSB configured by a USB host — OTG cable live as gadget. */
   bool otgMounted() const { return mounted_; }
   bool otgSuspended() const { return suspended_; }
+  uint32_t suspendCount() const { return suspend_count_; }
+  uint32_t resumeCount() const { return resume_count_; }
   const char *otgState() const;
   void notifyMounted(bool on);
   void notifySuspended(bool on);
@@ -92,6 +94,8 @@ private:
   bool begin_ok_ = false;
   bool mounted_ = false;
   bool suspended_ = false;
+  uint32_t suspend_count_ = 0;
+  uint32_t resume_count_ = 0;
   uint32_t read_ops_ = 0;
   uint32_t read_bytes_ = 0;
   uint32_t write_ops_ = 0;

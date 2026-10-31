@@ -638,6 +638,10 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += hid_enabled_ ? "true" : "false";
   json += ",\"hidInjects\":";
   json += String(hid_injects_);
+  json += ",\"suspendCount\":";
+  json += String(suspend_count_);
+  json += ",\"resumeCount\":";
+  json += String(resume_count_);
   json += ",\"claim\":\"gadget_identity_from_dut_snapshot\"";
   AoaLabResponder::instance().appendStatusJson(json);
   json += ",\"proxiedDut\":{";
@@ -672,7 +676,14 @@ void UsbDeviceNode::notifyMounted(bool on) {
     suspended_ = false;
   }
 }
-void UsbDeviceNode::notifySuspended(bool on) { suspended_ = on; }
+void UsbDeviceNode::notifySuspended(bool on) {
+  if (on && !suspended_) {
+    suspend_count_++;
+  } else if (!on && suspended_) {
+    resume_count_++;
+  }
+  suspended_ = on;
+}
 
 const char *UsbDeviceNode::otgState() const {
   if (!begin_ok_) {

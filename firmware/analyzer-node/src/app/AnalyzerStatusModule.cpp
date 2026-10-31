@@ -554,6 +554,9 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/hid-observe", HTTP_ANY, [this]() { handleHidObserve(); });
   server.on("/api/lab/hid-inject", HTTP_ANY, [this]() { handleHidInject(); });
   server.on("/api/lab/soft-reenum", HTTP_ANY, [this]() { handleSoftReenum(); });
+  server.on("/api/lab/usb-suspend-resume", HTTP_ANY,
+            [this]() { handleUsbSuspendResume(); });
+  server.on("/api/lab/usb-ctrl-neg", HTTP_ANY, [this]() { handleUsbCtrlNeg(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1102,6 +1105,104 @@ void AnalyzerStatusModule::handleSoftReenum() {
       200, F("application/json"),
       F("{\"ok\":true,\"scheduled\":true,\"claim\":\"usb_enum_outcome_lab\","
         "\"note\":\"soft_reenum_not_control_mitm\"}"));
+}
+
+void AnalyzerStatusModule::handleUsbSuspendResume() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  uint32_t hold_ms = 100;
+  if (server_->hasArg("hold_ms")) {
+    hold_ms = static_cast<uint32_t>(server_->arg("hold_ms").toInt());
+  }
+  String mode = "cycle";
+  if (server_->hasArg("mode")) {
+    mode = server_->arg("mode");
+  }
+  UsbHostNode::SuspendResumeResult r;
+  if (mode == "suspend") {
+    r = host_->runBusSuspend(hold_ms);
+  } else if (mode == "resume") {
+    r = host_->runBusResume();
+  } else {
+    r = host_->runBusSuspendResume(hold_ms);
+  }
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"suspended\":";
+  j += r.suspended ? "true" : "false";
+  j += ",\"resumed\":";
+  j += r.resumed ? "true" : "false";
+  j += ",\"postTrafficOk\":";
+  j += r.post_traffic_ok ? "true" : "false";
+  j += ",\"hold_ms\":";
+  j += String(r.hold_ms);
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"usb_bus_suspend_resume_lab\"";
+  j += ",\"note\":\"hprt_stack_suspend_not_l0_phy\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleUsbCtrlNeg() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  const UsbHostNode::CtrlNegResult r = host_->runCtrlNegSeries();
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"cases\":";
+  j += String(r.cases);
+  j += ",\"passed\":";
+  j += String(r.passed);
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  j += ",\"detail\":[";
+  for (uint8_t i = 0; i < r.cases; i++) {
+    if (i) {
+      j += ",";
+    }
+    const auto &c = r.detail[i];
+    j += "{\"name\":\"";
+    j += c.name;
+    j += "\",\"ok\":";
+    j += c.ok ? "true" : "false";
+    j += ",\"expectOk\":";
+    j += c.expect_ok ? "true" : "false";
+    j += ",\"pass\":";
+    j += c.pass ? "true" : "false";
+    j += ",\"actual\":";
+    j += String(c.actual);
+    j += ",\"hostErr\":";
+    j += String(c.host_err);
+    j += "}";
+  }
+  j += "]";
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"usb_ctrl_neg_lab\"";
+  j += ",\"note\":\"caller_ep0_negatives_not_setup_mitm\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }
 
 void AnalyzerStatusModule::handleCapture() {

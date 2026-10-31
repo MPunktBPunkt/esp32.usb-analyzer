@@ -51,6 +51,8 @@ private:
   void handleHidObserve();
   void handleHidInject();
   void handleSoftReenum();
+  void handleUsbSuspendResume();
+  void handleUsbCtrlNeg();
   void handleSyncMarker();
   void handleCapture();
 };

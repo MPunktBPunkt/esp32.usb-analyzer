@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstring>
 #include <esp_timer.h>
+#include <hal/usb_dwc_ll.h>
 #include <usb_analyzer/BclLabFrame.h>
 #include <usb_analyzer/UsbLabPattern.h>
 
@@ -1036,6 +1037,157 @@ UsbHostNode::EnumObserveResult UsbHostNode::runEnumObserve(bool ep0_probe) {
   return r;
 }
 
+UsbHostNode::SuspendResumeResult UsbHostNode::runBusSuspend(uint32_t hold_ms) {
+  SuspendResumeResult r;
+  r.hold_ms = hold_ms;
+  const uint32_t t0 = millis();
+  if (!begin_ok_ || deviceCount() == 0) {
+    r.error = begin_ok_ ? "no_dut" : "host_disabled";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  // Lab: poke DWC HPRT.prtsusp — EspUsbHost has no public suspend API.
+  usb_dwc_ll_hprt_set_port_suspend(&USB_DWC);
+  delay(5);
+  r.suspended = usb_dwc_ll_hprt_get_port_suspend(&USB_DWC);
+  CaptureLog::instance().push(CapRole::Host, CapType::Suspend,
+                              r.suspended ? 0 : 1, hold_ms, 0, 0, 0,
+                              "hprt_suspend");
+  r.ok = r.suspended;
+  if (!r.ok) {
+    r.error = "hprt_suspend_clear";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
+UsbHostNode::SuspendResumeResult UsbHostNode::runBusResume() {
+  SuspendResumeResult r;
+  const uint32_t t0 = millis();
+  if (!begin_ok_) {
+    r.error = "host_disabled";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  // Drive resume ≥20 ms then clear (USB FS host requirement).
+  usb_dwc_ll_hprt_set_port_resume(&USB_DWC);
+  delay(25);
+  usb_dwc_ll_hprt_clr_port_resume(&USB_DWC);
+  delay(10);
+  r.resumed = !usb_dwc_ll_hprt_get_port_suspend(&USB_DWC);
+  CaptureLog::instance().push(CapRole::Host, CapType::Resume, r.resumed ? 0 : 1,
+                              0, 0, 0, 0, "hprt_resume");
+  r.ok = r.resumed;
+  if (!r.ok) {
+    r.error = "hprt_still_suspended";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
+UsbHostNode::SuspendResumeResult
+UsbHostNode::runBusSuspendResume(uint32_t hold_ms) {
+  SuspendResumeResult r;
+  r.hold_ms = hold_ms;
+  const uint32_t t0 = millis();
+  SuspendResumeResult s = runBusSuspend(hold_ms);
+  r.suspended = s.suspended;
+  if (!s.ok) {
+    r.error = s.error;
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  // USB FS: device detects suspend after ~3 ms of bus idle; hold a bit longer.
+  delay(hold_ms < 50 ? 50 : hold_ms);
+  SuspendResumeResult u = runBusResume();
+  r.resumed = u.resumed;
+  if (!u.ok) {
+    r.error = u.error;
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  // Post-resume EP0 smoke — retry; HPRT poke can briefly upset EspUsbHost pipes.
+  uint8_t desc[18];
+  uint16_t actual = 0;
+  for (int attempt = 0; attempt < 5; attempt++) {
+    memset(desc, 0, sizeof(desc));
+    actual = 0;
+    if (controlTransfer(0x80, 0x06, 0x0100, 0, desc, 18, &actual) &&
+        actual >= 18) {
+      r.post_traffic_ok = true;
+      break;
+    }
+    delay(50);
+  }
+  r.ok = r.suspended && r.resumed && r.post_traffic_ok;
+  if (!r.ok && r.error.length() == 0) {
+    r.error = "post_resume_ep0_fail";
+  }
+  CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo,
+                              r.ok ? 0 : 1, actual, r.hold_ms, 0, 0,
+                              r.ok ? "susp_resume_ok" : "susp_resume_fail");
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
+UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
+  CtrlNegResult r;
+  const uint32_t t0 = millis();
+  if (!begin_ok_ || deviceCount() == 0) {
+    r.error = begin_ok_ ? "no_dut" : "host_disabled";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  auto run_case = [&](const char *name, bool expect_ok, uint8_t bm, uint8_t br,
+                      uint16_t wv, uint16_t wi, uint8_t *data, uint16_t wl) {
+    if (r.cases >= 8) {
+      return;
+    }
+    CtrlCaseResult &c = r.detail[r.cases++];
+    c.name = name;
+    c.expect_ok = expect_ok;
+    uint16_t actual = 0;
+    c.ok = controlTransfer(bm, br, wv, wi, data, wl, &actual);
+    c.actual = actual;
+    c.host_err = g_usb.lastError();
+    c.pass = (c.ok == expect_ok);
+    if (c.pass) {
+      r.passed++;
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, c.pass ? 0 : 1,
+                                actual, br, wv, 0, name);
+  };
+
+  uint8_t buf[64];
+  memset(buf, 0, sizeof(buf));
+
+  // Expectations tuned to TinyUSB/EspUsbHost lab MEASURED behavior (not USB-IF).
+  // 1) Positive: GET_DESCRIPTOR(DEVICE)
+  run_case("get_desc_dev", true, 0x80, 0x06, 0x0100, 0, buf, 18);
+  // 2) GET_STATUS(device)
+  run_case("get_status", true, 0x80, 0x00, 0, 0, buf, 2);
+  // 3) Short GET_DESCRIPTOR (8 of 18)
+  run_case("get_desc_short", true, 0x80, 0x06, 0x0100, 0, buf, 8);
+  // 4) Invalid descriptor type — expect fail (string idx 0xFF often stubs ok)
+  run_case("bad_desc_type", false, 0x80, 0x06, 0x7F00, 0, buf, 8);
+  // 5) Invalid bRequest — expect fail
+  run_case("bad_brequest", false, 0x80, 0xEE, 0, 0, buf, 2);
+  // 6) Unimplemented vendor IN — expect fail/STALL
+  run_case("vendor_unimpl", false, 0xC0, 0xAB, 0, 0, buf, 8);
+  // 7) GET_INTERFACE iface 0 — TinyUSB returns altsetting
+  run_case("get_iface", true, 0x81, 0x0A, 0, 0, buf, 1);
+  // 8) Zero-length GET_DESCRIPTOR — fail/no-data
+  run_case("get_desc_zlp", false, 0x80, 0x06, 0x0100, 0, buf, 0);
+
+  r.ok = (r.passed == r.cases) && (r.cases > 0);
+  if (!r.ok && r.error.length() == 0) {
+    r.error = "cases_failed";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
 UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t wait_ms,
                                                          bool clear) {
   HidObserveResult r;
@@ -1167,6 +1319,26 @@ UsbHostNode::EnumObserveResult UsbHostNode::runEnumObserve(bool) {
 }
 UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t, bool) {
   HidObserveResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::SuspendResumeResult UsbHostNode::runBusSuspend(uint32_t) {
+  SuspendResumeResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::SuspendResumeResult UsbHostNode::runBusResume() {
+  SuspendResumeResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::SuspendResumeResult UsbHostNode::runBusSuspendResume(uint32_t) {
+  SuspendResumeResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
+  CtrlNegResult r;
   r.error = "host_disabled";
   return r;
 }
