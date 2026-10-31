@@ -151,7 +151,12 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
     out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"CSW\"";
     out += ",\"lba\":" + String(e.arg0);
     out += ",\"residue\":" + String(e.arg1);
-    out += ",\"source\":\"class_api_inferred\"";
+    // complete_cb notes are closer to BOT status stage than App onRead/onWrite
+    const bool from_complete =
+        e.note[0] && (strstr(e.note, "complete") != nullptr ||
+                      strstr(e.note, "_done") != nullptr);
+    out += from_complete ? ",\"source\":\"class_complete_cb\""
+                         : ",\"source\":\"class_api_inferred\"";
     out += "}";
   } else if (e.type == CapType::Attach || e.type == CapType::EnumInfo) {
     out += ",\"decoded\":{\"vid\":" + String(e.arg0);

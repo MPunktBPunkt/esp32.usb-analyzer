@@ -105,6 +105,13 @@ function fmtEvent(e) {
   };
 }
 
+const inspectEl = document.getElementById("cap-inspect");
+
+function showInspect(e) {
+  if (!inspectEl) return;
+  inspectEl.textContent = JSON.stringify(e, null, 2);
+}
+
 function appendEvents(listEl, seen, events) {
   if (!listEl || !events || !events.length) return;
   for (const e of events) {
@@ -115,6 +122,11 @@ function appendEvents(listEl, seen, events) {
     const f = fmtEvent(e);
     row.className = `cap-row ${f.cls}`;
     row.innerHTML = f.html;
+    row.addEventListener("click", () => {
+      document.querySelectorAll(".cap-row.selected").forEach((n) => n.classList.remove("selected"));
+      row.classList.add("selected");
+      showInspect(e);
+    });
     listEl.prepend(row);
   }
   while (listEl.children.length > MAX_ROWS) {
