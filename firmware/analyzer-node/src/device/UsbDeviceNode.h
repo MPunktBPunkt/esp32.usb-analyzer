@@ -40,6 +40,8 @@ public:
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
                      uint32_t bufsize);
+  bool writeThroughProxy(uint32_t lba, uint32_t offset, const uint8_t *in,
+                         uint32_t bufsize);
   bool storeWrite(uint32_t lba, uint32_t offset, const uint8_t *in,
                   uint32_t bufsize);
   bool loadCachedSector(uint32_t lba, uint8_t *out512) const;

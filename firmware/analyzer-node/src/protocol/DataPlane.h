@@ -2,7 +2,7 @@
 
 /**
  * Gate 3 — TCP integrity data plane (ESP↔ESP).
- * Gate 4 slice — windowed bulk + MSC READ proxy over same port.
+ * Gate 4 slice — windowed bulk + MSC READ/WRITE proxy over same port.
  *
  * Port 9752. Framing: magic INTG | ver | cmd | seq | len | crc32 | payload
  * Not wire capture. Not claimed transparent MITM.
@@ -61,6 +61,10 @@ public:
   bool proxyMscRead(const String &peer_ip, uint32_t lba, uint32_t blocks,
                     uint8_t *out, uint32_t out_len, String *err = nullptr);
 
+  /** Device→Host MSC proxy WRITE: push blocks onto peer Host DUT. */
+  bool proxyMscWrite(const String &peer_ip, uint32_t lba, uint32_t blocks,
+                     const uint8_t *in, uint32_t in_len, String *err = nullptr);
+
   uint32_t txBytes() const { return tx_bytes_; }
   uint32_t rxBytes() const { return rx_bytes_; }
   uint32_t gaps() const { return gaps_; }
@@ -98,6 +102,7 @@ private:
   void serviceInbound();
   bool handlePush(WiFiClient &c, const uint8_t *hdr_bytes);
   bool handleMscReq(WiFiClient &c, const uint8_t *hdr_bytes);
+  bool handleMscWriteReq(WiFiClient &c, const uint8_t *hdr_bytes);
   static uint32_t crc32(const uint8_t *data, size_t len);
   static void fillPattern(uint8_t *buf, uint32_t len, uint32_t seq);
   static bool checkPattern(const uint8_t *buf, uint32_t len, uint32_t seq);

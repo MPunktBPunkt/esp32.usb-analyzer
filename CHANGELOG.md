@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.21: Gate‑4 MSC WRITE proxy (Device→Host DUT) + `tools/lab_usb_proxy_arm.py`
 - FW: Status-Tab RGB-LED Steuerung (`POST /api/led`) — Farben + Identify-Blink zum Unterscheiden der beiden ESPs (GPIO48 WS2812)
 - FW 0.0.11: Analyzer-Tab Bridge-Perf Button + Throughput/Latenz-Charts; `lastIntegrity` in `/api/status`
 - FW 0.0.12: OTG-loop MSC probe (`POST /api/lab/usb-host-probe`) — Host liest Device über USB-Kabel (Pattern + Rate); DUT in Status; `tools/lab_usb_loop_probe.py`

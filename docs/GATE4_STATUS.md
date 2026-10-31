@@ -7,9 +7,11 @@
 | Piece | Status |
 |-------|--------|
 | Windowed TCP bulk (`?window=N` on `/api/lab/integrity`) | done — raises WiFi rate vs ACK-each |
-| MSC READ proxy Host←Device over `:9752` (`kCmdMscReq/Rsp`) | done on Host serve + Device optional |
-| Device enable | `POST /api/lab/usb-proxy?enable=1&peer=.88` |
-| MITM wiring | **required**: Device OTG→PC, Host OTG→real DUT — **not** OTG↔OTG loop |
+| MSC READ proxy Host←Device over `:9752` (`kCmdMscReq/Rsp`) | done |
+| MSC WRITE proxy Device→Host DUT (`kCmdMscWriteReq/Rsp`) | done (0.0.21) |
+| Device enable | `POST /api/lab/usb-proxy?enable=1&peer=.88` · `tools/lab_usb_proxy_arm.py` |
+| MITM wiring | **required**: Device OTG→PC, Host OTG→**FS DUT** — **not** OTG↔OTG loop |
+| Phone as DUT on S3 Host | often **FAIL** (HS-only) — use FS stick |
 | Control/enum forward | not yet |
 | Transparency claim | **not claimed** |
 

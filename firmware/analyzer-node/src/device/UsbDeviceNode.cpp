@@ -67,12 +67,17 @@ int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer,
   if (!g_self) {
     return -1;
   }
-  if (!g_self->storeWrite(lba, offset, buffer, bufsize)) {
+  if (g_self->proxyEnabled()) {
+    if (!g_self->writeThroughProxy(lba, offset, buffer, bufsize)) {
+      return -1;
+    }
+  } else if (!g_self->storeWrite(lba, offset, buffer, bufsize)) {
     return -1;
   }
   g_self->noteWrite(bufsize);
   CaptureLog::instance().push(CapRole::Device, CapType::MscWrite, 0, bufsize, lba,
-                              bufsize / 512u, 0, "gadget_write");
+                              bufsize / 512u, 0,
+                              g_self->proxyEnabled() ? "proxy_write" : "gadget_write");
   CaptureLog::instance().push(CapRole::Device, CapType::BotCbw, 0, 31, lba,
                               bufsize / 512u, 0, "WRITE10_inferred");
   CaptureLog::instance().push(CapRole::Device, CapType::BotCsw, 0, 13, lba, 0, 0,
@@ -206,6 +211,33 @@ bool UsbDeviceNode::fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
                                     n * 512u, &err)) {
       Serial.printf("[device] proxy fail lba=%u n=%u err=%s\n", lba + done, n,
                     err.c_str());
+      return false;
+    }
+    done += n;
+  }
+  return true;
+}
+
+bool UsbDeviceNode::writeThroughProxy(uint32_t lba, uint32_t offset,
+                                      const uint8_t *in, uint32_t bufsize) {
+  if (!proxy_on_ || !proxy_plane_ || !in || bufsize == 0) {
+    return false;
+  }
+  if (offset != 0 || (bufsize % 512u) != 0) {
+    return false;
+  }
+  uint32_t blocks = bufsize / 512u;
+  uint32_t done = 0;
+  while (done < blocks) {
+    uint32_t n = blocks - done;
+    if (n > 8) {
+      n = 8;
+    }
+    String err;
+    if (!proxy_plane_->proxyMscWrite(proxy_peer_, lba + done, n,
+                                     in + done * 512u, n * 512u, &err)) {
+      Serial.printf("[device] proxy write fail lba=%u n=%u err=%s\n", lba + done,
+                    n, err.c_str());
       return false;
     }
     done += n;
