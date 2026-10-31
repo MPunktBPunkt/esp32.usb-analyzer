@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.29-blue)
+![Version](https://img.shields.io/badge/version-0.0.30-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.29** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + bulk selftest, class-hook CBW/CSW, sync-offset, EP0 forward, **Lab AOA 51/52/53 Handshake**.  
+> **v0.0.30** Zwischenstand — OTG-loop MSC, WiFi TCP, MSC-proxy + identity + bulk selftest, class-hook CBW/CSW, sync-offset, EP0 forward, **Lab AOA 51/52/53 Handshake**.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture

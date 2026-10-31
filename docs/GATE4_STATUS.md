@@ -18,6 +18,7 @@
 | MSC bulk proxy selftest Device→Host DUT (byte-exact) | done (0.0.25) — `lab_usb_proxy_verify.py`; optional PC blockdev |
 | EP0 GET_DESCRIPTOR forward (lab, WiFi `kCmdCtrl*`) | done (0.0.27) — device desc; **0.0.28** string index 1–3; **not** MITM |
 | Lab AOA control handshake (51→52→53 + optional `18D1:2D00`) | done (0.0.29) — OTG loop; Desk `usb-aoa` / hu-probe C1b; **not** HU/BCL |
+| AOA capture decode + Lab A/B (respond on/off) | done (0.0.30) — `LAB_AOA_HANDSHAKE_MEASURED.md`; **not** accessory bulk |
 | Live SETUP interception / transparent control MITM | **not yet** |
 | Transparency claim | **not claimed** |
 

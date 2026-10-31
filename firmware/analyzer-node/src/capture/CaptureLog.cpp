@@ -191,6 +191,33 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
     out += from_complete ? ",\"source\":\"class_complete_cb\""
                          : ",\"source\":\"class_api_inferred\"";
     out += "}";
+  } else if (e.type == CapType::EnumInfo && e.note[0] &&
+             strncmp(e.note, "aoa", 3) == 0) {
+    // Lab AOA EP0: arg0=bRequest (51/52/53), arg1=protocol or string index
+    const uint32_t br = e.arg0;
+    out += (br == 51) ? ",\"direction\":\"in\"" : ",\"direction\":\"out\"";
+    out += ",\"decoded\":{\"protocol\":\"aoa\",\"command\":\"";
+    if (br == 51) {
+      out += "GET_PROTOCOL";
+    } else if (br == 52) {
+      out += "SEND_STRING";
+    } else if (br == 53) {
+      out += "START";
+    } else if (br == 58) {
+      out += "SET_AUDIO_MODE";
+    } else {
+      out += "VENDOR";
+    }
+    out += "\"";
+    out += ",\"bRequest\":" + String(br);
+    if (br == 51) {
+      out += ",\"aoa_version\":" + String(e.arg1);
+    } else if (br == 52) {
+      out += ",\"string_index\":" + String(e.arg1);
+    }
+    out += ",\"source\":\"lab_ep0_aoa\"";
+    out += ",\"claim\":\"aoa_control_handshake_lab\"";
+    out += "}";
   } else if (e.type == CapType::Attach || e.type == CapType::EnumInfo) {
     out += ",\"decoded\":{\"vid\":" + String(e.arg0);
     out += ",\"pid\":" + String(e.arg1);
