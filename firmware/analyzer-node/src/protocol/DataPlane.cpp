@@ -18,8 +18,10 @@ constexpr uint8_t kCmdMscReq = 20;
 constexpr uint8_t kCmdMscRsp = 21;
 constexpr uint8_t kCmdMscWriteReq = 22;
 constexpr uint8_t kCmdMscWriteRsp = 23;
+constexpr uint8_t kCmdDutInfoReq = 30;
+constexpr uint8_t kCmdDutInfoRsp = 31;
 constexpr uint32_t kMaxFrame = 4096;
-constexpr uint32_t kMaxMscBlocks = 8;
+constexpr uint32_t kMaxMscBlocks = 16;
 
 #pragma pack(push, 1)
 struct Hdr {
@@ -273,6 +275,8 @@ void DataPlane::serviceInbound() {
     ok = handleMscReq(inbound_, raw);
   } else if (hdr.cmd == kCmdMscWriteReq) {
     ok = handleMscWriteReq(inbound_, raw);
+  } else if (hdr.cmd == kCmdDutInfoReq) {
+    ok = handleDutInfoReq(inbound_, raw);
   } else {
     Serial.printf("[data] unknown cmd %u\n", hdr.cmd);
   }
@@ -301,8 +305,8 @@ IntegrityResult DataPlane::runBulk(const String &peer_ip, uint32_t frames,
   if (window < 1) {
     window = 1;
   }
-  if (window > 32) {
-    window = 32;
+  if (window > 64) {
+    window = 64;
   }
   r.window = window;
 
@@ -453,6 +457,74 @@ IntegrityResult DataPlane::runBulk(const String &peer_ip, uint32_t frames,
   return r;
 }
 
+bool DataPlane::handleDutInfoReq(WiFiClient &c, const uint8_t *hdr_bytes) {
+  Hdr hdr;
+  memcpy(&hdr, hdr_bytes, sizeof(hdr));
+  (void)hdr;
+  rx_bytes_ += sizeof(Hdr);
+
+  DutInfoSnapshot snap{};
+  Hdr rsp{};
+  rsp.magic = kMagic;
+  rsp.ver = kVer;
+  rsp.cmd = kCmdDutInfoRsp;
+  rsp.seq = hdr.seq;
+  rsp.status = 0;
+  rsp.len = 0;
+  rsp.crc = 0;
+
+  if (!host_ || !host_->fillDutSnapshot(snap)) {
+    rsp.status = 3; // no DUT
+    proxy_fail_++;
+  } else {
+    rsp.len = sizeof(snap);
+    rsp.crc = crc32(reinterpret_cast<uint8_t *>(&snap), sizeof(snap));
+    proxy_hits_++;
+    CaptureLog::instance().push(CapRole::Plane, CapType::EnumInfo, 0, snap.address,
+                                snap.vid, snap.pid, 0, "dut_info_rsp");
+  }
+
+  if (!writeExact(c, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp))) {
+    return false;
+  }
+  tx_bytes_ += sizeof(rsp);
+  if (rsp.status == 0 && rsp.len > 0) {
+    if (!writeExact(c, reinterpret_cast<uint8_t *>(&snap), sizeof(snap))) {
+      return false;
+    }
+    tx_bytes_ += sizeof(snap);
+  }
+  return true;
+}
+
+void DataPlane::closeProxySession() {
+  proxy_client_.stop();
+  proxy_peer_ip_ = "";
+}
+
+bool DataPlane::ensureProxyClient(const String &peer_ip, String *err) {
+  if (peer_ip.isEmpty()) {
+    if (err) {
+      *err = "no_peer";
+    }
+    return false;
+  }
+  if (proxy_client_ && proxy_client_.connected() && proxy_peer_ip_ == peer_ip) {
+    return true;
+  }
+  proxy_client_.stop();
+  proxy_peer_ip_ = peer_ip;
+  proxy_client_.setNoDelay(true);
+  if (!proxy_client_.connect(peer_ip.c_str(), kPort, 2000)) {
+    if (err) {
+      *err = "connect_fail";
+    }
+    proxy_peer_ip_ = "";
+    return false;
+  }
+  return true;
+}
+
 bool DataPlane::handleMscWriteReq(WiFiClient &c, const uint8_t *hdr_bytes) {
   Hdr hdr;
   memcpy(&hdr, hdr_bytes, sizeof(hdr));
@@ -512,6 +584,7 @@ bool DataPlane::proxyMscRead(const String &peer_ip, uint32_t lba,
       *err = e;
     }
     proxy_fail_++;
+    closeProxySession();
     return false;
   };
   if (!out || blocks == 0 || blocks > kMaxMscBlocks) {
@@ -523,11 +596,9 @@ bool DataPlane::proxyMscRead(const String &peer_ip, uint32_t lba,
   if (WiFi.status() != WL_CONNECTED) {
     return fail("no_wifi");
   }
-
-  WiFiClient client;
-  client.setNoDelay(true);
-  if (!client.connect(peer_ip.c_str(), kPort, 2000)) {
-    return fail("connect_fail");
+  if (!ensureProxyClient(peer_ip, err)) {
+    proxy_fail_++;
+    return false;
   }
 
   MscReq req{};
@@ -542,41 +613,38 @@ bool DataPlane::proxyMscRead(const String &peer_ip, uint32_t lba,
   hdr.len = sizeof(req);
   hdr.crc = crc32(reinterpret_cast<uint8_t *>(&req), sizeof(req));
 
-  if (!writeExact(client, reinterpret_cast<uint8_t *>(&hdr), sizeof(hdr)) ||
-      !writeExact(client, reinterpret_cast<uint8_t *>(&req), sizeof(req))) {
-    client.stop();
+  if (!writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&hdr),
+                  sizeof(hdr)) ||
+      !writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&req),
+                  sizeof(req))) {
     return fail("write_fail");
   }
   tx_bytes_ += sizeof(hdr) + sizeof(req);
 
   Hdr rsp{};
-  if (!readExact(client, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp),
+  if (!readExact(proxy_client_, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp),
                  5000)) {
-    client.stop();
     return fail("rsp_timeout");
   }
   if (rsp.magic != kMagic || rsp.cmd != kCmdMscRsp) {
-    client.stop();
     return fail("bad_rsp");
   }
   CaptureLog::instance().push(CapRole::Plane, CapType::MscProxyReq, 0,
                               blocks * 512u, lba, blocks, 0, "to_host");
   if (rsp.status != 0 || rsp.len != blocks * 512u) {
-    client.stop();
     if (err) {
       *err = "rsp_status_" + String(rsp.status);
     }
     proxy_fail_++;
     CaptureLog::instance().push(CapRole::Plane, CapType::MscProxyRsp, 1, 0, lba,
                                 blocks, 0, "fail");
+    closeProxySession();
     return false;
   }
-  if (!readExact(client, out, rsp.len, 8000)) {
-    client.stop();
+  if (!readExact(proxy_client_, out, rsp.len, 8000)) {
     return fail("payload_timeout");
   }
   rx_bytes_ += sizeof(rsp) + rsp.len;
-  client.stop();
   proxy_hits_++;
   CaptureLog::instance().push(CapRole::Plane, CapType::MscProxyRsp, 0, rsp.len,
                               lba, blocks, 0, "ok");
@@ -591,6 +659,7 @@ bool DataPlane::proxyMscWrite(const String &peer_ip, uint32_t lba,
       *err = e;
     }
     proxy_fail_++;
+    closeProxySession();
     return false;
   };
   if (!in || blocks == 0 || blocks > kMaxMscBlocks) {
@@ -602,11 +671,9 @@ bool DataPlane::proxyMscWrite(const String &peer_ip, uint32_t lba,
   if (WiFi.status() != WL_CONNECTED) {
     return fail("no_wifi");
   }
-
-  WiFiClient client;
-  client.setNoDelay(true);
-  if (!client.connect(peer_ip.c_str(), kPort, 2000)) {
-    return fail("connect_fail");
+  if (!ensureProxyClient(peer_ip, err)) {
+    proxy_fail_++;
+    return false;
   }
 
   MscReq req{};
@@ -622,10 +689,11 @@ bool DataPlane::proxyMscWrite(const String &peer_ip, uint32_t lba,
   hdr.crc = crc32(reinterpret_cast<const uint8_t *>(&req), sizeof(req));
 
   const uint32_t payload = blocks * 512u;
-  if (!writeExact(client, reinterpret_cast<uint8_t *>(&hdr), sizeof(hdr)) ||
-      !writeExact(client, reinterpret_cast<uint8_t *>(&req), sizeof(req)) ||
-      !writeExact(client, in, payload)) {
-    client.stop();
+  if (!writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&hdr),
+                  sizeof(hdr)) ||
+      !writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&req),
+                  sizeof(req)) ||
+      !writeExact(proxy_client_, in, payload)) {
     return fail("write_fail");
   }
   tx_bytes_ += sizeof(hdr) + sizeof(req) + payload;
@@ -633,12 +701,10 @@ bool DataPlane::proxyMscWrite(const String &peer_ip, uint32_t lba,
                               lba, blocks, 0, "write_to_host");
 
   Hdr rsp{};
-  if (!readExact(client, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp),
+  if (!readExact(proxy_client_, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp),
                  8000)) {
-    client.stop();
     return fail("rsp_timeout");
   }
-  client.stop();
   rx_bytes_ += sizeof(rsp);
   if (rsp.magic != kMagic || rsp.cmd != kCmdMscWriteRsp || rsp.status != 0) {
     if (err) {
@@ -647,11 +713,71 @@ bool DataPlane::proxyMscWrite(const String &peer_ip, uint32_t lba,
     proxy_fail_++;
     CaptureLog::instance().push(CapRole::Plane, CapType::MscProxyRsp, 1, 0, lba,
                                 blocks, 0, "write_fail");
+    closeProxySession();
     return false;
   }
   proxy_hits_++;
   CaptureLog::instance().push(CapRole::Plane, CapType::MscProxyRsp, 0, payload,
                               lba, blocks, 0, "write_ack");
+  return true;
+}
+
+bool DataPlane::proxyDutInfo(const String &peer_ip, DutInfoSnapshot &out,
+                             String *err) {
+  auto fail = [&](const char *e) {
+    if (err) {
+      *err = e;
+    }
+    proxy_fail_++;
+    closeProxySession();
+    return false;
+  };
+  memset(&out, 0, sizeof(out));
+  if (WiFi.status() != WL_CONNECTED) {
+    return fail("no_wifi");
+  }
+  if (!ensureProxyClient(peer_ip, err)) {
+    proxy_fail_++;
+    return false;
+  }
+
+  Hdr hdr{};
+  hdr.magic = kMagic;
+  hdr.ver = kVer;
+  hdr.cmd = kCmdDutInfoReq;
+  hdr.status = 0;
+  hdr.seq = 0;
+  hdr.len = 0;
+  hdr.crc = 0;
+  if (!writeExact(proxy_client_, reinterpret_cast<uint8_t *>(&hdr),
+                  sizeof(hdr))) {
+    return fail("write_fail");
+  }
+  tx_bytes_ += sizeof(hdr);
+
+  Hdr rsp{};
+  if (!readExact(proxy_client_, reinterpret_cast<uint8_t *>(&rsp), sizeof(rsp),
+                 4000)) {
+    return fail("rsp_timeout");
+  }
+  if (rsp.magic != kMagic || rsp.cmd != kCmdDutInfoRsp) {
+    return fail("bad_rsp");
+  }
+  if (rsp.status != 0 || rsp.len != sizeof(DutInfoSnapshot)) {
+    if (err) {
+      *err = "rsp_status_" + String(rsp.status);
+    }
+    proxy_fail_++;
+    return false;
+  }
+  if (!readExact(proxy_client_, reinterpret_cast<uint8_t *>(&out), sizeof(out),
+                 4000)) {
+    return fail("payload_timeout");
+  }
+  rx_bytes_ += sizeof(rsp) + sizeof(out);
+  proxy_hits_++;
+  CaptureLog::instance().push(CapRole::Plane, CapType::EnumInfo, 0, out.address,
+                              out.vid, out.pid, 0, "proxied_dut");
   return true;
 }
 

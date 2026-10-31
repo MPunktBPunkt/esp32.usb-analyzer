@@ -202,7 +202,7 @@ void AnalyzerStatusModule::handleIntegrity() {
   String peer = server_->arg("peer");
   uint32_t frames = 64;
   uint32_t frame_bytes = 1024;
-  uint32_t window = 1;
+  uint32_t window = 8; // Gate-4 default: windowed bulk (override with window=1)
   if (server_->hasArg("frames")) {
     frames = static_cast<uint32_t>(server_->arg("frames").toInt());
   }

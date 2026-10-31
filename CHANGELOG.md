@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.23: persistent MSC-proxy TCP session; DUT info snapshot forward; TCP window default 8 / max 64
 - 0.0.22: Gate‑7 capture filters + stats; Host enum capture carries product/address
 - FW 0.0.21: Gate‑4 MSC WRITE proxy (Device→Host DUT) + `tools/lab_usb_proxy_arm.py`
 - FW: Status-Tab RGB-LED Steuerung (`POST /api/led`) — Farben + Identify-Blink zum Unterscheiden der beiden ESPs (GPIO48 WS2812)

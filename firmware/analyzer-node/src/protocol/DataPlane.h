@@ -2,16 +2,17 @@
 
 /**
  * Gate 3 — TCP integrity data plane (ESP↔ESP).
- * Gate 4 slice — windowed bulk + MSC READ/WRITE proxy over same port.
+ * Gate 4 — windowed bulk + MSC READ/WRITE proxy + DUT snapshot forward.
  *
  * Port 9752. Framing: magic INTG | ver | cmd | seq | len | crc32 | payload
- * Not wire capture. Not claimed transparent MITM.
+ * Not wire capture. Not claimed transparent MITM / USB control MITM.
  */
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiServer.h>
+#include <usb_analyzer/DutInfoProxy.h>
 
 namespace usb_analyzer {
 
@@ -56,7 +57,7 @@ public:
 
   /**
    * Device→Host MSC proxy: ask peer Host to READ blocks from its DUT.
-   * @return true and fills out[blocks*512] on success.
+   * Uses a persistent TCP session when possible.
    */
   bool proxyMscRead(const String &peer_ip, uint32_t lba, uint32_t blocks,
                     uint8_t *out, uint32_t out_len, String *err = nullptr);
@@ -64,6 +65,12 @@ public:
   /** Device→Host MSC proxy WRITE: push blocks onto peer Host DUT. */
   bool proxyMscWrite(const String &peer_ip, uint32_t lba, uint32_t blocks,
                      const uint8_t *in, uint32_t in_len, String *err = nullptr);
+
+  /** Device→Host: fetch DUT descriptor/inquiry snapshot (enum-forward slice). */
+  bool proxyDutInfo(const String &peer_ip, DutInfoSnapshot &out,
+                    String *err = nullptr);
+
+  void closeProxySession();
 
   uint32_t txBytes() const { return tx_bytes_; }
   uint32_t rxBytes() const { return rx_bytes_; }
@@ -81,6 +88,8 @@ public:
 private:
   WiFiServer server_{kPort};
   WiFiClient inbound_;
+  WiFiClient proxy_client_;
+  String proxy_peer_ip_;
   UsbHostNode *host_ = nullptr;
   bool started_ = false;
   uint32_t tx_bytes_ = 0;
@@ -103,6 +112,8 @@ private:
   bool handlePush(WiFiClient &c, const uint8_t *hdr_bytes);
   bool handleMscReq(WiFiClient &c, const uint8_t *hdr_bytes);
   bool handleMscWriteReq(WiFiClient &c, const uint8_t *hdr_bytes);
+  bool handleDutInfoReq(WiFiClient &c, const uint8_t *hdr_bytes);
+  bool ensureProxyClient(const String &peer_ip, String *err);
   static uint32_t crc32(const uint8_t *data, size_t len);
   static void fillPattern(uint8_t *buf, uint32_t len, uint32_t seq);
   static bool checkPattern(const uint8_t *buf, uint32_t len, uint32_t seq);

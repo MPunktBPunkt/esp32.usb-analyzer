@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <usb_analyzer/DutInfoProxy.h>
 
 namespace usb_analyzer {
 
@@ -57,7 +58,7 @@ public:
 
   /**
    * Raw MSC READ/WRITE into caller buffer (Gate 4/6).
-   * @param buf must hold blocks * 512 bytes; blocks 1..8.
+   * @param buf must hold blocks * 512 bytes; blocks 1..16.
    */
   bool readBlocks(uint32_t lba, uint32_t blocks, uint8_t *out);
   bool writeBlocks(uint32_t lba, uint32_t blocks, const uint8_t *in);
@@ -68,6 +69,9 @@ public:
 
   bool hasLastProbe() const { return has_last_probe_; }
   const HostMscProbeResult &lastProbe() const { return last_probe_; }
+
+  /** Fill Gate-4 DUT snapshot (descriptors + best-effort MSC inquiry). */
+  bool fillDutSnapshot(DutInfoSnapshot &out);
 
 private:
   bool ready_ = false;

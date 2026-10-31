@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <usb_analyzer/DutInfoProxy.h>
 
 namespace usb_analyzer {
 
@@ -24,10 +25,13 @@ public:
   void notifyMounted(bool on);
   void notifySuspended(bool on);
 
-  /** When enabled, onRead fetches sectors from peer Host over WiFi (MITM path). */
+  /** When enabled, onRead/onWrite go to peer Host DUT over WiFi (MITM path). */
   void setProxy(DataPlane *plane, const String &peer_ip);
   bool proxyEnabled() const { return proxy_on_; }
   const String &proxyPeer() const { return proxy_peer_; }
+  bool refreshProxiedDut();
+  bool hasProxiedDut() const { return proxied_dut_.present != 0; }
+  const DutInfoSnapshot &proxiedDut() const { return proxied_dut_; }
 
   void noteRead(uint32_t bytes);
   void noteWrite(uint32_t bytes);
@@ -58,6 +62,7 @@ private:
   DataPlane *proxy_plane_ = nullptr;
   String proxy_peer_;
   bool proxy_on_ = false;
+  DutInfoSnapshot proxied_dut_{};
 
   static constexpr size_t kWriteCache = 64; // covers typical lab write probe
   struct WriteCacheEntry {

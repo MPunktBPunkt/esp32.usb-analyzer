@@ -186,8 +186,33 @@ void UsbDeviceNode::setProxy(DataPlane *plane, const String &peer_ip) {
   proxy_plane_ = plane;
   proxy_peer_ = peer_ip;
   proxy_on_ = plane && peer_ip.length() > 0;
+  memset(&proxied_dut_, 0, sizeof(proxied_dut_));
+  if (!proxy_on_ && plane) {
+    plane->closeProxySession();
+  }
   Serial.printf("[device] MSC proxy %s peer=%s\n", proxy_on_ ? "ON" : "OFF",
                 proxy_peer_.c_str());
+  // Do not fetch DUT info inside the HTTP handler synchronously — avoids
+  // nested WiFi/USB stalls. Caller / loop can refresh separately.
+}
+
+bool UsbDeviceNode::refreshProxiedDut() {
+  if (!proxy_on_ || !proxy_plane_) {
+    return false;
+  }
+  String err;
+  DutInfoSnapshot snap{};
+  if (!proxy_plane_->proxyDutInfo(proxy_peer_, snap, &err)) {
+    Serial.printf("[device] dut-info proxy fail: %s\n", err.c_str());
+    return false;
+  }
+  proxied_dut_ = snap;
+  CaptureLog::instance().push(CapRole::Device, CapType::EnumInfo, 0, snap.address,
+                              snap.vid, snap.pid, 0, "proxied_dut");
+  Serial.printf("[device] proxied DUT %04x:%04x %s msc=%u cap=%u\n", snap.vid,
+                snap.pid, snap.product, snap.msc_ready,
+                static_cast<unsigned>(snap.capacity_blocks));
+  return true;
 }
 
 bool UsbDeviceNode::fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
@@ -203,8 +228,8 @@ bool UsbDeviceNode::fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
   uint32_t done = 0;
   while (done < blocks) {
     uint32_t n = blocks - done;
-    if (n > 8) {
-      n = 8;
+    if (n > 16) {
+      n = 16;
     }
     String err;
     if (!proxy_plane_->proxyMscRead(proxy_peer_, lba + done, n, out + done * 512u,
@@ -230,8 +255,8 @@ bool UsbDeviceNode::writeThroughProxy(uint32_t lba, uint32_t offset,
   uint32_t done = 0;
   while (done < blocks) {
     uint32_t n = blocks - done;
-    if (n > 8) {
-      n = 8;
+    if (n > 16) {
+      n = 16;
     }
     String err;
     if (!proxy_plane_->proxyMscWrite(proxy_peer_, lba + done, n,
@@ -261,6 +286,29 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += ",\"proxyPeer\":\"";
   json += proxy_peer_;
   json += "\"";
+  json += ",\"proxiedDut\":{";
+  json += "\"present\":";
+  json += proxied_dut_.present ? "true" : "false";
+  if (proxied_dut_.present) {
+    char id[12];
+    snprintf(id, sizeof(id), "%04x:%04x", proxied_dut_.vid, proxied_dut_.pid);
+    json += ",\"id\":\"";
+    json += id;
+    json += "\",\"vid\":";
+    json += String(proxied_dut_.vid);
+    json += ",\"pid\":";
+    json += String(proxied_dut_.pid);
+    json += ",\"product\":\"";
+    json += proxied_dut_.product;
+    json += "\",\"mscReady\":";
+    json += proxied_dut_.msc_ready ? "true" : "false";
+    json += ",\"capacityBlocks\":";
+    json += String(proxied_dut_.capacity_blocks);
+    json += ",\"blockSize\":";
+    json += String(proxied_dut_.block_size);
+    json += ",\"note\":\"descriptor_snapshot_not_usb_control_mitm\"";
+  }
+  json += "}";
   json += "}";
 }
 
@@ -326,6 +374,14 @@ void UsbDeviceNode::loop() {
       Serial.printf("[device] otg_state → %s\n", otgState());
     }
   }
+  if (proxy_on_ && proxy_plane_ && !proxied_dut_.present) {
+    static uint32_t last_try_ms = 0;
+    const uint32_t t = millis();
+    if (t - last_try_ms >= 2000) {
+      last_try_ms = t;
+      refreshProxiedDut();
+    }
+  }
 }
 
 } // namespace usb_analyzer
@@ -345,6 +401,11 @@ void UsbDeviceNode::notifySuspended(bool) {}
 void UsbDeviceNode::noteRead(uint32_t) {}
 void UsbDeviceNode::noteWrite(uint32_t) {}
 void UsbDeviceNode::setProxy(DataPlane *, const String &) {}
+bool UsbDeviceNode::refreshProxiedDut() { return false; }
+bool UsbDeviceNode::writeThroughProxy(uint32_t, uint32_t, const uint8_t *,
+                                      uint32_t) {
+  return false;
+}
 bool UsbDeviceNode::fillFromProxy(uint32_t, uint32_t, uint8_t *, uint32_t) {
   return false;
 }

@@ -123,6 +123,46 @@ void UsbHostNode::clearDut() {
   dut_speed_ = "";
 }
 
+bool UsbHostNode::fillDutSnapshot(DutInfoSnapshot &out) {
+  memset(&out, 0, sizeof(out));
+  if (!begin_ok_ || !dut_present_ || deviceCount() == 0) {
+    return false;
+  }
+  out.present = 1;
+  out.address = dut_address_;
+  out.vid = dut_vid_;
+  out.pid = dut_pid_;
+  if (dut_speed_ == "low") {
+    out.speed = 1;
+  } else if (dut_speed_ == "full") {
+    out.speed = 2;
+  } else if (dut_speed_ == "high") {
+    out.speed = 3;
+  }
+  strncpy(out.mfr, dut_mfr_.c_str(), sizeof(out.mfr) - 1);
+  strncpy(out.product, dut_product_.c_str(), sizeof(out.product) - 1);
+  strncpy(out.serial, dut_serial_.c_str(), sizeof(out.serial) - 1);
+
+  // Use cached last MSC probe only — never block on USB I/O inside TCP
+  // handlers (deadlocks Host serviceInbound ↔ Device proxy client).
+  if (has_last_probe_ && last_probe_.msc_ready) {
+    out.msc_ready = 1;
+    strncpy(out.inq_vendor, last_probe_.inquiry_vendor.c_str(),
+            sizeof(out.inq_vendor) - 1);
+    strncpy(out.inq_product, last_probe_.inquiry_product.c_str(),
+            sizeof(out.inq_product) - 1);
+    strncpy(out.inq_rev, last_probe_.inquiry_revision.c_str(),
+            sizeof(out.inq_rev) - 1);
+    out.capacity_blocks = static_cast<uint32_t>(
+        last_probe_.capacity_blocks > 0xffffffffull
+            ? 0xffffffffull
+            : last_probe_.capacity_blocks);
+    out.block_size = static_cast<uint16_t>(
+        last_probe_.block_size ? last_probe_.block_size : 512);
+  }
+  return true;
+}
+
 bool UsbHostNode::begin() {
   Serial.println("[host] EspUsbHost bring-up");
   Serial.printf("[host] EspUsbHost %s\n", ESPUSBHOST_VERSION_STR);
@@ -429,7 +469,7 @@ HostMscProbeResult UsbHostNode::runMscProbe(uint32_t blocks, uint32_t start_lba,
 }
 
 bool UsbHostNode::readBlocks(uint32_t lba, uint32_t blocks, uint8_t *out) {
-  if (!begin_ok_ || !out || blocks == 0 || blocks > 8 || deviceCount() == 0) {
+  if (!begin_ok_ || !out || blocks == 0 || blocks > 16 || deviceCount() == 0) {
     return false;
   }
   if (!g_usb.mscWaitReady(ESP_USB_HOST_ANY_ADDRESS, 2000, 1000)) {
@@ -449,7 +489,7 @@ bool UsbHostNode::readBlocks(uint32_t lba, uint32_t blocks, uint8_t *out) {
 }
 
 bool UsbHostNode::writeBlocks(uint32_t lba, uint32_t blocks, const uint8_t *in) {
-  if (!begin_ok_ || !in || blocks == 0 || blocks > 8 || deviceCount() == 0) {
+  if (!begin_ok_ || !in || blocks == 0 || blocks > 16 || deviceCount() == 0) {
     return false;
   }
   if (!g_usb.mscWaitReady(ESP_USB_HOST_ANY_ADDRESS, 2000, 1000)) {
@@ -607,6 +647,10 @@ HostMscProbeResult UsbHostNode::runMscWriteProbe(uint32_t, uint32_t, uint32_t,
 }
 void UsbHostNode::printNoDeviceHints() const {}
 void UsbHostNode::clearDut() {}
+bool UsbHostNode::fillDutSnapshot(DutInfoSnapshot &out) {
+  memset(&out, 0, sizeof(out));
+  return false;
+}
 
 } // namespace usb_analyzer
 
