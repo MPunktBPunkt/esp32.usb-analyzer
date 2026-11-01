@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.44-blue)
+![Version](https://img.shields.io/badge/version-0.0.45-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.44** Zwischenstand — Path B **GPIO lab** (slow bit-bang tests + L0ST) + Gate10 perf campaign; E1.1/Path-B-Pipe remain.  
+> **v0.0.45** Zwischenstand — Path B **GPIO lab** (slow bit-bang tests + L0ST) + Gate10 perf campaign; E1.1/Path-B-Pipe remain.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -119,6 +119,7 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_path_b_gpio.py --decode                # Path B GPIO bit-bang + L0ST ingest
 ./tools/lab_wire_stimulus.py                      # destructive OTG D+/D− pattern generator
 ./tools/lab_gpio_methods_campaign.py              # GPIO calibrate/matrix/cross-link campaign
+./tools/lab_l0_stack_gap.py                       # L0 vs TinyUSB gap under wire stimulus
 ./tools/lab_gate10_perf_campaign.py                # full dual-ESP capability/perf sweep
 ./tools/lab_observer_effect.py                     # observer-effect baseline (loop|proxy)
 ./tools/l0_path_b_ingest.py --decode &           # Path B TCP :9760 ingest

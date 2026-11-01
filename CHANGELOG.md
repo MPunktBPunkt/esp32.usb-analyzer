@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- 0.0.45: L0∖L1 stack-gap lab (stimulus wire GT vs Device TinyUSB capture)
 - FW 0.0.44: GPIO methods suite — calibrate, cross-link RX, matrix/gap/glitch/jitter, sync marker
 - FW 0.0.43: Wire-stimulus series + Device mount/unmount counters; LS-rate attempt
 - FW 0.0.42: Destructive OTG wire-stimulus (GPIO19/20 after Host end) + lab correlate

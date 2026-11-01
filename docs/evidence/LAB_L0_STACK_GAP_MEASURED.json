@@ -1,0 +1,187 @@
+{
+  "ok": true,
+  "claim": "l0_stack_gap_stimulus_lab",
+  "patterns": [
+    "setup_ok",
+    "setup_bad_crc",
+    "data_bad_crc",
+    "eop",
+    "se0_reset"
+  ],
+  "stim": {
+    "ok": true,
+    "pattern": "series:5:setup_ok,setup_bad_crc,data_bad_crc,eop,se0_reset",
+    "achievedRateHz": 92600,
+    "states": 617
+  },
+  "l0_n": 5,
+  "l1_n": 4,
+  "matched": 0,
+  "stack_gap_n": 5,
+  "unmatched_l0": [
+    {
+      "l0_index": 0,
+      "pid": "SETUP",
+      "kind": "ep0",
+      "crc_ok": true,
+      "note": "no_compatible_l1_event"
+    },
+    {
+      "l0_index": 1,
+      "pid": "DATA0",
+      "kind": "data0",
+      "crc_ok": true,
+      "note": "no_compatible_l1_event"
+    },
+    {
+      "l0_index": 2,
+      "pid": "ACK",
+      "kind": "handshake",
+      "crc_ok": true,
+      "note": "no_compatible_l1_event"
+    },
+    {
+      "l0_index": 3,
+      "pid": "SETUP",
+      "kind": "ep0",
+      "crc_ok": false,
+      "note": "no_compatible_l1_event"
+    },
+    {
+      "l0_index": 4,
+      "pid": "DATA0",
+      "kind": "data0",
+      "crc_ok": false,
+      "note": "no_compatible_l1_event"
+    }
+  ],
+  "unmatched_l1_sample": [
+    {
+      "l1_index": 0,
+      "type": "detach",
+      "kind": "detach",
+      "note": "usb_stopped"
+    },
+    {
+      "l1_index": 1,
+      "type": "sync_marker",
+      "kind": "sync_marker",
+      "note": "boot"
+    },
+    {
+      "l1_index": 2,
+      "type": "attach",
+      "kind": "attach",
+      "note": "usb_started"
+    },
+    {
+      "l1_index": 3,
+      "type": "detach",
+      "kind": "detach",
+      "note": "usb_stopped"
+    }
+  ],
+  "device_unmount_delta": 1,
+  "device_otg": "waiting",
+  "l0_batch": {
+    "version": 1,
+    "schema": "l0_packet_batch.v1",
+    "packets": [
+      {
+        "version": 1,
+        "schema": "l0_packet.v1",
+        "timestamp_us": 0,
+        "timestamp_domain": "capture_local",
+        "dir": "host_to_device",
+        "pid": "SETUP",
+        "pid_byte": 45,
+        "addr": 1,
+        "endp": 0,
+        "data_toggle": null,
+        "payload_hex": "",
+        "payload_len": 0,
+        "crc_ok": true,
+        "crc_value": 23,
+        "raw_valid": true,
+        "note": "token"
+      },
+      {
+        "version": 1,
+        "schema": "l0_packet.v1",
+        "timestamp_us": 1,
+        "timestamp_domain": "capture_local",
+        "dir": "unknown",
+        "pid": "DATA0",
+        "pid_byte": 195,
+        "addr": null,
+        "endp": null,
+        "data_toggle": 0,
+        "payload_hex": "8006000100001200",
+        "payload_len": 8,
+        "crc_ok": true,
+        "crc_value": 62688,
+        "raw_valid": true,
+        "note": "data"
+      },
+      {
+        "version": 1,
+        "schema": "l0_packet.v1",
+        "timestamp_us": 2,
+        "timestamp_domain": "capture_local",
+        "dir": "unknown",
+        "pid": "ACK",
+        "pid_byte": 210,
+        "addr": null,
+        "endp": null,
+        "data_toggle": null,
+        "payload_hex": "",
+        "payload_len": 0,
+        "crc_ok": true,
+        "crc_value": 0,
+        "raw_valid": true,
+        "note": "handshake"
+      },
+      {
+        "version": 1,
+        "schema": "l0_packet.v1",
+        "timestamp_us": 3,
+        "timestamp_domain": "capture_local",
+        "dir": "host_to_device",
+        "pid": "SETUP",
+        "pid_byte": 45,
+        "addr": 1,
+        "endp": 10,
+        "data_toggle": null,
+        "payload_hex": "",
+        "payload_len": 0,
+        "crc_ok": false,
+        "crc_value": 21,
+        "raw_valid": true,
+        "note": "token"
+      },
+      {
+        "version": 1,
+        "schema": "l0_packet.v1",
+        "timestamp_us": 4,
+        "timestamp_domain": "capture_local",
+        "dir": "unknown",
+        "pid": "DATA0",
+        "pid_byte": 195,
+        "addr": null,
+        "endp": null,
+        "data_toggle": 0,
+        "payload_hex": "8006000100001200",
+        "payload_len": 8,
+        "crc_ok": false,
+        "crc_value": 3040,
+        "raw_valid": true,
+        "note": "data"
+      }
+    ]
+  },
+  "note": "injected_wire_states_as_l0_gt_vs_device_tinyusb_l1",
+  "not_claimed": [
+    "passive_path_b_phy",
+    "live_bus_bypass_without_stimulus"
+  ]
+}

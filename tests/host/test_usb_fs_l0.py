@@ -85,6 +85,7 @@ class TestCorrelate(unittest.TestCase):
             {"type": "enum_info", "timestamp_us": 9_000_200, "note": "status"},
         ]
         r2 = correlate(l0, l1_real, ignore_time=True)
+        assert "unmatched_l0" in r2 and "stack_gap_n" in r2
         self.assertGreaterEqual(r2["matched"], 1)
 
 

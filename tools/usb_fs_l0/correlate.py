@@ -107,6 +107,32 @@ def correlate(
                     "kind": k0,
                 }
             )
+    unmatched_l0 = []
+    matched_l0 = {m["l0_index"] for m in matches}
+    for i, pkt in enumerate(l0_packets):
+        if i in matched_l0:
+            continue
+        unmatched_l0.append(
+            {
+                "l0_index": i,
+                "pid": pkt.get("pid"),
+                "kind": _l0_kind(pkt),
+                "crc_ok": pkt.get("crc_ok"),
+                "note": "no_compatible_l1_event",
+            }
+        )
+    unmatched_l1 = []
+    for j, ev in enumerate(l1_events):
+        if j in used_l1:
+            continue
+        unmatched_l1.append(
+            {
+                "l1_index": j,
+                "type": ev.get("event_type") or ev.get("type"),
+                "kind": _l1_kind(ev),
+                "note": ev.get("note"),
+            }
+        )
     return {
         "ok": True,
         "claim": "l0_l1_correlate_lab",
@@ -119,5 +145,8 @@ def correlate(
         "l1_n": len(l1_events),
         "matched": len(matches),
         "matches": matches,
+        "unmatched_l0": unmatched_l0,
+        "unmatched_l1": unmatched_l1,
+        "stack_gap_n": len(unmatched_l0),
         "ignore_time": ignore_time,
     }
