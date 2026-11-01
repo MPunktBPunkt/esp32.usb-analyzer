@@ -82,6 +82,26 @@ public:
   bool hidEnabled() const { return hid_enabled_; }
   uint32_t hidInjectCount() const { return hid_injects_; }
 
+  /**
+   * Gate 9 fault arm (MSC gadget path). Consumed in onRead.
+   * Claim: gate9_fault_inject_lab — NOT L0 / transparent MITM.
+   */
+  struct FaultArm {
+    uint32_t delay_ms = 0;
+    uint32_t delay_remaining = 0;
+    uint32_t fail_remaining = 0;
+    uint32_t disconnect_after = 0; // fire soft-reenum after N read entries
+    uint32_t hits = 0;
+    uint32_t fail_hits = 0;
+    uint32_t delay_hits = 0;
+    const char *last_op = "none";
+  };
+  void armFault(const FaultArm &arm);
+  void clearFault();
+  FaultArm faultStatus() const;
+  /** @return true if this read should fail (return -1). Applies delay. */
+  bool consumeFaultOnRead();
+
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,
                      uint32_t bufsize);
@@ -128,6 +148,7 @@ private:
   uint16_t applied_pid_ = 0;
   bool hid_enabled_ = false;
   uint32_t hid_injects_ = 0;
+  FaultArm fault_{};
 
   static constexpr size_t kWriteCache = 64; // covers typical lab write probe
   struct WriteCacheEntry {

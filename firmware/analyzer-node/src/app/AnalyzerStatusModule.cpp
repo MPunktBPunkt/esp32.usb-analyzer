@@ -624,6 +624,10 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleGpioCalibrate(); });
   server.on("/api/lab/wire-stimulus", HTTP_ANY,
             [this]() { handleWireStimulus(); });
+  server.on("/api/lab/fault-inject", HTTP_ANY,
+            [this]() { handleFaultInject(); });
+  server.on("/api/lab/fault-observe", HTTP_ANY,
+            [this]() { handleFaultObserve(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1664,6 +1668,153 @@ void AnalyzerStatusModule::handleWireStimulus() {
     delay(reboot_ms);
     ESP.restart();
   }
+}
+
+void AnalyzerStatusModule::handleFaultInject() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  String op = server_->hasArg("op") ? server_->arg("op") : "status";
+  op.toLowerCase();
+  if (op == "clear" || op == "off") {
+    device_->clearFault();
+  } else if (op == "status" || op == "get") {
+    // fall through to status JSON
+  } else {
+    UsbDeviceNode::FaultArm arm = device_->faultStatus();
+    uint32_t count = 1;
+    if (server_->hasArg("count")) {
+      count = static_cast<uint32_t>(server_->arg("count").toInt());
+    }
+    if (count == 0) {
+      count = 1;
+    }
+    if (op == "delay") {
+      uint32_t ms = 50;
+      if (server_->hasArg("ms")) {
+        ms = static_cast<uint32_t>(server_->arg("ms").toInt());
+      }
+      if (ms > 5000) {
+        ms = 5000;
+      }
+      arm.delay_ms = ms;
+      arm.delay_remaining = count;
+      arm.last_op = "delay";
+      device_->armFault(arm);
+    } else if (op == "fail" || op == "drop" || op == "stall") {
+      arm.fail_remaining = count;
+      arm.last_op = "fail";
+      device_->armFault(arm);
+    } else if (op == "disconnect" || op == "reset") {
+      uint32_t after = 1;
+      if (server_->hasArg("after")) {
+        after = static_cast<uint32_t>(server_->arg("after").toInt());
+      }
+      if (after == 0) {
+        after = 1;
+      }
+      arm.disconnect_after = after;
+      arm.last_op = "disconnect";
+      device_->armFault(arm);
+    } else {
+      server_->send(400, F("application/json"),
+                    F("{\"ok\":false,\"err\":\"op_delay_fail_disconnect_clear_status\"}"));
+      return;
+    }
+  }
+  const UsbDeviceNode::FaultArm st = device_->faultStatus();
+  String j = "{\"ok\":true";
+  j += ",\"op\":\"";
+  j += st.last_op ? st.last_op : "none";
+  j += "\",\"delayMs\":";
+  j += String(st.delay_ms);
+  j += ",\"delayRemaining\":";
+  j += String(st.delay_remaining);
+  j += ",\"failRemaining\":";
+  j += String(st.fail_remaining);
+  j += ",\"disconnectAfter\":";
+  j += String(st.disconnect_after);
+  j += ",\"hits\":";
+  j += String(st.hits);
+  j += ",\"failHits\":";
+  j += String(st.fail_hits);
+  j += ",\"delayHits\":";
+  j += String(st.delay_hits);
+  j += ",\"claim\":\"gate9_fault_inject_lab\"";
+  j += ",\"note\":\"msc_gadget_onRead_not_l0\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(200, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleFaultObserve() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  uint32_t lba = 0;
+  uint32_t blocks = 1;
+  bool do_sense = true;
+  bool do_recovery = true;
+  if (server_->hasArg("lba")) {
+    lba = static_cast<uint32_t>(server_->arg("lba").toInt());
+  }
+  if (server_->hasArg("blocks")) {
+    blocks = static_cast<uint32_t>(server_->arg("blocks").toInt());
+  }
+  if (server_->hasArg("sense")) {
+    const String v = server_->arg("sense");
+    do_sense = !(v == "0" || v == "false" || v == "off");
+  }
+  if (server_->hasArg("recovery")) {
+    const String v = server_->arg("recovery");
+    do_recovery = !(v == "0" || v == "false" || v == "off");
+  }
+  const UsbHostNode::FaultObserveResult r =
+      host_->runFaultObserve(lba, blocks, do_sense, do_recovery);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"readOk\":";
+  j += r.read_ok ? "true" : "false";
+  j += ",\"senseOk\":";
+  j += r.sense_ok ? "true" : "false";
+  j += ",\"recoveryOk\":";
+  j += r.recovery_ok ? "true" : "false";
+  j += ",\"senseKey\":";
+  j += String(r.sense_key);
+  j += ",\"asc\":";
+  j += String(r.asc);
+  j += ",\"asq\":";
+  j += String(r.asq);
+  j += ",\"responseCode\":";
+  j += String(r.response_code);
+  j += ",\"readMs\":";
+  j += String(r.read_ms);
+  j += ",\"recoveryMs\":";
+  j += String(r.recovery_ms);
+  j += ",\"duration_ms\":";
+  j += String(r.duration_ms);
+  j += ",\"lba\":";
+  j += String(lba);
+  j += ",\"blocks\":";
+  j += String(blocks);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"gate9_fault_observe_lab\"";
+  j += ",\"note\":\"bot_sense_recovery_not_l0\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }
 
 void AnalyzerStatusModule::handleUsbCtrlNeg() {

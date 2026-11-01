@@ -2,14 +2,17 @@
 
 **Goal:** See what is on the wire that the stack does not report.
 
-## Today (0.0.45)
+## Today (0.0.46)
 
 | Method | Meaning |
 |--------|---------|
 | `lab_l0_stack_gap.py` | Inject known patterns on OTG D+/D− (wire-stimulus), decode as L0 GT, diff vs Device `/api/capture` |
-| `correlate.stack_gap_n` | Count of L0 packets with no compatible L1 event |
+| `lab_path_b_soft_campaign.py` | Synth/GPIO L0 vs live Host L1 (no soldered PHY) |
+| `correlate.stack_gap_n` | All unmatched L0 |
+| `correlate.true_gap_n` | Unmatched excluding handshake/token (expected silent in L1) |
+| `correlate.handshake_expected_n` | Unmatched ACK/NAK/STALL/IN/OUT |
 
-**Claim:** `l0_stack_gap_stimulus_lab` — controlled injection, not passive sniffer.
+**Claim:** `l0_stack_gap_stimulus_lab` / `path_b_soft_campaign_lab` — not passive sniffer.
 
 ## Path B (next hardware)
 

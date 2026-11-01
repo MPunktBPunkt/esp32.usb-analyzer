@@ -87,6 +87,12 @@ class TestCorrelate(unittest.TestCase):
         r2 = correlate(l0, l1_real, ignore_time=True)
         assert "unmatched_l0" in r2 and "stack_gap_n" in r2
         self.assertGreaterEqual(r2["matched"], 1)
+        self.assertIn("true_gap_n", r2)
+        self.assertIn("handshake_expected_n", r2)
+        classes = {u.get("class") for u in r2["unmatched_l0"]}
+        self.assertTrue(
+            classes <= {"stack_gap", "handshake_expected"} or not classes
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,103 @@
+{
+  "ok": true,
+  "claim": "gate9_fault_inject_lab",
+  "host_version": "0.0.46",
+  "device_version": "0.0.46",
+  "baseline_kBs": 1000,
+  "pass_n": 3,
+  "ops_n": 3,
+  "results": [
+    {
+      "op": "fail",
+      "arm": {
+        "ok": true,
+        "op": "fail",
+        "delayMs": 0,
+        "failRemaining": 1
+      },
+      "observe": {
+        "ok": true,
+        "readOk": false,
+        "senseOk": true,
+        "recoveryOk": true,
+        "senseKey": 0,
+        "asc": 0,
+        "asq": 0,
+        "responseCode": 112,
+        "readMs": 1,
+        "recoveryMs": 2003,
+        "duration_ms": 2006,
+        "lba": 0,
+        "blocks": 1,
+        "claim": "gate9_fault_observe_lab",
+        "note": "bot_sense_recovery_not_l0"
+      },
+      "heal_ok": true
+    },
+    {
+      "op": "delay",
+      "arm": {
+        "ok": true,
+        "op": "delay",
+        "delayMs": 80,
+        "failRemaining": 0
+      },
+      "observe": {
+        "ok": true,
+        "readOk": true,
+        "senseOk": false,
+        "recoveryOk": true,
+        "senseKey": 0,
+        "asc": 0,
+        "asq": 0,
+        "responseCode": 0,
+        "readMs": 82,
+        "recoveryMs": 1,
+        "duration_ms": 83,
+        "lba": 0,
+        "blocks": 1,
+        "claim": "gate9_fault_observe_lab",
+        "note": "bot_sense_recovery_not_l0"
+      },
+      "heal_ok": true
+    },
+    {
+      "op": "disconnect",
+      "arm": {
+        "ok": true,
+        "op": "disconnect",
+        "delayMs": 0,
+        "failRemaining": 0
+      },
+      "observe": {
+        "ok": true,
+        "readOk": true,
+        "senseOk": false,
+        "recoveryOk": true,
+        "senseKey": 0,
+        "asc": 0,
+        "asq": 0,
+        "responseCode": 0,
+        "readMs": 1,
+        "recoveryMs": 2,
+        "duration_ms": 3,
+        "lba": 0,
+        "blocks": 1,
+        "claim": "gate9_fault_observe_lab",
+        "note": "bot_sense_recovery_not_l0",
+        "post_disconnect_probe_ok": true
+      },
+      "heal_ok": true
+    }
+  ],
+  "notes": [
+    "fail: readOk=False senseKey=0 asc=0 recoveryOk=True \u2192 PASS",
+    "delay: readMs=82 (arm 80ms) readOk=True \u2192 PASS",
+    "disconnect: post_probe=True heal=True \u2192 PASS"
+  ],
+  "not_claimed": [
+    "l0_wire",
+    "transparent_mitm",
+    "hu"
+  ]
+}

@@ -97,10 +97,19 @@ Requirement text (do not over-constrain):
 Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wire_stimulus_lab`.  
 0.0.43: series API (`patterns=`), Device `mountCount`/`unmountCount`/`lastBusEvent`, LS-rate attempt MEASURED.
 0.0.44: GPIO methods suite — see `docs/hardware/GPIO_LAB_METHODS.md` + `LAB_GPIO_METHODS_MEASURED.md`.  
-0.0.45: L0∖L1 **stack-gap** under wire stimulus (`lab_l0_stack_gap.py`, `L0_STACK_GAP.md`) — closest answer to „an TinyUSB vorbei“ until Path B PHY.
+0.0.45: L0∖L1 **stack-gap** under wire stimulus (`lab_l0_stack_gap.py`, `L0_STACK_GAP.md`) — closest answer to „an TinyUSB vorbei“ until Path B PHY.  
+0.0.46: **No-HW slice** — Gate 9 fault-inject/sense (`lab_fault_inject.py`); correlator `true_gap_n` / `handshake_expected_n`; soft Path-B campaign + bring-up dry-run (`lab_path_b_soft_campaign.py`, `lab_path_b_bringup_dryrun.py`).
 
 ## Next hardware
 
 1. Procure/solder Path B Hi-Z tap (BOM) — replace GPIO lab / sim as *wire* source  
 2. Optional: jumper Host GPIO10/11 → second ESP RX for dual-node sampler  
 3. FS stick on Host + Device→PC for true observer MITM
+
+## No-HW packages (0.0.46)
+
+| # | Package | Status |
+|---|---------|--------|
+| A | Gate 9 delay/fail/disconnect + REQUEST_SENSE observe | **MEASURED** (OTG loop) |
+| B | Soft Path-B stack-gap campaign (synth/GPIO vs live L1) | **MEASURED** |
+| C | Path-B bring-up dry-run + HW checklist | **MEASURED** (offline+live) |

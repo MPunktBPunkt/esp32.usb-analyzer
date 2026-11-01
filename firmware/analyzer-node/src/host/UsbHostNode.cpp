@@ -603,6 +603,78 @@ bool UsbHostNode::readBlocks(uint32_t lba, uint32_t blocks, uint8_t *out) {
   return ok;
 }
 
+UsbHostNode::FaultObserveResult
+UsbHostNode::runFaultObserve(uint32_t lba, uint32_t blocks, bool do_sense,
+                             bool do_recovery) {
+  FaultObserveResult r;
+  const uint32_t t0 = millis();
+  if (!begin_ok_ || host_released_ || deviceCount() == 0) {
+    r.error = "no_dut";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  if (blocks == 0 || blocks > 16) {
+    r.error = "blocks_1_16";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  uint8_t *buf = static_cast<uint8_t *>(malloc(blocks * 512u));
+  if (!buf) {
+    r.error = "oom";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  const uint32_t t_read = millis();
+  r.read_ok = readBlocks(lba, blocks, buf);
+  r.read_ms = millis() - t_read;
+
+  auto fill_sense = [&]() {
+    EspUsbHostMscSense sense{};
+    bool got = g_usb.mscLastSense(sense);
+    if (!got || (sense.senseKey == 0 && sense.additionalSenseCode == 0)) {
+      got = g_usb.mscRequestSense(sense);
+    }
+    if (!got) {
+      return;
+    }
+    r.sense_ok = true;
+    r.sense_key = sense.senseKey;
+    r.asc = sense.additionalSenseCode;
+    r.asq = sense.additionalSenseQualifier;
+    r.response_code = sense.responseCode;
+    CaptureLog::instance().push(
+        CapRole::Host, CapType::Error, sense.senseKey, sense.additionalSenseCode,
+        sense.additionalSenseQualifier, sense.responseCode, r.read_ms, "msc_sense");
+  };
+
+  // Sense first — EspUsbHost may already have cached it after failed CSW.
+  if (!r.read_ok && do_sense) {
+    fill_sense();
+  }
+
+  if (do_recovery) {
+    const uint32_t t_rec = millis();
+    // EspUsbHost may BOT-reset stalled pipes; retry once after wait.
+    (void)g_usb.mscWaitReady(ESP_USB_HOST_ANY_ADDRESS, 1500, 1000);
+    r.recovery_ok = readBlocks(lba, blocks, buf);
+    if (!r.recovery_ok) {
+      delay(120);
+      (void)g_usb.mscWaitReady(ESP_USB_HOST_ANY_ADDRESS, 1500, 1000);
+      r.recovery_ok = readBlocks(lba, blocks, buf);
+    }
+    r.recovery_ms = millis() - t_rec;
+  }
+
+  // If sense missing and read failed, try once more after pipe recovery.
+  if (!r.read_ok && do_sense && !r.sense_ok) {
+    fill_sense();
+  }
+  free(buf);
+  r.ok = true;
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
 bool UsbHostNode::writeBlocks(uint32_t lba, uint32_t blocks, const uint8_t *in) {
   if (!begin_ok_ || !in || blocks == 0 || blocks > 16 || deviceCount() == 0) {
     return false;
@@ -1614,6 +1686,12 @@ UsbHostNode::runE11GpioSample(uint32_t, uint32_t) {
 bool UsbHostNode::releaseHostStack(String &err) {
   err = "host_disabled";
   return false;
+}
+UsbHostNode::FaultObserveResult
+UsbHostNode::runFaultObserve(uint32_t, uint32_t, bool, bool) {
+  FaultObserveResult r;
+  r.error = "host_disabled";
+  return r;
 }
 void UsbHostNode::noteHidReport(uint8_t, uint8_t, uint8_t, uint8_t,
                                 const uint8_t *, size_t) {}

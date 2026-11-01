@@ -1,0 +1,52 @@
+{
+  "ok": true,
+  "claim": "path_b_bringup_dryrun_lab",
+  "checks": [
+    {
+      "name": "host_unit_usb_fs_l0",
+      "ok": true,
+      "detail": "_to_l1) ... ok\ntest_data_crc16 (__main__.TestCrc.test_data_crc16) ... ok\ntest_token_crc5_roundtrip (__main__.TestCrc.test_token_crc5_roundtrip) ... ok\ntest_synth_setup_data_ack (__main__.TestNrziRoundtrip.test_synth_setup_data_ack) ... ok\ntest_write_read (__main__.TestSampleIo.test_write_read) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.001s\n\nOK\n"
+    },
+    {
+      "name": "golden_fixture",
+      "ok": true,
+      "packets": 3,
+      "path": "tests/host/fixtures/synth_setup.l0samp"
+    },
+    {
+      "name": "correlate_classify",
+      "ok": true,
+      "matched": 2,
+      "true_gap_n": 0,
+      "handshake_expected_n": 1
+    },
+    {
+      "name": "live_host",
+      "ok": true,
+      "version": "0.0.46",
+      "otg": {
+        "mode": "host",
+        "state": "device_attached",
+        "connected": true,
+        "devices": 1,
+        "meaning": "dut_on_otg"
+      }
+    },
+    {
+      "name": "docs_bom_protocol",
+      "ok": true
+    }
+  ],
+  "hw_arrival_checklist": [
+    "Solder Hi-Z tap per docs/hardware/L0_CAPTURE_POC.md BOM",
+    "Feed VP/VM digital into ESP GPIO10/11 (or sampler)",
+    "Start: tools/l0_path_b_ingest.py --decode",
+    "TX/RX: Host /api/lab/path-b-gpio-rx or external sampler \u2192 L0ST :9760",
+    "Verify: tools/lab_l0_live_pipeline.py --source ingest",
+    "Gap: tools/lab_l0_stack_gap.py or soft campaign with real .l0samp"
+  ],
+  "not_claimed": [
+    "path_b_soldered",
+    "live_wire_capture"
+  ]
+}

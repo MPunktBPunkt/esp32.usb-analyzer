@@ -88,6 +88,8 @@ Forbidden exit phrasing: “USB Analyzer works” when only a narrower claim was
 
 **Prove:** delay/drop/duplicate/stall/reset/disconnect as explicit experimental ops with measured host/device reaction.
 
+**Status (0.0.46):** OTG-loop **MEASURED** — Device `/api/lab/fault-inject` (delay/fail/disconnect) + Host `/api/lab/fault-observe` (READ fail + recovery). Evidence: `LAB_GATE9_FAULT_MEASURED.md`. Duplicate/drop-mid-xfer still open.
+
 ## Gate 10 — D+/D− PHY research
 
 **Prove or falsify:** Level 2/3 visualization feasibility. Protocol-state UI may exist earlier without claiming wire capture.

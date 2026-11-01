@@ -45,18 +45,17 @@ def _l0_kind(pkt: dict[str, Any]) -> str:
 
 
 def _kinds_compatible(k0: str, k1: str) -> bool:
+    # Handshake/token are L0-only relative to class L1 — never "match".
+    if k0 in ("handshake", "token"):
+        return False
     if k0 == "ep0" and k1 in ("ep0", "enum"):
         return True
     if k0 == "bot_cbw" and k1 == "bot_cbw":
         return True
     if k0 == "bot_csw" and k1 == "bot_csw":
         return True
-    if k0 in ("handshake", "token", "data0", "data1") and k1 in (
-        "ep0",
-        "enum",
-        "bot_cbw",
-        "bot_csw",
-    ):
+    # DATA payloads may align with ep0/BOT class events.
+    if k0 in ("data0", "data1") and k1 in ("ep0", "enum", "bot_cbw", "bot_csw"):
         return True
     if k0 == k1:
         return True
@@ -109,15 +108,26 @@ def correlate(
             )
     unmatched_l0 = []
     matched_l0 = {m["l0_index"] for m in matches}
+    true_gap_n = 0
+    handshake_expected_n = 0
     for i, pkt in enumerate(l0_packets):
         if i in matched_l0:
             continue
+        k0 = _l0_kind(pkt)
+        # Token/handshake rarely appear as L1 class events — expected gap class.
+        if k0 in ("handshake", "token"):
+            cls = "handshake_expected"
+            handshake_expected_n += 1
+        else:
+            cls = "stack_gap"
+            true_gap_n += 1
         unmatched_l0.append(
             {
                 "l0_index": i,
                 "pid": pkt.get("pid"),
-                "kind": _l0_kind(pkt),
+                "kind": k0,
                 "crc_ok": pkt.get("crc_ok"),
+                "class": cls,
                 "note": "no_compatible_l1_event",
             }
         )
@@ -148,5 +158,7 @@ def correlate(
         "unmatched_l0": unmatched_l0,
         "unmatched_l1": unmatched_l1,
         "stack_gap_n": len(unmatched_l0),
+        "true_gap_n": true_gap_n,
+        "handshake_expected_n": handshake_expected_n,
         "ignore_time": ignore_time,
     }

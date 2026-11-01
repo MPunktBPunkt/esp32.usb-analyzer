@@ -125,6 +125,11 @@ namespace {
 
 int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   uint8_t *out = static_cast<uint8_t *>(buffer);
+  if (g_self && g_self->consumeFaultOnRead()) {
+    CaptureLog::instance().push(CapRole::Device, CapType::Error, 1, bufsize, lba,
+                                bufsize / 512u, 0, "fault_inject_fail");
+    return -1; // TinyUSB → CSW FAILED + REQUEST_SENSE medium_not_present
+  }
   if (g_self && g_self->proxyEnabled()) {
     if (!g_self->fillFromProxy(lba, offset, out, bufsize)) {
       g_self->noteProxyFail();
@@ -360,6 +365,49 @@ void UsbDeviceNode::scheduleSoftReenum() {
 }
 
 void UsbDeviceNode::requestSoftReenum() { scheduleSoftReenum(); }
+
+void UsbDeviceNode::armFault(const FaultArm &arm) {
+  fault_ = arm;
+  if (!fault_.last_op || !fault_.last_op[0]) {
+    fault_.last_op = "armed";
+  }
+  Serial.printf("[device] fault arm delay_ms=%u x%u fail_x%u disc_after=%u\n",
+                static_cast<unsigned>(fault_.delay_ms),
+                static_cast<unsigned>(fault_.delay_remaining),
+                static_cast<unsigned>(fault_.fail_remaining),
+                static_cast<unsigned>(fault_.disconnect_after));
+}
+
+void UsbDeviceNode::clearFault() {
+  fault_ = FaultArm{};
+  fault_.last_op = "clear";
+}
+
+UsbDeviceNode::FaultArm UsbDeviceNode::faultStatus() const { return fault_; }
+
+bool UsbDeviceNode::consumeFaultOnRead() {
+  fault_.hits++;
+  if (fault_.delay_remaining > 0 && fault_.delay_ms > 0) {
+    fault_.delay_remaining--;
+    fault_.delay_hits++;
+    delay(fault_.delay_ms); // intentional Host-visible stall
+  }
+  bool fail = false;
+  if (fault_.fail_remaining > 0) {
+    fault_.fail_remaining--;
+    fault_.fail_hits++;
+    fail = true;
+  }
+  if (fault_.disconnect_after > 0) {
+    fault_.disconnect_after--;
+    if (fault_.disconnect_after == 0) {
+      requestSoftReenum();
+      CaptureLog::instance().push(CapRole::Device, CapType::Detach, 0, 0, 0, 0, 0,
+                                  "fault_inject_disconnect");
+    }
+  }
+  return fail;
+}
 
 bool UsbDeviceNode::injectHidKey(uint8_t ascii_or_raw, bool raw) {
   if (!hid_enabled_ || !mounted_) {
@@ -833,6 +881,10 @@ bool UsbDeviceNode::aoaRespondEnabled() const { return false; }
 void UsbDeviceNode::applyAoaAccessoryIdentity() {}
 void UsbDeviceNode::requestSoftReenum() {}
 bool UsbDeviceNode::injectHidKey(uint8_t, bool) { return false; }
+void UsbDeviceNode::armFault(const FaultArm &) {}
+void UsbDeviceNode::clearFault() {}
+UsbDeviceNode::FaultArm UsbDeviceNode::faultStatus() const { return FaultArm{}; }
+bool UsbDeviceNode::consumeFaultOnRead() { return false; }
 bool UsbDeviceNode::writeThroughProxy(uint32_t, uint32_t, const uint8_t *,
                                       uint32_t) {
   return false;

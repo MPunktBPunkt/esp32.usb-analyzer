@@ -60,6 +60,8 @@ private:
   void handlePathBGpioRx();
   void handleGpioCalibrate();
   void handleWireStimulus();
+  void handleFaultInject();
+  void handleFaultObserve();
   void handleSyncMarker();
   void handleCapture();
 };

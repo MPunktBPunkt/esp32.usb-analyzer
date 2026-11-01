@@ -59,14 +59,15 @@ Each experiment must produce: `FACT` / `MEASURED` / `INFERENCE` / `UNKNOWN` / `N
 
 ## Track D — Fault injection (Gate 9)
 
-Only after A4 pass.
+Only after A4 pass. **0.0.46 MEASURED** on OTG loop (gadget `onRead` arm).
 
-| Injection | Measure |
-|-----------|---------|
-| delay 0/1/2/5/10/20/50 ms on DATA | host reaction / recovery |
-| drop | retry / reset |
-| stall | CLEAR_HALT vs BOT Reset path |
-| disconnect / reset | re-enum |
+| Injection | Measure | Tool |
+|-----------|---------|------|
+| delay N ms on READ data stage | Host `readMs` inflate + recovery | `lab_fault_inject.py` · `/api/lab/fault-inject?op=delay` |
+| fail/drop (return −1) | CSW fail + REQUEST_SENSE + recovery READ | `op=fail` · Host `/api/lab/fault-observe` |
+| disconnect (soft-reenum after N) | re-enum + post probe | `op=disconnect` |
+
+Claim: `gate9_fault_inject_lab` — class/BOT path, **not** L0 wire.
 
 ## Track E — D+/D− research (Gate 10)
 
