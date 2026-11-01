@@ -1,0 +1,17 @@
+[Unit]
+Description=USB Analyzer lab controller (discovery :9750 + UI :8080)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/usb-analyzer
+Environment=PYTHONPATH=%h/projects/usb-analyzer
+ExecStart=/usr/bin/python3 -m controller.run --http-port 8080 --control-port 9750
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:%h/projects/usb-analyzer/logs/controller.log
+StandardError=append:%h/projects/usb-analyzer/logs/controller.log
+
+[Install]
+WantedBy=default.target

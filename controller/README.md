@@ -17,12 +17,16 @@ Python control plane running on Debian.
 
 ```bash
 cd /path/to/esp32.usb-analyzer
-PYTHONPATH=. python3 -m controller.run --http-port 8080 --control-port 9750 --auto-role host
+./tools/run_lab_controller.sh restart          # foreground-friendly restart + health check
+./tools/install_lab_controller_service.sh     # user systemd autostart (preferred)
+# or manually:
+PYTHONPATH=. python3 -m controller.run --http-port 8080 --control-port 9750
 ```
 
 - ESP control: TCP `:9750`
 - Lab UI + API: http://\<debian\>:8080/  
 - `GET /api/v1/nodes`, `GET /api/v1/stream` (SSE), `POST …/ping`, `POST …/role`
+- Logs: `logs/controller.log`
 
 Legacy discovery-only: `python3 controller/discovery/server.py --port 9750`.
 

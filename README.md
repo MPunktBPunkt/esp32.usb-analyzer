@@ -90,6 +90,8 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 ### Lab tools
 
 ```bash
+./tools/run_lab_controller.sh restart             # Debian UI :8080 + discovery :9750
+./tools/install_lab_controller_service.sh        # user systemd autostart for controller
 ./tools/flash_lab_ota.sh 192.168.178.88          # host env
 ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 

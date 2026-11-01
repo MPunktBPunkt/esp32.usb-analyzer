@@ -69,3 +69,10 @@ Requirement text (do not over-constrain):
 - Class-hook CBW ≠ DATA0+CRC on the bus.
 - Lab AOA/BCL ≠ HU BCL-on-wire.
 - No D+/D− panel that implies Level-3 without MEASURED packets.
+
+## Next (after 0.0.38 software scaffold)
+
+1. **Path B hardware** — FS differential tap / line-state front-end → `.l0samp` ingest (see `docs/hardware/L0_CAPTURE_POC.md`)
+2. Live decode of real bus samples + `lab_l0_correlate.py` against ESP L1 capture
+3. Observer `--mode proxy` with MITM wiring (DUT on Host, PC on Device)
+4. Keep Debian controller up: `systemctl --user status usb-analyzer-controller`

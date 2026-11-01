@@ -151,8 +151,13 @@ def send_node_command(node_id: str, msg: str, body: Optional[dict] = None) -> Di
     return {"ok": True, "sent": envelope}
 
 
+CONTROLLER_VERSION = "0.0.38"
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "usb-analyzer-controller/0.0.1"
+    server_version = f"usb-analyzer-controller/{CONTROLLER_VERSION}"
+    # Avoid hanging forever on half-open clients (SSE still sets its own loop).
+    timeout = 30
 
     def log_message(self, fmt: str, *args) -> None:
         print("[http] " + (fmt % args), flush=True)
@@ -170,6 +175,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def handle_one_request(self) -> None:
+        """Wrap BaseHTTPRequestHandler to never drop the TCP socket silently."""
+        try:
+            super().handle_one_request()
+        except Exception as exc:  # noqa: BLE001 — lab controller must stay up
+            print(f"[http] handler crash: {exc!r}", flush=True)
+            try:
+                if not self.wfile.closed:
+                    self._json(500, {"ok": False, "err": "handler_crash", "detail": str(exc)})
+            except Exception:
+                try:
+                    self.close_connection = True
+                except Exception:
+                    pass
 
     def _read_json(self) -> Dict[str, Any]:
         length = int(self.headers.get("Content-Length") or 0)
@@ -190,6 +210,13 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
 
+        try:
+            self._dispatch_get(parsed, path)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[http] GET {path} failed: {exc!r}", flush=True)
+            self._json(500, {"ok": False, "err": "get_failed", "detail": str(exc)})
+
+    def _dispatch_get(self, parsed, path: str) -> None:
         if path == "/api/v1/health":
             self._json(
                 200,
@@ -197,7 +224,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "uptime_s": int(time.time() - STARTED),
                     "nodes": len(REGISTRY.list_views_keyed()),
-                    "version": "0.0.22",
+                    "version": CONTROLLER_VERSION,
                 },
             )
             return
