@@ -628,7 +628,7 @@ UsbHostNode::runFaultObserve(uint32_t lba, uint32_t blocks, bool do_sense,
   r.read_ok = readBlocks(lba, blocks, buf);
   r.read_ms = millis() - t_read;
 
-  auto fill_sense = [&]() {
+  auto fill_sense = [&](bool after_recovery) {
     EspUsbHostMscSense sense{};
     bool got = g_usb.mscLastSense(sense);
     if (!got || (sense.senseKey == 0 && sense.additionalSenseCode == 0)) {
@@ -642,14 +642,28 @@ UsbHostNode::runFaultObserve(uint32_t lba, uint32_t blocks, bool do_sense,
     r.asc = sense.additionalSenseCode;
     r.asq = sense.additionalSenseQualifier;
     r.response_code = sense.responseCode;
+    if (after_recovery) {
+      r.sense_after_ok = true;
+      r.sense_key_after = sense.senseKey;
+      r.asc_after = sense.additionalSenseCode;
+      if (r.sense_phase.length() == 0) {
+        r.sense_phase = "after_recovery";
+      }
+    } else {
+      r.sense_before_ok = true;
+      r.sense_key_before = sense.senseKey;
+      r.asc_before = sense.additionalSenseCode;
+      r.sense_phase = "before_recovery";
+    }
     CaptureLog::instance().push(
         CapRole::Host, CapType::Error, sense.senseKey, sense.additionalSenseCode,
-        sense.additionalSenseQualifier, sense.responseCode, r.read_ms, "msc_sense");
+        sense.additionalSenseQualifier, sense.responseCode, r.read_ms,
+        after_recovery ? "msc_sense_after" : "msc_sense_before");
   };
 
   // Sense first — EspUsbHost may already have cached it after failed CSW.
   if (!r.read_ok && do_sense) {
-    fill_sense();
+    fill_sense(false);
   }
 
   if (do_recovery) {
@@ -665,9 +679,12 @@ UsbHostNode::runFaultObserve(uint32_t lba, uint32_t blocks, bool do_sense,
     r.recovery_ms = millis() - t_rec;
   }
 
-  // If sense missing and read failed, try once more after pipe recovery.
-  if (!r.read_ok && do_sense && !r.sense_ok) {
-    fill_sense();
+  // Sense after recovery — often empty (BOT-reset cleared condition).
+  if (!r.read_ok && do_sense) {
+    fill_sense(true);
+  }
+  if (r.sense_phase.length() == 0) {
+    r.sense_phase = "none";
   }
   free(buf);
   r.ok = true;

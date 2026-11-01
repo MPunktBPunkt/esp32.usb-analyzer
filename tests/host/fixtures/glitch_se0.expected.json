@@ -1,0 +1,20 @@
+{
+  "packets": [
+    {
+      "pid": "SETUP",
+      "crc_ok": true,
+      "addr": 1,
+      "endp": 0,
+      "payload_len": 0,
+      "note": "token"
+    },
+    {
+      "pid": "ACK",
+      "crc_ok": true,
+      "addr": null,
+      "endp": null,
+      "payload_len": 0,
+      "note": "handshake"
+    }
+  ]
+}

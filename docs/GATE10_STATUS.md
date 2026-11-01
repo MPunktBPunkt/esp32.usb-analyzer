@@ -115,3 +115,14 @@ Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wi
 | C | Path-B bring-up dry-run + HW checklist | **MEASURED** (offline+live) |
 
 **Übergabe nächste KI:** [`docs/reports/HANDOVER_0.0.46.md`](reports/HANDOVER_0.0.46.md) — Messinventar, Blindstellen B0–B9, Testmethoden, P0–P3.
+
+### P0 test methods (0.0.47)
+
+| Method | Tool / test | Status |
+|--------|-------------|--------|
+| Property fuzz L0 | `tests/host/test_usb_fs_l0_fuzz.py` | host unit |
+| BCL random fuzz | `test_bcl_lab_frame.cpp` `test_fuzz_random_buffers` | host unit |
+| Golden `.l0samp` regression | `tests/host/test_l0_golden.py` + fixtures | host unit |
+| REQUEST_SENSE isolation | `lab_sense_isolation.py` | lab MEASURED |
+| Hotplug/soak | `lab_hotplug_soak.py` | lab MEASURED |
+| Gate9 fail_after / fail_mid | `lab_gate9_extended.py` | lab MEASURED |

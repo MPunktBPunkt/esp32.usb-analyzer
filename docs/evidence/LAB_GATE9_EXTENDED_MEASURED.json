@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "claim": "gate9_extended_lab",
+  "cases": [
+    {
+      "name": "stall_alias",
+      "pass": true,
+      "arm": "fail",
+      "obs": {
+        "readOk": false,
+        "recoveryOk": true,
+        "senseKeyBefore": 0
+      }
+    },
+    {
+      "name": "fail_after",
+      "pass": true,
+      "first_ok": true,
+      "second_readOk": false,
+      "recoveryOk": true
+    },
+    {
+      "name": "fail_mid",
+      "pass": true,
+      "note": "mid_path_not_exercised_single_callback",
+      "lastFailOffset": 0,
+      "failHits": 1,
+      "readOk": true,
+      "recoveryOk": true
+    }
+  ],
+  "heal_ok": true,
+  "not_claimed": [
+    "l0_crc_error",
+    "wire_malformed_packet"
+  ]
+}

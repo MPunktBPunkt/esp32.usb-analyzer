@@ -153,13 +153,17 @@ Evidence: `docs/evidence/LAB_*.md` (20 Dateien) · Tools: 29× `tools/lab_*.py` 
 
 ## 5. NEXT für die nächste KI (Priorität)
 
-### P0 — ohne neue Hardware (jetzt)
+### P0 — ohne neue Hardware
 
-1. **Property-based Fuzz** — `tools/usb_fs_l0/*` + BCL: truncated, bad CRC, illegal PID, missing/double EOP, garbage `.l0samp`, partial L0ST frames.
-2. **Golden fixtures erweitern** — synth + bekannte bad-CRC/glitch Captures als Regression.
-3. **REQUEST_SENSE isolieren** — Device: CSW/Sense-Quelle loggen; Host: BOT-Reset, Sense-CBW, returned bytes getrennt; Evidence `LAB_GATE9_SENSE_ISOLATION`.
-4. **Hotplug/Soak-Kampagne** — n≥50–100; Heap/PSRAM/mount-Mismatch/recovery-ms.
-5. **Gate-9 erweitern (Stack)** — mid-xfer drop, explicit STALL, CLEAR_HALT vs BOT Reset (soweit EspUsbHost erlaubt) — **ohne** Wire-CRC-Claims.
+| # | Task | Status (0.0.47) |
+|---|------|-----------------|
+| 1 | Property-based Fuzz L0 + BCL | ✅ `test_usb_fs_l0_fuzz.py` · BCL `test_fuzz_random_buffers` |
+| 2 | Golden fixtures + regression | ✅ `test_l0_golden.py` · `fixtures/*.expected.json` |
+| 3 | REQUEST_SENSE isolation | ✅ `lab_sense_isolation.py` · `LAB_GATE9_SENSE_ISOLATION` |
+| 4 | Hotplug/Soak | ✅ `lab_hotplug_soak.py` (soft-reenum cycles) |
+| 5 | Gate-9 extend fail_after/fail_mid/stall | ✅ `lab_gate9_extended.py` |
+
+Noch offen in P0-Nähe: Fremdgeräte-Diversität; physischer Unplug; CLEAR_HALT vs BOT als getrennte FACT; n≥100 Soak.
 
 ### P1 — sobald Hardware da / vor Ort
 

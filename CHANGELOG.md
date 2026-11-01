@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- 0.0.47: P0 test methods — L0/BCL fuzz, golden `.l0samp` regression, REQUEST_SENSE isolation, hotplug/soak, Gate9 fail_after/fail_mid
 - 0.0.46: Software-only while Path-B HW waits — Gate 9 fault-inject/sense/recovery, correlator gap classes, soft Path-B campaign + bring-up dry-run
 - 0.0.45: L0∖L1 stack-gap lab (stimulus wire GT vs Device TinyUSB capture)
 - FW 0.0.44: GPIO methods suite — calibrate, cross-link RX, matrix/gap/glitch/jitter, sync marker

@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 
 using namespace usb_analyzer;
 
@@ -133,6 +134,35 @@ static void test_cmd_names() {
   CHECK(kBclLabInit[0] == 0x12 && kBclLabInit[3] == 0x78, "init magic");
 }
 
+/** Lightweight property fuzz — random buffers must not crash / false-validate. */
+static void test_fuzz_random_buffers() {
+  uint32_t seed = 0x10F0BCu;
+  auto rnd = [&]() -> uint32_t {
+    seed = seed * 1664525u + 1013904223u;
+    return seed;
+  };
+  uint8_t buf[96];
+  for (int i = 0; i < 200; i++) {
+    const size_t n = rnd() % sizeof(buf);
+    for (size_t j = 0; j < n; j++) {
+      buf[j] = static_cast<uint8_t>(rnd() & 0xff);
+    }
+    BclLabHeader h{};
+    (void)bclParseHeader(buf, n, h);
+    const bool ok = bclValidateFrame(buf, n, h);
+    if (ok) {
+      CHECK(n == 8u + static_cast<size_t>(h.data_len), "fuzz validate size");
+      CHECK(h.data_len <= 56, "fuzz data_len bound for ok frame");
+    }
+    size_t off = 0;
+    BclLabHeader found{};
+    if (bclFindHeader(buf, n, off, found)) {
+      CHECK(off + 8 <= n, "fuzz find offset");
+      CHECK(found.command >= 1 && found.command <= 6, "fuzz cmd range");
+    }
+  }
+}
+
 int main() {
   test_roundtrip_handshake();
   test_empty_payload();
@@ -140,6 +170,7 @@ int main() {
   test_negatives();
   test_find_resync();
   test_cmd_names();
+  test_fuzz_random_buffers();
   if (g_fail) {
     std::fprintf(stderr, "%d check(s) failed\n", g_fail);
     return 1;

@@ -1,0 +1,12 @@
+{
+  "packets": [
+    {
+      "pid": "DATA0",
+      "crc_ok": false,
+      "addr": null,
+      "endp": null,
+      "payload_len": 8,
+      "note": "data"
+    }
+  ]
+}

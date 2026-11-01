@@ -1,0 +1,139 @@
+{
+  "ok": true,
+  "claim": "hotplug_soak_lab",
+  "cycles": 12,
+  "fail_enum": 0,
+  "fail_msc": 0,
+  "recovery_ms_p50": 2181.549072265625,
+  "recovery_ms_p95": 2322.1781253814697,
+  "host_heap_drift": 56,
+  "device_heap_drift": 20,
+  "heal_ok": true,
+  "rows": [
+    {
+      "i": 0,
+      "ok": true,
+      "recovery_ms": 2177.7,
+      "rate_kBs": 500,
+      "host_heap": 109432,
+      "device_heap": 139884,
+      "device_mount": "connected",
+      "mountCount": 39
+    },
+    {
+      "i": 1,
+      "ok": true,
+      "recovery_ms": 2181.7,
+      "rate_kBs": 1000,
+      "host_heap": 109404,
+      "device_heap": 139896,
+      "device_mount": "connected",
+      "mountCount": 40
+    },
+    {
+      "i": 2,
+      "ok": true,
+      "recovery_ms": 2193.7,
+      "rate_kBs": 1000,
+      "host_heap": 109432,
+      "device_heap": 139900,
+      "device_mount": "connected",
+      "mountCount": 41
+    },
+    {
+      "i": 3,
+      "ok": true,
+      "recovery_ms": 2322.2,
+      "rate_kBs": 500,
+      "host_heap": 109436,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 42
+    },
+    {
+      "i": 4,
+      "ok": true,
+      "recovery_ms": 2185.2,
+      "rate_kBs": 500,
+      "host_heap": 109424,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 43
+    },
+    {
+      "i": 5,
+      "ok": true,
+      "recovery_ms": 2176.1,
+      "rate_kBs": 500,
+      "host_heap": 109388,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 44
+    },
+    {
+      "i": 6,
+      "ok": true,
+      "recovery_ms": 2174.9,
+      "rate_kBs": 500,
+      "host_heap": 109436,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 45
+    },
+    {
+      "i": 7,
+      "ok": true,
+      "recovery_ms": 2184.4,
+      "rate_kBs": 1000,
+      "host_heap": 109440,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 46
+    },
+    {
+      "i": 8,
+      "ok": true,
+      "recovery_ms": 2175.2,
+      "rate_kBs": 500,
+      "host_heap": 109444,
+      "device_heap": 139900,
+      "device_mount": "connected",
+      "mountCount": 47
+    },
+    {
+      "i": 9,
+      "ok": true,
+      "recovery_ms": 2181.0,
+      "rate_kBs": 500,
+      "host_heap": 109424,
+      "device_heap": 139896,
+      "device_mount": "connected",
+      "mountCount": 48
+    },
+    {
+      "i": 10,
+      "ok": true,
+      "recovery_ms": 2181.4,
+      "rate_kBs": 1000,
+      "host_heap": 109428,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 49
+    },
+    {
+      "i": 11,
+      "ok": true,
+      "recovery_ms": 2183.5,
+      "rate_kBs": 1000,
+      "host_heap": 109436,
+      "device_heap": 139880,
+      "device_mount": "connected",
+      "mountCount": 50
+    }
+  ],
+  "not_claimed": [
+    "physical_unplug",
+    "l0_wire",
+    "mitm"
+  ]
+}

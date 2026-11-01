@@ -91,16 +91,28 @@ public:
     uint32_t delay_remaining = 0;
     uint32_t fail_remaining = 0;
     uint32_t disconnect_after = 0; // fire soft-reenum after N read entries
+    uint32_t ok_before_fail = 0;   // allow N successful onRead, then fail once
+    bool fail_mid_xfer = false;    // fail when offset != 0 (mid multi-block)
     uint32_t hits = 0;
     uint32_t fail_hits = 0;
     uint32_t delay_hits = 0;
+    uint32_t ok_hits = 0;
+    // Last injected fail — TinyUSB maps -1 → NOT_READY / ASC 0x3A (medium not present)
+    uint8_t last_sense_key = 0;
+    uint8_t last_asc = 0;
+    uint8_t last_asq = 0;
+    uint32_t last_fail_lba = 0;
+    uint32_t last_fail_offset = 0;
+    uint32_t last_fail_bufsize = 0;
     const char *last_op = "none";
+    const char *last_sense_source = "";
   };
   void armFault(const FaultArm &arm);
   void clearFault();
   FaultArm faultStatus() const;
   /** @return true if this read should fail (return -1). Applies delay. */
-  bool consumeFaultOnRead();
+  bool consumeFaultOnRead(uint32_t offset = 0, uint32_t lba = 0,
+                          uint32_t bufsize = 0);
 
   /** Used from MSC callback (same TU). */
   bool fillFromProxy(uint32_t lba, uint32_t offset, uint8_t *out,

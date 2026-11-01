@@ -311,14 +311,21 @@ public:
     bool ok = false; // overall lab ran (even if read failed as expected)
     bool read_ok = false;
     bool sense_ok = false;
+    bool sense_before_ok = false;
+    bool sense_after_ok = false;
     bool recovery_ok = false;
     uint8_t sense_key = 0;
     uint8_t asc = 0;
     uint8_t asq = 0;
     uint8_t response_code = 0;
+    uint8_t sense_key_before = 0;
+    uint8_t asc_before = 0;
+    uint8_t sense_key_after = 0;
+    uint8_t asc_after = 0;
     uint32_t read_ms = 0;
     uint32_t recovery_ms = 0;
     uint32_t duration_ms = 0;
+    String sense_phase; // before_recovery | after_recovery | none
     String error;
   };
   FaultObserveResult runFaultObserve(uint32_t lba = 0, uint32_t blocks = 1,

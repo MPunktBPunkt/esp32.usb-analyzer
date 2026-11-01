@@ -1694,6 +1694,8 @@ void AnalyzerStatusModule::handleFaultInject() {
     if (count == 0) {
       count = 1;
     }
+    // Fresh arm — don't merge prior counters into a new op.
+    arm = UsbDeviceNode::FaultArm{};
     if (op == "delay") {
       uint32_t ms = 50;
       if (server_->hasArg("ms")) {
@@ -1710,6 +1712,14 @@ void AnalyzerStatusModule::handleFaultInject() {
       arm.fail_remaining = count;
       arm.last_op = "fail";
       device_->armFault(arm);
+    } else if (op == "fail_after" || op == "drop_after") {
+      arm.ok_before_fail = count;
+      arm.last_op = "fail_after";
+      device_->armFault(arm);
+    } else if (op == "fail_mid" || op == "drop_mid") {
+      arm.fail_mid_xfer = true;
+      arm.last_op = "fail_mid";
+      device_->armFault(arm);
     } else if (op == "disconnect" || op == "reset") {
       uint32_t after = 1;
       if (server_->hasArg("after")) {
@@ -1723,7 +1733,7 @@ void AnalyzerStatusModule::handleFaultInject() {
       device_->armFault(arm);
     } else {
       server_->send(400, F("application/json"),
-                    F("{\"ok\":false,\"err\":\"op_delay_fail_disconnect_clear_status\"}"));
+                    F("{\"ok\":false,\"err\":\"op_delay_fail_fail_after_fail_mid_disconnect_clear_status\"}"));
       return;
     }
   }
@@ -1737,6 +1747,10 @@ void AnalyzerStatusModule::handleFaultInject() {
   j += String(st.delay_remaining);
   j += ",\"failRemaining\":";
   j += String(st.fail_remaining);
+  j += ",\"okBeforeFail\":";
+  j += String(st.ok_before_fail);
+  j += ",\"failMidXfer\":";
+  j += st.fail_mid_xfer ? "true" : "false";
   j += ",\"disconnectAfter\":";
   j += String(st.disconnect_after);
   j += ",\"hits\":";
@@ -1745,6 +1759,20 @@ void AnalyzerStatusModule::handleFaultInject() {
   j += String(st.fail_hits);
   j += ",\"delayHits\":";
   j += String(st.delay_hits);
+  j += ",\"okHits\":";
+  j += String(st.ok_hits);
+  j += ",\"deviceSenseKey\":";
+  j += String(st.last_sense_key);
+  j += ",\"deviceAsc\":";
+  j += String(st.last_asc);
+  j += ",\"deviceAsq\":";
+  j += String(st.last_asq);
+  j += ",\"deviceSenseSource\":\"";
+  j += st.last_sense_source ? st.last_sense_source : "";
+  j += "\",\"lastFailLba\":";
+  j += String(st.last_fail_lba);
+  j += ",\"lastFailOffset\":";
+  j += String(st.last_fail_offset);
   j += ",\"claim\":\"gate9_fault_inject_lab\"";
   j += ",\"note\":\"msc_gadget_onRead_not_l0\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
@@ -1786,6 +1814,10 @@ void AnalyzerStatusModule::handleFaultObserve() {
   j += r.read_ok ? "true" : "false";
   j += ",\"senseOk\":";
   j += r.sense_ok ? "true" : "false";
+  j += ",\"senseBeforeOk\":";
+  j += r.sense_before_ok ? "true" : "false";
+  j += ",\"senseAfterOk\":";
+  j += r.sense_after_ok ? "true" : "false";
   j += ",\"recoveryOk\":";
   j += r.recovery_ok ? "true" : "false";
   j += ",\"senseKey\":";
@@ -1796,7 +1828,17 @@ void AnalyzerStatusModule::handleFaultObserve() {
   j += String(r.asq);
   j += ",\"responseCode\":";
   j += String(r.response_code);
-  j += ",\"readMs\":";
+  j += ",\"senseKeyBefore\":";
+  j += String(r.sense_key_before);
+  j += ",\"ascBefore\":";
+  j += String(r.asc_before);
+  j += ",\"senseKeyAfter\":";
+  j += String(r.sense_key_after);
+  j += ",\"ascAfter\":";
+  j += String(r.asc_after);
+  j += ",\"sensePhase\":\"";
+  j += r.sense_phase;
+  j += "\",\"readMs\":";
   j += String(r.read_ms);
   j += ",\"recoveryMs\":";
   j += String(r.recovery_ms);

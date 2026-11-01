@@ -125,9 +125,9 @@ namespace {
 
 int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   uint8_t *out = static_cast<uint8_t *>(buffer);
-  if (g_self && g_self->consumeFaultOnRead()) {
+  if (g_self && g_self->consumeFaultOnRead(offset, lba, bufsize)) {
     CaptureLog::instance().push(CapRole::Device, CapType::Error, 1, bufsize, lba,
-                                bufsize / 512u, 0, "fault_inject_fail");
+                                bufsize / 512u, offset, "fault_inject_fail");
     return -1; // TinyUSB → CSW FAILED + REQUEST_SENSE medium_not_present
   }
   if (g_self && g_self->proxyEnabled()) {
@@ -371,11 +371,15 @@ void UsbDeviceNode::armFault(const FaultArm &arm) {
   if (!fault_.last_op || !fault_.last_op[0]) {
     fault_.last_op = "armed";
   }
-  Serial.printf("[device] fault arm delay_ms=%u x%u fail_x%u disc_after=%u\n",
-                static_cast<unsigned>(fault_.delay_ms),
-                static_cast<unsigned>(fault_.delay_remaining),
-                static_cast<unsigned>(fault_.fail_remaining),
-                static_cast<unsigned>(fault_.disconnect_after));
+  Serial.printf(
+      "[device] fault arm op=%s delay=%ux%u fail_x%u mid=%u ok_before=%u disc=%u\n",
+      fault_.last_op ? fault_.last_op : "?",
+      static_cast<unsigned>(fault_.delay_ms),
+      static_cast<unsigned>(fault_.delay_remaining),
+      static_cast<unsigned>(fault_.fail_remaining),
+      fault_.fail_mid_xfer ? 1u : 0u,
+      static_cast<unsigned>(fault_.ok_before_fail),
+      static_cast<unsigned>(fault_.disconnect_after));
 }
 
 void UsbDeviceNode::clearFault() {
@@ -385,19 +389,44 @@ void UsbDeviceNode::clearFault() {
 
 UsbDeviceNode::FaultArm UsbDeviceNode::faultStatus() const { return fault_; }
 
-bool UsbDeviceNode::consumeFaultOnRead() {
+bool UsbDeviceNode::consumeFaultOnRead(uint32_t offset, uint32_t lba,
+                                       uint32_t bufsize) {
   fault_.hits++;
   if (fault_.delay_remaining > 0 && fault_.delay_ms > 0) {
     fault_.delay_remaining--;
     fault_.delay_hits++;
     delay(fault_.delay_ms); // intentional Host-visible stall
   }
+
   bool fail = false;
-  if (fault_.fail_remaining > 0) {
+  // Mid-xfer: fail on 2nd+ onRead (multi-block) — offset may stay 0 per LBA.
+  if (fault_.fail_mid_xfer && fault_.hits >= 2) {
+    fail = true;
+    fault_.fail_mid_xfer = false; // one-shot
+  } else if (fault_.ok_before_fail > 0) {
+    fault_.ok_before_fail--;
+    fault_.ok_hits++;
+    // This call succeeds; arm one fail for the next onRead if none queued.
+    if (fault_.ok_before_fail == 0 && fault_.fail_remaining == 0) {
+      fault_.fail_remaining = 1;
+    }
+  } else if (fault_.fail_remaining > 0) {
     fault_.fail_remaining--;
-    fault_.fail_hits++;
     fail = true;
   }
+
+  if (fail) {
+    fault_.fail_hits++;
+    // TinyUSB msc_device.c set_sense_medium_not_present on tud_msc_read10_cb -1
+    fault_.last_sense_key = 0x02; // SCSI_SENSE_NOT_READY
+    fault_.last_asc = 0x3A;       // medium not present
+    fault_.last_asq = 0x00;
+    fault_.last_fail_lba = lba;
+    fault_.last_fail_offset = offset;
+    fault_.last_fail_bufsize = bufsize;
+    fault_.last_sense_source = "inject_expect_tud_medium_not_present";
+  }
+
   if (fault_.disconnect_after > 0) {
     fault_.disconnect_after--;
     if (fault_.disconnect_after == 0) {
@@ -884,7 +913,9 @@ bool UsbDeviceNode::injectHidKey(uint8_t, bool) { return false; }
 void UsbDeviceNode::armFault(const FaultArm &) {}
 void UsbDeviceNode::clearFault() {}
 UsbDeviceNode::FaultArm UsbDeviceNode::faultStatus() const { return FaultArm{}; }
-bool UsbDeviceNode::consumeFaultOnRead() { return false; }
+bool UsbDeviceNode::consumeFaultOnRead(uint32_t, uint32_t, uint32_t) {
+  return false;
+}
 bool UsbDeviceNode::writeThroughProxy(uint32_t, uint32_t, const uint8_t *,
                                       uint32_t) {
   return false;

@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "claim": "gate9_sense_isolation_lab",
+  "locus": "host_sense_lost_before_or_during_bot_reset",
+  "arm": {
+    "ok": true,
+    "op": "fail",
+    "delayMs": 0,
+    "delayRemaining": 0,
+    "failRemaining": 1,
+    "okBeforeFail": 0,
+    "failMidXfer": false,
+    "disconnectAfter": 0,
+    "hits": 0,
+    "failHits": 0,
+    "delayHits": 0,
+    "okHits": 0,
+    "deviceSenseKey": 0,
+    "deviceAsc": 0,
+    "deviceAsq": 0,
+    "deviceSenseSource": "",
+    "lastFailLba": 0,
+    "lastFailOffset": 0,
+    "claim": "gate9_fault_inject_lab",
+    "note": "msc_gadget_onRead_not_l0"
+  },
+  "device_expect": {
+    "senseKey": 2,
+    "asc": 58,
+    "asq": 0,
+    "source": "inject_expect_tud_medium_not_present",
+    "failHits": 1,
+    "lastFailOffset": 0
+  },
+  "host_observe": {
+    "readOk": false,
+    "recoveryOk": true,
+    "senseBeforeOk": false,
+    "senseKeyBefore": 0,
+    "ascBefore": 0,
+    "senseAfterOk": true,
+    "senseKeyAfter": 0,
+    "ascAfter": 0,
+    "sensePhase": "after_recovery"
+  },
+  "not_claimed": [
+    "l0_wire",
+    "usb_if_sense_compliance"
+  ]
+}
