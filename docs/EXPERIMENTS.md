@@ -108,6 +108,17 @@ See [`GATE10_STATUS.md`](GATE10_STATUS.md). Strictly separate:
 **Tool:** `tools/lab_path_b_gpio.py` · Evidence: `LAB_PATH_B_GPIO_LAB_MEASURED.md`  
 **Claim:** `path_b_gpio_lab` — not live OTG PHY.
 
+### E1.3 Destructive wire stimulus (GPIO19/20)
+
+**Hypothesis (Grok):** After stopping the USB Host / releasing the PHY, Host can drive D+/D− as a pattern generator for Device-stack observation.
+
+**Constraints:** Destructive (no parallel Host). GPIO electrical quality. LS/slow rates only for stable bit-bang. Reboot to restore.
+
+**Patterns:** `bus_states`, `se0_reset`, `sync`, `eop`, `glitch`, `setup_ok`, `setup_bad_crc`, `data_bad_crc`, `jk_burst`
+
+**Tool:** `tools/lab_wire_stimulus.py` · Evidence: `LAB_WIRE_STIMULUS_MEASURED.md`  
+**Claim:** `wire_stimulus_lab`
+
 ### E2 Offline decoder (10B–D)
 
 Host unit: `tools/usb_fs_l0` + `tests/host/run_usb_fs_l0_tests.sh` — NRZI, stuff, PID, CRC, packets.

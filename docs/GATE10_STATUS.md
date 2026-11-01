@@ -87,6 +87,15 @@ Requirement text (do not over-constrain):
 - **Path C** FPGA/CPLD — only if Path B sampler rate/jitter insufficient  
 - CDC/UVC class slices / HS decision — still parked
 
+## Wire stimulus vs Path B GPIO lab
+
+| Mode | Pins | Host stack | Purpose |
+|------|------|------------|---------|
+| Path B GPIO lab | GPIO10/11 | **stays up** | Non-destructive decoder/L0ST tests |
+| **Wire stimulus** (0.0.42) | GPIO19/20 | **stopped** (`g_usb.end`) | Controlled D+/D− patterns toward Device; reboot to restore |
+
+Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wire_stimulus_lab`.
+
 ## Next hardware
 
 1. Procure/solder Path B Hi-Z tap (BOM) — replace GPIO lab / sim as *wire* source  

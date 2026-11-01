@@ -5,9 +5,12 @@
 
 ## Can the Host ESP send test data on GPIO?
 
-**Yes (lab).** `/api/lab/path-b-gpio` drives synthetic SETUP/DATA0/ACK line-states on **free** pins (default GPIO10=D+, GPIO11=D−), self-samples them, optionally pushes `L0ST` to Debian.  
-Default rate **100 kHz** (slow, intentional). Cap 2 MHz — **not** a claim of FS 12 MHz wire capture.  
-**Never** uses GPIO19/20 (OTG PHY).
+**Yes — two modes:**
+
+1. **Non-destructive (preferred for decoder pipe):** `/api/lab/path-b-gpio` on **GPIO10/11** while Host stays up + optional L0ST.  
+2. **Destructive wire stimulus:** `/api/lab/wire-stimulus?confirm=wire_stimulus_destructive` stops EspUsbHost, claims **GPIO19/20**, drives J/K/SE0 patterns on the OTG cable toward Device. Reboot restores Host. Not USB-IF electrical; LS/slow bit-bang only.
+
+Default rate **100 kHz**. Cap 2 MHz — **not** a stable FS soft-host claim.
 
 ## Why not Path A
 

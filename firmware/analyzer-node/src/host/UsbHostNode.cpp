@@ -287,6 +287,7 @@ bool UsbHostNode::begin() {
   });
 
   begin_ok_ = g_usb.begin();
+  host_released_ = false;
   if (begin_ok_) {
     Serial.println("[host] usb.begin(): ok — waiting for device");
   } else {
@@ -298,6 +299,27 @@ bool UsbHostNode::begin() {
   started_ms_ = millis();
   last_report_ms_ = started_ms_;
   return begin_ok_;
+}
+
+bool UsbHostNode::releaseHostStack(String &err) {
+  if (host_released_) {
+    return true;
+  }
+  if (!begin_ok_) {
+    host_released_ = true;
+    begin_ok_ = false;
+    return true;
+  }
+  Serial.println("[host] releasing USB Host stack for wire stimulus");
+  g_usb.end();
+  begin_ok_ = false;
+  host_released_ = true;
+  clearDut();
+  delay(150);
+  Serial.printf("[host] after end(): ready=%d — GPIO19/20 may be claimed\n",
+                g_usb.ready() ? 1 : 0);
+  (void)err;
+  return true;
 }
 
 void UsbHostNode::loop() {
@@ -1588,6 +1610,10 @@ UsbHostNode::runE11GpioSample(uint32_t, uint32_t) {
   r.error = "host_disabled";
   r.ok = true;
   return r;
+}
+bool UsbHostNode::releaseHostStack(String &err) {
+  err = "host_disabled";
+  return false;
 }
 void UsbHostNode::noteHidReport(uint8_t, uint8_t, uint8_t, uint8_t,
                                 const uint8_t *, size_t) {}

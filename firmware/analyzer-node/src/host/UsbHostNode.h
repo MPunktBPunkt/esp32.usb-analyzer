@@ -296,9 +296,17 @@ public:
   E11GpioSampleResult runE11GpioSample(uint32_t samples = 200000,
                                        uint32_t traffic_blocks = 32);
 
+  /**
+   * Stop EspUsbHost so GPIO19/20 can be claimed for wire stimulus.
+   * Irreversible until reboot (or future re-begin).
+   */
+  bool releaseHostStack(String &err);
+  bool hostStackReleased() const { return host_released_; }
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;
+  bool host_released_ = false;
   bool hint_printed_ = false;
   uint32_t started_ms_ = 0;
   uint32_t last_report_ms_ = 0;

@@ -57,6 +57,7 @@ private:
   void handleL0Feasibility();
   void handleE11GpioSample();
   void handlePathBGpio();
+  void handleWireStimulus();
   void handleSyncMarker();
   void handleCapture();
 };

@@ -7,6 +7,7 @@
 #include "device/UsbDeviceNode.h"
 #include "host/UsbHostNode.h" // HostMscProbeResult
 #include "l0/PathBGpioLab.h"
+#include "l0/WireStimulus.h"
 #include "protocol/DataPlane.h"
 #include <cstring>
 #include <esp_timer.h>
@@ -615,6 +616,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleE11GpioSample(); });
   server.on("/api/lab/path-b-gpio", HTTP_ANY,
             [this]() { handlePathBGpio(); });
+  server.on("/api/lab/wire-stimulus", HTTP_ANY,
+            [this]() { handleWireStimulus(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1436,6 +1439,83 @@ void AnalyzerStatusModule::handlePathBGpio() {
   j += ",\"notClaimed\":\"live_otg_dplus_dminus_phy\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleWireStimulus() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  const String confirm =
+      server_->hasArg("confirm") ? server_->arg("confirm") : "";
+  if (confirm != "wire_stimulus_destructive") {
+    server_->send(
+        400, F("application/json"),
+        F("{\"ok\":false,\"err\":\"confirm_required\","
+          "\"need\":\"confirm=wire_stimulus_destructive\","
+          "\"warn\":\"stops_usb_host_claims_gpio19_20_reboot_to_restore\"}"));
+    return;
+  }
+  String pattern =
+      server_->hasArg("pattern") ? server_->arg("pattern") : "bus_states";
+  uint32_t rate = 100000;
+  uint32_t reboot_ms = 2500;
+  if (server_->hasArg("rate")) {
+    rate = static_cast<uint32_t>(server_->arg("rate").toInt());
+  }
+  if (server_->hasArg("reboot_ms")) {
+    reboot_ms = static_cast<uint32_t>(server_->arg("reboot_ms").toInt());
+  }
+  String rel_err;
+  WireStimulus::Result r;
+  if (!host_->releaseHostStack(rel_err)) {
+    r.error = rel_err.length() ? rel_err : "release_failed";
+  } else {
+    r = WireStimulus::run(pattern, rate, reboot_ms);
+  }
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"pattern\":\"";
+  j += r.pattern;
+  j += "\",\"rateHz\":";
+  j += String(r.rate_hz);
+  j += ",\"achievedRateHz\":";
+  j += String(r.achieved_rate_hz);
+  j += ",\"states\":";
+  j += String(r.states);
+  j += ",\"durationUs\":";
+  j += String(r.duration_us);
+  j += ",\"hostReleased\":";
+  j += r.host_released ? "true" : "false";
+  j += ",\"pinsClaimed\":";
+  j += r.pins_claimed ? "true" : "false";
+  j += ",\"rebootAfterMs\":";
+  j += String(r.reboot_after_ms);
+  j += ",\"pins\":\"GPIO20=D+_GPIO19=D-_driven\"";
+  j += ",\"note\":\"";
+  j += r.note;
+  j += "\"";
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"wire_stimulus_lab\"";
+  j += ",\"destructive\":true";
+  j += ",\"notClaimed\":\"usb_host_parallel_operation\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+  if (r.ok && reboot_ms > 0) {
+    delay(50);
+    Serial.printf("[host] wire-stimulus reboot in %u ms\n",
+                  static_cast<unsigned>(reboot_ms));
+    delay(reboot_ms);
+    ESP.restart();
+  }
 }
 
 void AnalyzerStatusModule::handleUsbCtrlNeg() {

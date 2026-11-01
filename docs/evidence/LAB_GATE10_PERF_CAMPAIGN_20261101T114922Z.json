@@ -1,0 +1,134 @@
+{
+  "classification": "MEASURED",
+  "timestamp_utc": "20261101T114922Z",
+  "claim": "gate10_perf_campaign_lab",
+  "not_claimed": [
+    "live_otg_phy_tap",
+    "true_fs_stick_mitm_unless_wired",
+    "bmw_hu_10g",
+    "fpga_path_c"
+  ],
+  "nodes": {
+    "host": {
+      "version": "0.0.41",
+      "role": "host",
+      "dut": true
+    },
+    "device": {
+      "version": "0.0.41",
+      "role": "device",
+      "dut": null
+    }
+  },
+  "tests": {
+    "usb_enum_observe": {
+      "ok": false,
+      "summary": "addr=1 cfg=1 desc=False"
+    },
+    "usb_otg_msc": {
+      "ok": true,
+      "summary": "3 cfgs",
+      "rows": [
+        {
+          "blocks": 32,
+          "chunk": 4,
+          "ok": true,
+          "rate_kBs": 761,
+          "p50_us": null,
+          "p95_us": null,
+          "wall_s": 0.041
+        },
+        {
+          "blocks": 128,
+          "chunk": 4,
+          "ok": true,
+          "rate_kBs": 810,
+          "p50_us": null,
+          "p95_us": null,
+          "wall_s": 0.093
+        },
+        {
+          "blocks": 256,
+          "chunk": 4,
+          "ok": true,
+          "rate_kBs": 810,
+          "p50_us": null,
+          "p95_us": null,
+          "wall_s": 0.172
+        }
+      ]
+    },
+    "tcp_wifi_integrity": {
+      "ok": true,
+      "summary": "rate=155 gaps=None",
+      "raw": {
+        "ok": true,
+        "peer": "192.168.178.89",
+        "mode": "windowed",
+        "window": 8,
+        "pipeline": false,
+        "frames_sent": 32,
+        "frames_acked": 32,
+        "frames_fail": 0,
+        "bytes_tx": 33408,
+        "bytes_rx": 640,
+        "duration_ms": 210,
+        "rate_kBs": 155,
+        "rtt_us": {
+          "min": 12484,
+          "avg": 28714,
+          "p50": 19610,
+          "p95": 68913,
+          "max": 70147
+        },
+        "path": "tcp_wifi_esp_esp",
+        "note": "not_usb_mitm"
+      }
+    },
+    "gate10a_feasibility": {
+      "ok": true,
+      "summary": "gpio19_20_are_internal_usb_phy_pins_cpu_sample_not_fs_packet_sniffer",
+      "prtEna": true
+    },
+    "e11_gpio_sample": {
+      "ok": true,
+      "summary": "2083 ksps jitter=4608ns destructive=False",
+      "rateKsps": 2083,
+      "edges": 0,
+      "busStable": true
+    },
+    "path_b_gpio_lab": {
+      "ok": true,
+      "summary": "txrx_l0st+decode",
+      "rc": 0
+    },
+    "l0_live_pipeline_sim": {
+      "ok": true,
+      "summary": [
+        "  \"l0_rate_hz\": 12000000",
+        "}",
+        "RESULT OK \u2014 live pipeline"
+      ],
+      "rc": 0
+    },
+    "observer_proxy": {
+      "ok": false,
+      "summary": [
+        "    \"claim\": \"msc_bulk_proxy_selftest\",",
+        "    \"note\": \"not_pc_path_not_transparent_mitm\"",
+        "  },",
+        "  \"err\": \"proxy_path_fail\"",
+        "}"
+      ],
+      "rc": 1
+    },
+    "usb_ctrl_neg": {
+      "ok": false,
+      "summary": "timed out"
+    }
+  },
+  "summary": {
+    "passed": 6,
+    "total": 9
+  }
+}
