@@ -121,7 +121,8 @@ std::vector<uint8_t> buildPattern(const String &pattern, String *err) {
 } // namespace
 
 WireStimulus::Result WireStimulus::run(const String &pattern, uint32_t rate_hz,
-                                       uint32_t reboot_after_ms) {
+                                       uint32_t reboot_after_ms,
+                                       uint32_t post_idle_ms) {
   Result r;
   r.pattern = pattern.length() ? pattern : "bus_states";
   r.rate_hz = rate_hz ? rate_hz : 100000;
@@ -156,20 +157,75 @@ WireStimulus::Result WireStimulus::run(const String &pattern, uint32_t rate_hz,
   }
   drive(1); // idle J
   portENABLE_INTERRUPTS();
+  const int64_t t_bit = esp_timer_get_time();
+  r.active_us = static_cast<uint32_t>(t_bit - t0);
+  if (post_idle_ms > 0) {
+    delay(post_idle_ms);
+  }
   const int64_t t1 = esp_timer_get_time();
 
   r.states = static_cast<uint32_t>(states.size());
   r.duration_us = static_cast<uint32_t>(t1 - t0);
-  if (r.duration_us > 0) {
+  if (r.active_us > 0) {
     r.achieved_rate_hz = static_cast<uint32_t>(
-        (static_cast<uint64_t>(r.states) * 1000000ULL) / r.duration_us);
+        (static_cast<uint64_t>(r.states) * 1000000ULL) / r.active_us);
   }
   r.ok = true;
-
-  if (r.reboot_after_ms > 0) {
-    // Return HTTP response first — caller should schedule restart after send.
-  }
   return r;
+}
+
+WireStimulus::Result WireStimulus::runSeries(const String &patterns_csv,
+                                             uint32_t rate_hz,
+                                             uint32_t reboot_after_ms,
+                                             uint32_t gap_ms) {
+  Result agg;
+  agg.rate_hz = rate_hz ? rate_hz : 100000;
+  agg.reboot_after_ms = reboot_after_ms;
+  agg.host_released = true;
+  agg.pattern = patterns_csv;
+  agg.note = "series;destructive_otg_gpio19_20_stimulus";
+
+  String csv = patterns_csv;
+  if (!csv.length()) {
+    csv = "bus_states";
+  }
+  uint32_t total_states = 0;
+  uint32_t total_us = 0;
+  uint32_t total_active = 0;
+  uint32_t n_ok = 0;
+  int start = 0;
+  while (start <= static_cast<int>(csv.length())) {
+    int comma = csv.indexOf(',', start);
+    String one = (comma < 0) ? csv.substring(start) : csv.substring(start, comma);
+    one.trim();
+    if (one.length()) {
+      Result r = run(one, rate_hz, 0, gap_ms);
+      if (!r.ok) {
+        agg.error = r.error;
+        agg.pattern = one;
+        return agg;
+      }
+      total_states += r.states;
+      total_us += r.duration_us;
+      total_active += r.active_us;
+      n_ok++;
+      agg.pins_claimed = r.pins_claimed;
+    }
+    if (comma < 0) {
+      break;
+    }
+    start = comma + 1;
+  }
+  agg.states = total_states;
+  agg.duration_us = total_us;
+  agg.active_us = total_active;
+  if (total_active > 0) {
+    agg.achieved_rate_hz = static_cast<uint32_t>(
+        (static_cast<uint64_t>(total_states) * 1000000ULL) / total_active);
+  }
+  agg.ok = n_ok > 0;
+  agg.pattern = String("series:") + String(n_ok) + ":" + patterns_csv;
+  return agg;
 }
 
 } // namespace usb_analyzer

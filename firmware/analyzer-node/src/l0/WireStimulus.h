@@ -22,6 +22,7 @@ public:
     uint32_t achieved_rate_hz = 0;
     uint32_t states = 0;
     uint32_t duration_us = 0;
+    uint32_t active_us = 0; // bit-bang only (excludes post_idle/gap)
     uint32_t reboot_after_ms = 0;
     String note;
     String error;
@@ -33,7 +34,11 @@ public:
    * @param rate_hz target line-state rate (default 100k; cap 2M)
    */
   static Result run(const String &pattern, uint32_t rate_hz,
-                    uint32_t reboot_after_ms);
+                    uint32_t reboot_after_ms, uint32_t post_idle_ms = 0);
+
+  /** Run several patterns back-to-back (comma-separated). */
+  static Result runSeries(const String &patterns_csv, uint32_t rate_hz,
+                          uint32_t reboot_after_ms, uint32_t gap_ms = 20);
 };
 
 } // namespace usb_analyzer

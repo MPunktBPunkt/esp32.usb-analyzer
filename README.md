@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.42-blue)
+![Version](https://img.shields.io/badge/version-0.0.43-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.42** Zwischenstand — Path B **GPIO lab** (slow bit-bang tests + L0ST) + Gate10 perf campaign; E1.1/Path-B-Pipe remain.  
+> **v0.0.43** Zwischenstand — Path B **GPIO lab** (slow bit-bang tests + L0ST) + Gate10 perf campaign; E1.1/Path-B-Pipe remain.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture

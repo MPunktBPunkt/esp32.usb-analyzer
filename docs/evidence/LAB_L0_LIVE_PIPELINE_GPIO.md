@@ -2,7 +2,7 @@
 
 **Source:** `ingest:/home/martin/projects/usb-analyzer/logs/l0/latest.l0samp`  
 **L0 packets:** 3  
-**L1 events:** 17  
+**L1 events:** 15  
 **Matched:** 3  
 
 Claim: `l0_live_pipeline_lab` — Path B **sim/ingest** MEASURED.  

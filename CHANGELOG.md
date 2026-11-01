@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.43: Wire-stimulus series + Device mount/unmount counters; LS-rate attempt
 - FW 0.0.42: Destructive OTG wire-stimulus (GPIO19/20 after Host end) + lab correlate
 - FW 0.0.41: Path B GPIO lab (bit-bang free GPIOs + L0ST) + Gate10 perf campaign; packages 1–5 software/park
 - FW 0.0.40: Gate 10A / E1.1 — GPIO19/20 peek-poll under live OTG bus (rate/jitter/destruct MEASURED)

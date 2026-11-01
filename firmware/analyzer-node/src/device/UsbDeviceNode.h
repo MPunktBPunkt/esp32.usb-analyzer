@@ -23,6 +23,10 @@ public:
   bool otgSuspended() const { return suspended_; }
   uint32_t suspendCount() const { return suspend_count_; }
   uint32_t resumeCount() const { return resume_count_; }
+  uint32_t mountCount() const { return mount_count_; }
+  uint32_t unmountCount() const { return unmount_count_; }
+  const char *lastBusEvent() const { return last_bus_event_; }
+  uint32_t lastBusEventMs() const { return last_bus_event_ms_; }
   const char *otgState() const;
   void notifyMounted(bool on);
   void notifySuspended(bool on);
@@ -99,6 +103,10 @@ private:
   bool suspended_ = false;
   uint32_t suspend_count_ = 0;
   uint32_t resume_count_ = 0;
+  uint32_t mount_count_ = 0;
+  uint32_t unmount_count_ = 0;
+  char last_bus_event_[24] = {0};
+  uint32_t last_bus_event_ms_ = 0;
   uint32_t read_ops_ = 0;
   uint32_t read_bytes_ = 0;
   uint32_t write_ops_ = 0;

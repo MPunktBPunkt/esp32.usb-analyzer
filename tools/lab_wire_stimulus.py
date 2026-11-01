@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Destructive OTG wire stimulus — Host drives GPIO19/20 after stopping USB Host.
 
-Grok/Gate-10 idea: Host as pattern generator (not parallel Host).
-Device TinyUSB observes mount/suspend/resume/detach while patterns play.
+Correlates Host patterns with Device mount/unmount/suspend + capture events.
 
 Claim: wire_stimulus_lab
-NOT: USB Host parallel op · Path A sniffer · FS-conformant electrical drive
 """
 from __future__ import annotations
 
@@ -22,7 +20,7 @@ def get(url: str, timeout: float = 30) -> dict:
         return json.loads(r.read().decode())
 
 
-def get_allow_err(url: str, timeout: float = 120) -> dict:
+def get_allow_err(url: str, timeout: float = 180) -> dict:
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
             return json.loads(r.read().decode())
@@ -32,21 +30,37 @@ def get_allow_err(url: str, timeout: float = 120) -> dict:
             return json.loads(body)
         except Exception:
             return {"ok": False, "err": body, "http": e.code}
+    except Exception as e:
+        return {"ok": False, "err": str(e)}
 
 
 def snap_device(ip: str) -> dict:
     s = get(f"http://{ip}/api/status")
-    g = s.get("gadget") or s.get("otg") or {}
+    g = s.get("gadget") or {}
     return {
         "version": s.get("version"),
         "otg": (s.get("otg") or {}).get("state"),
-        "mounted": g.get("mounted") if isinstance(g, dict) else None,
-        "suspended": g.get("suspended") if isinstance(g, dict) else None,
+        "mountCount": g.get("mountCount"),
+        "unmountCount": g.get("unmountCount"),
         "suspendCount": g.get("suspendCount"),
         "resumeCount": g.get("resumeCount"),
-        "raw_otg": s.get("otg"),
-        "raw_gadget": s.get("gadget"),
+        "lastBusEvent": g.get("lastBusEvent"),
+        "lastBusEventMs": g.get("lastBusEventMs"),
     }
+
+
+def capture_notes(ip: str, limit: int = 32) -> list[str]:
+    try:
+        batch = get(f"http://{ip}/api/capture?limit={limit}", timeout=10)
+    except Exception:
+        return []
+    ev = batch.get("events") or batch.get("items") or []
+    notes = []
+    for e in ev if isinstance(ev, list) else []:
+        n = e.get("note") or e.get("type") or ""
+        if n:
+            notes.append(str(n))
+    return notes
 
 
 def wait_host(ip: str, timeout: float = 60) -> dict:
@@ -62,16 +76,27 @@ def wait_host(ip: str, timeout: float = 60) -> dict:
     raise TimeoutError("host not back")
 
 
+def msc_probe(host: str) -> dict:
+    q = urllib.parse.urlencode({"blocks": 8, "chunk": 4, "dir": "read"})
+    req = urllib.request.Request(
+        f"http://{host}/api/lab/usb-host-probe?{q}", method="POST", data=b""
+    )
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read().decode())
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="192.168.178.88")
     ap.add_argument("--device", default="192.168.178.89")
     ap.add_argument(
         "--patterns",
-        default="bus_states,se0_reset,sync,eop,glitch,setup_ok,setup_bad_crc",
+        default="bus_states,se0_reset,sync,eop,glitch,jk_burst,setup_ok,setup_bad_crc,data_bad_crc",
     )
     ap.add_argument("--rate", type=int, default=100000)
-    ap.add_argument("--reboot-ms", type=int, default=2000)
+    ap.add_argument("--rate-ls", action="store_true", help="also run series at 1.5 MHz")
+    ap.add_argument("--reboot-ms", type=int, default=2500)
+    ap.add_argument("--gap-ms", type=int, default=30)
     ap.add_argument(
         "--out",
         default="docs/evidence/LAB_WIRE_STIMULUS_MEASURED.md",
@@ -80,90 +105,82 @@ def main() -> int:
 
     h0 = get(f"http://{args.host}/api/status")
     d0 = snap_device(args.device)
+    cap0 = capture_notes(args.device)
     print("host", h0.get("version"), "dut", (h0.get("dut") or {}).get("present"))
     print("device before", d0)
 
-    rows = []
-    patterns = [p.strip() for p in args.patterns.split(",") if p.strip()]
-    for i, pat in enumerate(patterns):
-        last = i == len(patterns) - 1
-        reboot_ms = args.reboot_ms if last else 0
-        # For multi-pattern without reboot between: only last restores host.
-        # After first pattern host is already released — subsequent calls still work.
+    runs = []
+
+    def one_series(label: str, rate: int) -> dict:
+        d_before = snap_device(args.device)
         q = urllib.parse.urlencode(
             {
                 "confirm": "wire_stimulus_destructive",
-                "pattern": pat,
-                "rate": args.rate,
-                "reboot_ms": reboot_ms,
+                "patterns": args.patterns,
+                "rate": rate,
+                "reboot_ms": args.reboot_ms,
+                "gap_ms": args.gap_ms,
             }
         )
-        print(f"==> pattern {pat} reboot_ms={reboot_ms}")
+        print(f"==> series {label} rate={rate}")
         t0 = time.time()
-        # Device snapshot mid/after — poll during request if long
         r = get_allow_err(
-            f"http://{args.host}/api/lab/wire-stimulus?{q}",
-            timeout=180,
+            f"http://{args.host}/api/lab/wire-stimulus?{q}", timeout=180
         )
         wall = time.time() - t0
-        time.sleep(0.3)
-        d1 = snap_device(args.device)
-        row = {
-            "pattern": pat,
+        time.sleep(0.4)
+        d_after = snap_device(args.device)
+        caps = capture_notes(args.device)
+        print(json.dumps({
+            "ok": r.get("ok"),
+            "achieved": r.get("achievedRateHz"),
+            "states": r.get("states"),
+            "pattern": r.get("pattern"),
+            "device": d_after,
+            "Δunmount": (d_after.get("unmountCount") or 0) - (d_before.get("unmountCount") or 0),
+            "Δmount": (d_after.get("mountCount") or 0) - (d_before.get("mountCount") or 0),
+        }, indent=2))
+        result = {
+            "label": label,
+            "rate": rate,
             "host": r,
-            "device_after": d1,
+            "device_before": d_before,
+            "device_after": d_after,
+            "capture_notes": caps[-12:],
             "wall_s": round(wall, 3),
         }
-        rows.append(row)
-        print(json.dumps({"pattern": pat, "ok": r.get("ok"), "err": r.get("err"),
-                          "achieved": r.get("achievedRateHz"),
-                          "device_otg": d1.get("otg"),
-                          "suspendCount": d1.get("suspendCount")}, indent=2))
-        if not r.get("ok"):
-            print("FAIL pattern", pat)
-            break
-        if reboot_ms > 0:
+        if args.reboot_ms > 0:
             print("waiting host reboot…")
             h1 = wait_host(args.host)
-            print("host back", h1.get("version"), "uptime", h1.get("uptime"))
-            # wait DUT re-enum
-            for _ in range(20):
+            print("host back", h1.get("version"), h1.get("uptime"))
+            for _ in range(25):
                 st = get(f"http://{args.host}/api/status")
                 if (st.get("dut") or {}).get("present"):
                     break
                 time.sleep(1)
-            # MSC sanity
             try:
-                q2 = urllib.parse.urlencode(
-                    {"blocks": 8, "chunk": 4, "dir": "read"}
-                )
-                req = urllib.request.Request(
-                    f"http://{args.host}/api/lab/usb-host-probe?{q2}",
-                    method="POST",
-                    data=b"",
-                )
-                with urllib.request.urlopen(req, timeout=60) as resp:
-                    msc = json.loads(resp.read().decode())
+                msc = msc_probe(args.host)
             except Exception as e:
                 msc = {"ok": False, "err": str(e)}
-            rows.append({"post_reboot_msc": msc})
+            result["post_reboot_msc"] = msc
             print("post MSC", msc.get("ok"), msc.get("rate_kBs"))
+            # device after remount
+            result["device_restored"] = snap_device(args.device)
+        return result
+
+    runs.append(one_series("slow_100k", args.rate))
+    if args.rate_ls:
+        # Host is back after reboot; second series at LS-ish rate
+        time.sleep(2)
+        runs.append(one_series("ls_1m5", 1_500_000))
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    ok_n = sum(1 for x in rows if x.get("host", {}).get("ok"))
-    md = [
-        f"# Lab MEASURED — Wire stimulus on GPIO19/20 (0.0.42)",
+    lines = [
+        f"# Lab MEASURED — Wire stimulus on GPIO19/20 ({h0.get('version')}→0.0.43)",
         "",
-        f"**Tool:** `tools/lab_wire_stimulus.py` → `/api/lab/wire-stimulus`",
-        f"**Host FW:** `{h0.get('version')}` → reboot restore",
-        f"**Rate target:** {args.rate} Hz",
-        "",
-        "## Idea check (Grok)",
-        "",
-        "Host can drive D+/D− **only after** stopping the USB Host / releasing the PHY.",
-        "This is a **destructive test mode**, not parallel Host operation.",
-        "Electrical drive is GPIO-grade (lab cable OK); not USB-IF conformant.",
+        f"**Tool:** `tools/lab_wire_stimulus.py`",
+        f"**Patterns:** `{args.patterns}`",
         "",
         "## Device before",
         "",
@@ -171,41 +188,49 @@ def main() -> int:
         json.dumps(d0, indent=2),
         "```",
         "",
-        "## Patterns",
+        f"Capture notes (sample): {cap0[-8:]}",
         "",
-        "| Pattern | Host OK | Achieved Hz | Device otg after | suspendCount |",
-        "|---------|---------|-------------|------------------|--------------|",
     ]
-    for row in rows:
-        if "host" not in row:
-            continue
-        h = row["host"]
-        d = row.get("device_after") or {}
-        md.append(
-            f"| `{row['pattern']}` | {h.get('ok')} | {h.get('achievedRateHz')} | "
-            f"{d.get('otg')} | {d.get('suspendCount')} |"
-        )
-    post = next((x for x in rows if "post_reboot_msc" in x), None)
-    md += [
-        "",
-        "## Post-reboot MSC",
-        "",
-        f"**{'OK' if post and post['post_reboot_msc'].get('ok') else 'FAIL/n/a'}** "
-        f"{(post or {}).get('post_reboot_msc', {})}",
-        "",
+    all_ok = True
+    for run in runs:
+        h = run["host"]
+        db = run["device_before"]
+        da = run["device_after"]
+        ok = bool(h.get("ok"))
+        all_ok = all_ok and ok
+        lines += [
+            f"## Series `{run['label']}` @ {run['rate']} Hz",
+            "",
+            f"- Host ok={ok} · achieved **{h.get('achievedRateHz')} Hz** · states={h.get('states')} · wall={run['wall_s']}s",
+            f"- Device otg {db.get('otg')} → **{da.get('otg')}**",
+            f"- Δmount={(da.get('mountCount') or 0) - (db.get('mountCount') or 0)} · "
+            f"Δunmount={(da.get('unmountCount') or 0) - (db.get('unmountCount') or 0)} · "
+            f"lastBusEvent={da.get('lastBusEvent')}",
+            f"- Capture tail: {run.get('capture_notes')}",
+            "",
+        ]
+        if run.get("post_reboot_msc"):
+            m = run["post_reboot_msc"]
+            lines.append(
+                f"- Post-reboot MSC: **{'OK' if m.get('ok') else 'FAIL'}** "
+                f"{m.get('rate_kBs')} kB/s · device {run.get('device_restored', {}).get('otg')}"
+            )
+            lines.append("")
+            all_ok = all_ok and bool(m.get("ok"))
+
+    lines += [
         "## Verdict",
         "",
-        f"- Ran **{ok_n}** stimulus pattern(s) with Host stack stopped.",
-        "- Useful as **controlled wire stimulus** for Device-stack / future L0 compare.",
-        "- Prefer **GPIO10/11 Path B lab** for non-destructive decoder pipe tests.",
-        "- Prefer **soldered Path B tap** for real FS capture.",
+        "- Destructive GPIO19/20 stimulus MEASURED with Device bus-event counters.",
+        "- Slow (~100 kHz) is the reliable lab rate; LS 1.5 MHz attempt is best-effort bit-bang.",
+        "- Device typically **unmounts** when Host stack stops / SE0 is driven.",
         "",
         "**Claim:** `wire_stimulus_lab`",
-        "**Not claimed:** parallel USB Host · FS 12 Mbit/s soft-host · USB-IF signal quality.",
+        "**Not claimed:** FS soft-host · USB-IF SI · parallel Host.",
     ]
-    out.write_text("\n".join(md) + "\n")
+    out.write_text("\n".join(lines) + "\n")
     print(f"wrote {out}")
-    return 0 if ok_n == len(patterns) else 2
+    return 0 if all_ok else 2
 
 
 if __name__ == "__main__":

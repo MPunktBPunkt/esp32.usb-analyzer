@@ -1462,20 +1462,35 @@ void AnalyzerStatusModule::handleWireStimulus() {
   }
   String pattern =
       server_->hasArg("pattern") ? server_->arg("pattern") : "bus_states";
+  String patterns =
+      server_->hasArg("patterns") ? server_->arg("patterns") : "";
   uint32_t rate = 100000;
   uint32_t reboot_ms = 2500;
+  uint32_t gap_ms = 20;
   if (server_->hasArg("rate")) {
     rate = static_cast<uint32_t>(server_->arg("rate").toInt());
   }
   if (server_->hasArg("reboot_ms")) {
     reboot_ms = static_cast<uint32_t>(server_->arg("reboot_ms").toInt());
   }
+  if (server_->hasArg("gap_ms")) {
+    gap_ms = static_cast<uint32_t>(server_->arg("gap_ms").toInt());
+  }
   String rel_err;
   WireStimulus::Result r;
   if (!host_->releaseHostStack(rel_err)) {
     r.error = rel_err.length() ? rel_err : "release_failed";
   } else {
-    r = WireStimulus::run(pattern, rate, reboot_ms);
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, rate, 0, 0,
+                                0, "wire_stimulus_begin");
+    if (patterns.length()) {
+      r = WireStimulus::runSeries(patterns, rate, reboot_ms, gap_ms);
+    } else {
+      r = WireStimulus::run(pattern, rate, reboot_ms, gap_ms);
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo,
+                                r.ok ? 0 : 1, r.states, r.achieved_rate_hz, 0,
+                                0, "wire_stimulus_end");
   }
   String j = "{\"ok\":";
   j += r.ok ? "true" : "false";
@@ -1489,6 +1504,8 @@ void AnalyzerStatusModule::handleWireStimulus() {
   j += String(r.states);
   j += ",\"durationUs\":";
   j += String(r.duration_us);
+  j += ",\"activeUs\":";
+  j += String(r.active_us);
   j += ",\"hostReleased\":";
   j += r.host_released ? "true" : "false";
   j += ",\"pinsClaimed\":";

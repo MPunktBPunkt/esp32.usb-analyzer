@@ -649,6 +649,14 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += String(suspend_count_);
   json += ",\"resumeCount\":";
   json += String(resume_count_);
+  json += ",\"mountCount\":";
+  json += String(mount_count_);
+  json += ",\"unmountCount\":";
+  json += String(unmount_count_);
+  json += ",\"lastBusEvent\":\"";
+  json += last_bus_event_;
+  json += "\",\"lastBusEventMs\":";
+  json += String(last_bus_event_ms_);
   json += ",\"claim\":\"gadget_identity_from_dut_snapshot\"";
   AoaLabResponder::instance().appendStatusJson(json);
   json += ",\"proxiedDut\":{";
@@ -678,6 +686,15 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
 }
 
 void UsbDeviceNode::notifyMounted(bool on) {
+  if (on && !mounted_) {
+    mount_count_++;
+    strncpy(last_bus_event_, "mount", sizeof(last_bus_event_) - 1);
+    last_bus_event_ms_ = millis();
+  } else if (!on && mounted_) {
+    unmount_count_++;
+    strncpy(last_bus_event_, "unmount", sizeof(last_bus_event_) - 1);
+    last_bus_event_ms_ = millis();
+  }
   mounted_ = on;
   if (!on) {
     suspended_ = false;
@@ -686,8 +703,12 @@ void UsbDeviceNode::notifyMounted(bool on) {
 void UsbDeviceNode::notifySuspended(bool on) {
   if (on && !suspended_) {
     suspend_count_++;
+    strncpy(last_bus_event_, "suspend", sizeof(last_bus_event_) - 1);
+    last_bus_event_ms_ = millis();
   } else if (!on && suspended_) {
     resume_count_++;
+    strncpy(last_bus_event_, "resume", sizeof(last_bus_event_) - 1);
+    last_bus_event_ms_ = millis();
   }
   suspended_ = on;
 }
