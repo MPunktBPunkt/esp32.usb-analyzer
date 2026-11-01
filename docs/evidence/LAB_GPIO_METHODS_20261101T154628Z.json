@@ -1,0 +1,358 @@
+{
+  "classification": "MEASURED",
+  "timestamp_utc": "20261101T154628Z",
+  "claim": "gpio_methods_campaign_lab",
+  "not_claimed": [
+    "soldered_path_b_phy",
+    "fs_soft_host",
+    "crosslink_without_jumpers_as_pass"
+  ],
+  "tests": {
+    "calibrate_host": {
+      "ok": true,
+      "summary": "cyclesPerUs=240 errPpm=1000",
+      "raw": {
+        "ok": true,
+        "cpuMhz": 240,
+        "cyclesPerUs": 240,
+        "measureUs": 999,
+        "measuredCycles": 240195,
+        "errPpm": 1000,
+        "note": "cycle_count_vs_esp_timer",
+        "claim": "gpio_bitbang_calibrate_lab"
+      }
+    },
+    "calibrate_device": {
+      "ok": true,
+      "summary": "cyclesPerUs=240 errPpm=0",
+      "raw": {
+        "ok": true,
+        "cpuMhz": 240,
+        "cyclesPerUs": 240,
+        "measureUs": 1000,
+        "measuredCycles": 240347,
+        "errPpm": 0,
+        "note": "cycle_count_vs_esp_timer",
+        "claim": "gpio_bitbang_calibrate_lab"
+      }
+    },
+    "host_self_loopback_l0st": {
+      "ok": true,
+      "summary": "achieved=88500 mm=0 l0st=True",
+      "raw": {
+        "ok": true,
+        "mode": "txrx_l0st",
+        "pattern": "setup_ok",
+        "dpPin": 10,
+        "dmPin": 11,
+        "syncPin": 12,
+        "rateHz": 100000,
+        "jitterPct": 0,
+        "achievedRateHz": 88500,
+        "statesTx": 177,
+        "statesRx": 177,
+        "mismatches": 0,
+        "loopbackOk": true,
+        "syncPulsed": false,
+        "l0stOk": true,
+        "l0stBytes": 286,
+        "cyclesPerUs": 240,
+        "durationUs": 2000,
+        "note": "free_gpio_bitbang_not_otg_phy",
+        "claim": "path_b_gpio_lab",
+        "notClaimed": "live_otg_dplus_dminus_phy"
+      }
+    },
+    "error_matrix_path_b": {
+      "ok": true,
+      "summary": "7 patterns",
+      "rows": [
+        {
+          "pattern": "setup_ok",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 88810
+        },
+        {
+          "pattern": "setup_bad_crc",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 86868
+        },
+        {
+          "pattern": "data_bad_crc",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 88471
+        },
+        {
+          "pattern": "pid_bad",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 86580
+        },
+        {
+          "pattern": "bus_states",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 89302
+        },
+        {
+          "pattern": "eop",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 84788
+        },
+        {
+          "pattern": "sync",
+          "ok": true,
+          "loopbackOk": true,
+          "mismatches": 0,
+          "achieved": 89074
+        }
+      ]
+    },
+    "gap_sweep": {
+      "ok": true,
+      "summary": "6 gaps",
+      "rows": [
+        {
+          "gap": 1,
+          "ok": true,
+          "states": 33,
+          "achieved": 85937
+        },
+        {
+          "gap": 8,
+          "ok": true,
+          "states": 40,
+          "achieved": 86206
+        },
+        {
+          "gap": 32,
+          "ok": true,
+          "states": 64,
+          "achieved": 87671
+        },
+        {
+          "gap": 64,
+          "ok": true,
+          "states": 96,
+          "achieved": 88479
+        },
+        {
+          "gap": 256,
+          "ok": true,
+          "states": 288,
+          "achieved": 89274
+        },
+        {
+          "gap": 1024,
+          "ok": true,
+          "states": 1056,
+          "achieved": 89635
+        }
+      ]
+    },
+    "glitch_sweep": {
+      "ok": true,
+      "summary": "10 glitches",
+      "rows": [
+        {
+          "pattern": "glitch_se0_1",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_se0_2",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_se0_4",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_se0_8",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_se0_16",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_k_1",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_k_2",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_k_4",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_k_8",
+          "ok": true,
+          "mm": 0
+        },
+        {
+          "pattern": "glitch_k_16",
+          "ok": true,
+          "mm": 0
+        }
+      ]
+    },
+    "jitter_sweep": {
+      "ok": true,
+      "summary": "5 jitters",
+      "rows": [
+        {
+          "jitterPct": 0,
+          "ok": true,
+          "loopbackOk": true,
+          "achieved": 89151
+        },
+        {
+          "jitterPct": 5,
+          "ok": true,
+          "loopbackOk": true,
+          "achieved": 86707
+        },
+        {
+          "jitterPct": 10,
+          "ok": true,
+          "loopbackOk": true,
+          "achieved": 88541
+        },
+        {
+          "jitterPct": 20,
+          "ok": true,
+          "loopbackOk": true,
+          "achieved": 88686
+        },
+        {
+          "jitterPct": 40,
+          "ok": true,
+          "loopbackOk": true,
+          "achieved": 88859
+        }
+      ]
+    },
+    "crosslink_host_tx_device_rx": {
+      "ok": true,
+      "summary": "syncSeen=False edges=0 jumperLikely=False",
+      "host": {
+        "ok": true,
+        "mode": "tx_sync",
+        "pattern": "setup_ok",
+        "dpPin": 10,
+        "dmPin": 11,
+        "syncPin": 12,
+        "rateHz": 100000,
+        "jitterPct": 0,
+        "achievedRateHz": 92091,
+        "statesTx": 177,
+        "statesRx": 0,
+        "mismatches": 0,
+        "loopbackOk": true,
+        "syncPulsed": true,
+        "l0stOk": false,
+        "l0stBytes": 0,
+        "cyclesPerUs": 240,
+        "durationUs": 1922,
+        "note": "free_gpio_bitbang_not_otg_phy",
+        "claim": "path_b_gpio_lab",
+        "notClaimed": "live_otg_dplus_dminus_phy"
+      },
+      "device": {
+        "ok": true,
+        "mode": "rx_sync",
+        "samples": 400,
+        "edges": 0,
+        "histSe0": 400,
+        "histJ": 0,
+        "histK": 0,
+        "histSe1": 0,
+        "syncSeen": false,
+        "syncTimeout": true,
+        "achievedRateHz": 94295,
+        "l0stOk": false,
+        "durationUs": 4242,
+        "jumperLikely": false,
+        "note": "gpio_rx_free_pins_not_otg_phy",
+        "err": "sync_timeout",
+        "claim": "path_b_gpio_rx_lab",
+        "notClaimed": "otg_phy_sniffer"
+      },
+      "jumper_likely": false
+    },
+    "device_idle_histogram": {
+      "ok": true,
+      "summary": "edges=0 J=0 SE0=200",
+      "raw": {
+        "ok": true,
+        "mode": "rx",
+        "samples": 200,
+        "edges": 0,
+        "histSe0": 200,
+        "histJ": 0,
+        "histK": 0,
+        "histSe1": 0,
+        "syncSeen": false,
+        "syncTimeout": false,
+        "achievedRateHz": 94161,
+        "l0stOk": false,
+        "durationUs": 2124,
+        "jumperLikely": false,
+        "note": "gpio_rx_free_pins_not_otg_phy",
+        "claim": "path_b_gpio_rx_lab",
+        "notClaimed": "otg_phy_sniffer"
+      }
+    },
+    "ls_bit_time_attempt": {
+      "ok": true,
+      "summary": "target=1.5M achieved=382022 loop=True",
+      "raw": {
+        "ok": true,
+        "mode": "txrx",
+        "pattern": "eop",
+        "dpPin": 10,
+        "dmPin": 11,
+        "syncPin": 12,
+        "rateHz": 1500000,
+        "jitterPct": 0,
+        "achievedRateHz": 382022,
+        "statesTx": 34,
+        "statesRx": 34,
+        "mismatches": 0,
+        "loopbackOk": true,
+        "syncPulsed": false,
+        "l0stOk": false,
+        "l0stBytes": 0,
+        "cyclesPerUs": 240,
+        "durationUs": 89,
+        "note": "free_gpio_bitbang_not_otg_phy",
+        "claim": "path_b_gpio_lab",
+        "notClaimed": "live_otg_dplus_dminus_phy"
+      }
+    }
+  },
+  "summary": {
+    "passed": 10,
+    "total": 10
+  }
+}

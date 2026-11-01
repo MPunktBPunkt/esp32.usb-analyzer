@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.43-blue)
+![Version](https://img.shields.io/badge/version-0.0.44-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.43** Zwischenstand — Path B **GPIO lab** (slow bit-bang tests + L0ST) + Gate10 perf campaign; E1.1/Path-B-Pipe remain.  
+> **v0.0.44** Zwischenstand — Path B **GPIO lab** (slow bit-bang tests + L0ST) + Gate10 perf campaign; E1.1/Path-B-Pipe remain.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -77,6 +77,7 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **E1.1 GPIO sample** | `/api/lab/e11-gpio-sample` | Poll rate/jitter/edges + bus stability under MSC | **not** FS L0 sniffer |
 | **Path B GPIO lab** | `/api/lab/path-b-gpio` | Bit-bang synth line-states on GPIO10/11 + optional L0ST | **not** live OTG PHY |
 | **Wire stimulus** | `/api/lab/wire-stimulus` | Stop Host, drive GPIO19/20 patterns (destructive) | **not** parallel Host |
+| **GPIO methods** | `/api/lab/gpio-calibrate` · `path-b-gpio-rx` | Calibrate, cross-link RX, matrix/gap/jitter | **not** PHY tap |
 | **L0 offline decoder** | `tools/usb_fs_l0` + host tests | SETUP/DATA/ACK + CRC synth | **not** live D+/D− |
 | **L0↔L1 correlate** | `lab_l0_correlate.py --synth` | synthetic matches | live wire TBD (Path B) |
 | **Observer-effect baseline** | `lab_observer_effect.py` | direct vs proxy/loop Δ | **not** transparency FACT |
@@ -117,6 +118,7 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_e11_gpio_sample.py                     # E1.1 GPIO19/20 poll rate/jitter/destruct
 ./tools/lab_path_b_gpio.py --decode                # Path B GPIO bit-bang + L0ST ingest
 ./tools/lab_wire_stimulus.py                      # destructive OTG D+/D− pattern generator
+./tools/lab_gpio_methods_campaign.py              # GPIO calibrate/matrix/cross-link campaign
 ./tools/lab_gate10_perf_campaign.py                # full dual-ESP capability/perf sweep
 ./tools/lab_observer_effect.py                     # observer-effect baseline (loop|proxy)
 ./tools/l0_path_b_ingest.py --decode &           # Path B TCP :9760 ingest

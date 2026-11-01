@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.44: GPIO methods suite — calibrate, cross-link RX, matrix/gap/glitch/jitter, sync marker
 - FW 0.0.43: Wire-stimulus series + Device mount/unmount counters; LS-rate attempt
 - FW 0.0.42: Destructive OTG wire-stimulus (GPIO19/20 after Host end) + lab correlate
 - FW 0.0.41: Path B GPIO lab (bit-bang free GPIOs + L0ST) + Gate10 perf campaign; packages 1–5 software/park

@@ -6,7 +6,9 @@
 #include "capture/CaptureLog.h"
 #include "device/UsbDeviceNode.h"
 #include "host/UsbHostNode.h" // HostMscProbeResult
+#include "l0/GpioBitbangTiming.h"
 #include "l0/PathBGpioLab.h"
+#include "l0/PathBGpioRx.h"
 #include "l0/WireStimulus.h"
 #include "protocol/DataPlane.h"
 #include <cstring>
@@ -616,6 +618,10 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleE11GpioSample(); });
   server.on("/api/lab/path-b-gpio", HTTP_ANY,
             [this]() { handlePathBGpio(); });
+  server.on("/api/lab/path-b-gpio-rx", HTTP_ANY,
+            [this]() { handlePathBGpioRx(); });
+  server.on("/api/lab/gpio-calibrate", HTTP_ANY,
+            [this]() { handleGpioCalibrate(); });
   server.on("/api/lab/wire-stimulus", HTTP_ANY,
             [this]() { handleWireStimulus(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
@@ -1373,19 +1379,29 @@ void AnalyzerStatusModule::handlePathBGpio() {
     return;
   }
   String mode = server_->hasArg("mode") ? server_->arg("mode") : "txrx";
+  String pattern =
+      server_->hasArg("pattern") ? server_->arg("pattern") : "setup_ok";
   uint32_t rate = 100000;
+  uint32_t jitter = 0;
   int dp = PathBGpioLab::kDefaultDpPin;
   int dm = PathBGpioLab::kDefaultDmPin;
+  int sync = PathBGpioLab::kDefaultSyncPin;
   uint16_t l0st_port = PathBGpioLab::kDefaultL0stPort;
   String l0st_host = controller_host_;
   if (server_->hasArg("rate")) {
     rate = static_cast<uint32_t>(server_->arg("rate").toInt());
+  }
+  if (server_->hasArg("jitter")) {
+    jitter = static_cast<uint32_t>(server_->arg("jitter").toInt());
   }
   if (server_->hasArg("dp")) {
     dp = server_->arg("dp").toInt();
   }
   if (server_->hasArg("dm")) {
     dm = server_->arg("dm").toInt();
+  }
+  if (server_->hasArg("sync")) {
+    sync = server_->arg("sync").toInt();
   }
   if (server_->hasArg("l0st_host")) {
     l0st_host = server_->arg("l0st_host");
@@ -1394,18 +1410,24 @@ void AnalyzerStatusModule::handlePathBGpio() {
     l0st_port = static_cast<uint16_t>(server_->arg("l0st_port").toInt());
   }
   PathBGpioLab lab;
-  const PathBGpioLab::Result r =
-      lab.run(mode, rate, dp, dm, l0st_host, l0st_port);
+  const PathBGpioLab::Result r = lab.run(mode, rate, dp, dm, l0st_host,
+                                         l0st_port, pattern, jitter, sync, true);
   String j = "{\"ok\":";
   j += r.ok ? "true" : "false";
   j += ",\"mode\":\"";
   j += r.mode;
+  j += "\",\"pattern\":\"";
+  j += r.pattern;
   j += "\",\"dpPin\":";
   j += String(r.dp_pin);
   j += ",\"dmPin\":";
   j += String(r.dm_pin);
+  j += ",\"syncPin\":";
+  j += String(r.sync_pin);
   j += ",\"rateHz\":";
   j += String(r.rate_hz);
+  j += ",\"jitterPct\":";
+  j += String(r.jitter_pct);
   j += ",\"achievedRateHz\":";
   j += String(r.achieved_rate_hz);
   j += ",\"statesTx\":";
@@ -1416,14 +1438,14 @@ void AnalyzerStatusModule::handlePathBGpio() {
   j += String(r.mismatches);
   j += ",\"loopbackOk\":";
   j += r.loopback_ok ? "true" : "false";
+  j += ",\"syncPulsed\":";
+  j += r.sync_pulsed ? "true" : "false";
   j += ",\"l0stOk\":";
   j += r.l0st_ok ? "true" : "false";
   j += ",\"l0stBytes\":";
   j += String(r.l0st_bytes);
-  j += ",\"l0stHost\":\"";
-  j += r.l0st_host;
-  j += "\",\"l0stPort\":";
-  j += String(r.l0st_port);
+  j += ",\"cyclesPerUs\":";
+  j += String(GpioBitbangTiming::cyclesPerUs());
   j += ",\"durationUs\":";
   j += String(r.duration_us);
   j += ",\"note\":\"";
@@ -1435,8 +1457,117 @@ void AnalyzerStatusModule::handlePathBGpio() {
     j += "\"";
   }
   j += ",\"claim\":\"path_b_gpio_lab\"";
-  j += ",\"package\":\"1_path_b_lab_substitute\"";
   j += ",\"notClaimed\":\"live_otg_dplus_dminus_phy\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handlePathBGpioRx() {
+  if (!server_) {
+    return;
+  }
+  String mode = server_->hasArg("mode") ? server_->arg("mode") : "rx";
+  uint32_t samples = 256;
+  uint32_t rate = 100000;
+  uint32_t timeout_ms = 3000;
+  int dp = PathBGpioRx::kDefaultDpPin;
+  int dm = PathBGpioRx::kDefaultDmPin;
+  int sync = PathBGpioRx::kDefaultSyncPin;
+  uint16_t l0st_port = PathBGpioRx::kDefaultL0stPort;
+  String l0st_host = controller_host_;
+  if (server_->hasArg("samples")) {
+    samples = static_cast<uint32_t>(server_->arg("samples").toInt());
+  }
+  if (server_->hasArg("rate")) {
+    rate = static_cast<uint32_t>(server_->arg("rate").toInt());
+  }
+  if (server_->hasArg("timeout_ms")) {
+    timeout_ms = static_cast<uint32_t>(server_->arg("timeout_ms").toInt());
+  }
+  if (server_->hasArg("dp")) {
+    dp = server_->arg("dp").toInt();
+  }
+  if (server_->hasArg("dm")) {
+    dm = server_->arg("dm").toInt();
+  }
+  if (server_->hasArg("sync")) {
+    sync = server_->arg("sync").toInt();
+  }
+  if (server_->hasArg("l0st_host")) {
+    l0st_host = server_->arg("l0st_host");
+  }
+  if (server_->hasArg("l0st_port")) {
+    l0st_port = static_cast<uint16_t>(server_->arg("l0st_port").toInt());
+  }
+  const PathBGpioRx::Result r =
+      PathBGpioRx::run(mode, samples, rate, dp, dm, sync, timeout_ms, l0st_host,
+                       l0st_port);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"mode\":\"";
+  j += r.mode;
+  j += "\",\"samples\":";
+  j += String(r.samples);
+  j += ",\"edges\":";
+  j += String(r.edges);
+  j += ",\"histSe0\":";
+  j += String(r.hist[0]);
+  j += ",\"histJ\":";
+  j += String(r.hist[1]);
+  j += ",\"histK\":";
+  j += String(r.hist[2]);
+  j += ",\"histSe1\":";
+  j += String(r.hist[3]);
+  j += ",\"syncSeen\":";
+  j += r.sync_seen ? "true" : "false";
+  j += ",\"syncTimeout\":";
+  j += r.sync_timeout ? "true" : "false";
+  j += ",\"achievedRateHz\":";
+  j += String(r.achieved_rate_hz);
+  j += ",\"l0stOk\":";
+  j += r.l0st_ok ? "true" : "false";
+  j += ",\"durationUs\":";
+  j += String(r.duration_us);
+  j += ",\"jumperLikely\":";
+  j += (r.edges > 4) ? "true" : "false";
+  j += ",\"note\":\"";
+  j += r.note;
+  j += "\"";
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"path_b_gpio_rx_lab\"";
+  j += ",\"notClaimed\":\"otg_phy_sniffer\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleGpioCalibrate() {
+  if (!server_) {
+    return;
+  }
+  uint32_t spin = 1000;
+  if (server_->hasArg("spin_us")) {
+    spin = static_cast<uint32_t>(server_->arg("spin_us").toInt());
+  }
+  const GpioBitbangTiming::CalResult r = GpioBitbangTiming::calibrate(spin);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"cpuMhz\":";
+  j += String(r.cpu_mhz);
+  j += ",\"cyclesPerUs\":";
+  j += String(r.cycles_per_us);
+  j += ",\"measureUs\":";
+  j += String(r.measure_us);
+  j += ",\"measuredCycles\":";
+  j += String(r.measured_cycles);
+  j += ",\"errPpm\":";
+  j += String(r.err_ppm);
+  j += ",\"note\":\"";
+  j += r.note;
+  j += "\",\"claim\":\"gpio_bitbang_calibrate_lab\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }

@@ -96,6 +96,7 @@ Requirement text (do not over-constrain):
 
 Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wire_stimulus_lab`.  
 0.0.43: series API (`patterns=`), Device `mountCount`/`unmountCount`/`lastBusEvent`, LS-rate attempt MEASURED.
+0.0.44: GPIO methods suite — see `docs/hardware/GPIO_LAB_METHODS.md` + `LAB_GPIO_METHODS_MEASURED.md`.
 
 ## Next hardware
 

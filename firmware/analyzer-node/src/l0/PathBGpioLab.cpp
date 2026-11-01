@@ -1,34 +1,31 @@
 #include "l0/PathBGpioLab.h"
-#include "l0/PathBGpioSynthStates.h"
+#include "l0/GpioBitbangTiming.h"
+#include "l0/GpioLinePatterns.h"
+#include "l0/GpioSyncMarker.h"
 
 #include <WiFi.h>
 #include <cstring>
 #include <driver/gpio.h>
 #include <esp_timer.h>
+#include <vector>
 
 namespace usb_analyzer {
 namespace {
 
 void applyState(gpio_num_t dp, gpio_num_t dm, uint8_t st) {
-  // SE0=0 J=1 K=2 SE1=3  (FS: J idle = DP=1 DM=0)
-  int dp_lvl = 0;
-  int dm_lvl = 0;
+  int dp_lvl = 0, dm_lvl = 0;
   switch (st & 0x3) {
-  case 0: // SE0
-    dp_lvl = 0;
-    dm_lvl = 0;
-    break;
-  case 1: // J
+  case 1:
     dp_lvl = 1;
-    dm_lvl = 0;
     break;
-  case 2: // K
-    dp_lvl = 0;
+  case 2:
     dm_lvl = 1;
     break;
-  default: // SE1
+  case 3:
     dp_lvl = 1;
     dm_lvl = 1;
+    break;
+  default:
     break;
   }
   gpio_set_level(dp, dp_lvl);
@@ -50,16 +47,6 @@ uint8_t readState(gpio_num_t dp, gpio_num_t dm) {
   return 3;
 }
 
-void busyWaitUs(uint32_t us) {
-  if (us == 0) {
-    return;
-  }
-  const int64_t t1 = esp_timer_get_time() + static_cast<int64_t>(us);
-  while (esp_timer_get_time() < t1) {
-    // spin — intentional for bit-bang timing
-  }
-}
-
 bool pushL0st(const String &host, uint16_t port, uint32_t rate_hz,
               const uint8_t *states, uint32_t n, uint32_t *out_bytes,
               String *err) {
@@ -73,7 +60,6 @@ bool pushL0st(const String &host, uint16_t port, uint32_t rate_hz,
   auto send_frame = [&](uint16_t typ, uint32_t seq, const uint8_t *p,
                         uint32_t nbytes) -> bool {
     uint8_t hdr[20];
-    // magic L0ST LE, ver=1, type, rate, seq, nbytes
     const uint32_t magic = 0x4C305354u;
     memcpy(hdr + 0, &magic, 4);
     uint16_t ver = 1;
@@ -93,26 +79,12 @@ bool pushL0st(const String &host, uint16_t port, uint32_t rate_hz,
     }
     return true;
   };
-
-  const char *hello = "{\"sampler\":\"path_b_gpio_lab\",\"note\":\"synth_txrx\"}";
+  const char *hello = "{\"sampler\":\"path_b_gpio_lab\",\"note\":\"tx_pattern\"}";
   if (!send_frame(3, 0, reinterpret_cast<const uint8_t *>(hello),
-                  strlen(hello))) {
+                  strlen(hello)) ||
+      !send_frame(1, 1, states, n) || !send_frame(2, 1, nullptr, 0)) {
     if (err) {
-      *err = "l0st_hello_failed";
-    }
-    c.stop();
-    return false;
-  }
-  if (!send_frame(1, 1, states, n)) {
-    if (err) {
-      *err = "l0st_chunk_failed";
-    }
-    c.stop();
-    return false;
-  }
-  if (!send_frame(2, 1, nullptr, 0)) {
-    if (err) {
-      *err = "l0st_eob_failed";
+      *err = "l0st_send_failed";
     }
     c.stop();
     return false;
@@ -127,17 +99,22 @@ bool pushL0st(const String &host, uint16_t port, uint32_t rate_hz,
 PathBGpioLab::Result PathBGpioLab::run(const String &mode, uint32_t rate_hz,
                                        int dp_pin, int dm_pin,
                                        const String &l0st_host,
-                                       uint16_t l0st_port) {
+                                       uint16_t l0st_port,
+                                       const String &pattern,
+                                       uint32_t jitter_pct, int sync_pin,
+                                       bool calibrate_first) {
   Result r;
   r.mode = mode.length() ? mode : "txrx";
+  r.pattern = pattern.length() ? pattern : "setup_ok";
   r.dp_pin = dp_pin > 0 ? dp_pin : kDefaultDpPin;
   r.dm_pin = dm_pin > 0 ? dm_pin : kDefaultDmPin;
-  r.rate_hz = rate_hz == 0 ? 100000 : rate_hz; // default 100 kHz — slow lab
+  r.sync_pin = sync_pin > 0 ? sync_pin : kDefaultSyncPin;
+  r.rate_hz = rate_hz == 0 ? 100000 : rate_hz;
+  r.jitter_pct = jitter_pct > 50 ? 50 : jitter_pct;
   r.l0st_host = l0st_host;
   r.l0st_port = l0st_port ? l0st_port : kDefaultL0stPort;
-  r.note = "free_gpio_bitbang_not_otg_phy;default_100kHz";
+  r.note = "free_gpio_bitbang_not_otg_phy";
 
-  // Refuse OTG PHY pins.
   if (r.dp_pin == 19 || r.dp_pin == 20 || r.dm_pin == 19 || r.dm_pin == 20) {
     r.error = "refuse_gpio19_20_otg_phy";
     return r;
@@ -147,7 +124,17 @@ PathBGpioLab::Result PathBGpioLab::run(const String &mode, uint32_t rate_hz,
     return r;
   }
   if (r.rate_hz > 2000000) {
-    r.rate_hz = 2000000; // hard cap — not claiming FS 12 MHz on CPU bitbang
+    r.rate_hz = 2000000;
+  }
+  if (calibrate_first && !GpioBitbangTiming::calibrated()) {
+    GpioBitbangTiming::calibrate(1000);
+  }
+
+  String err;
+  std::vector<uint8_t> states = buildGpioLinePattern(r.pattern, &err);
+  if (states.empty()) {
+    r.error = err.length() ? err : "empty_pattern";
+    return r;
   }
 
   const gpio_num_t dp = static_cast<gpio_num_t>(r.dp_pin);
@@ -163,61 +150,71 @@ PathBGpioLab::Result PathBGpioLab::run(const String &mode, uint32_t rate_hz,
     return r;
   }
 
-  const bool do_rx = r.mode != "tx";
-  const bool do_l0st = (r.mode == "txrx_l0st" || r.mode == "l0st");
-  const uint32_t period_us =
-      r.rate_hz > 0 ? (1000000UL / r.rate_hz) : 10;
-  const uint32_t n = kPathBGpioSynthCount;
+  const bool do_rx = (r.mode != "tx" && r.mode != "tx_sync");
+  const bool do_l0st =
+      (r.mode == "txrx_l0st" || r.mode == "l0st" || r.mode == "tx_l0st");
+  const bool do_sync = (r.mode == "tx_sync" || r.mode.indexOf("sync") >= 0);
 
-  // Small RX buffer on stack/heap — 177 bytes fine.
-  uint8_t rx[kPathBGpioSynthCount];
-  memset(rx, 0, sizeof(rx));
+  if (do_sync) {
+    GpioSyncMarker::pulseOut(r.sync_pin, 80);
+    r.sync_pulsed = true;
+    GpioBitbangTiming::waitUs(100); // allow peer to arm after edge
+  }
+
+  std::vector<uint8_t> rx(do_rx ? states.size() : 0);
+  const uint32_t base_period =
+      r.rate_hz > 0 ? (1000000UL / r.rate_hz) : 10;
 
   const int64_t t0 = esp_timer_get_time();
-  for (uint32_t i = 0; i < n; i++) {
-    applyState(dp, dm, kPathBGpioSynthStates[i]);
+  for (size_t i = 0; i < states.size(); i++) {
+    applyState(dp, dm, states[i]);
     if (do_rx) {
-      // Sample after drive settles a few cycles.
       rx[i] = readState(dp, dm);
     }
-    busyWaitUs(period_us > 0 ? period_us : 1);
+    uint32_t period = base_period ? base_period : 1;
+    if (r.jitter_pct && (i & 1)) {
+      period = period + (period * r.jitter_pct) / 100;
+    } else if (r.jitter_pct) {
+      period = period - (period * r.jitter_pct) / 100;
+      if (period == 0) {
+        period = 1;
+      }
+    }
+    GpioBitbangTiming::waitUs(period);
   }
-  // Idle J
   applyState(dp, dm, 1);
   const int64_t t1 = esp_timer_get_time();
 
-  r.states_tx = n;
-  r.duration_us = static_cast<uint32_t>(t1 - t0);
-  if (r.duration_us > 0) {
-    r.achieved_rate_hz =
-        static_cast<uint32_t>((static_cast<uint64_t>(n) * 1000000ULL) /
-                              r.duration_us);
+  r.states_tx = static_cast<uint32_t>(states.size());
+  r.active_us = static_cast<uint32_t>(t1 - t0);
+  r.duration_us = r.active_us;
+  if (r.active_us > 0) {
+    r.achieved_rate_hz = static_cast<uint32_t>(
+        (static_cast<uint64_t>(r.states_tx) * 1000000ULL) / r.active_us);
   }
 
   if (do_rx) {
-    r.states_rx = n;
-    for (uint32_t i = 0; i < n; i++) {
-      if (rx[i] != kPathBGpioSynthStates[i]) {
+    r.states_rx = r.states_tx;
+    for (size_t i = 0; i < states.size(); i++) {
+      if (rx[i] != states[i]) {
         r.mismatches++;
       }
     }
     r.loopback_ok = (r.mismatches == 0);
   } else {
-    r.loopback_ok = true; // tx-only: no compare
+    r.loopback_ok = true;
   }
 
   if (do_l0st) {
-    if (l0st_host.length() == 0) {
+    if (!l0st_host.length()) {
       r.error = "l0st_host_required";
       r.ok = r.loopback_ok;
       return r;
     }
-    const uint8_t *payload = do_rx ? rx : kPathBGpioSynthStates;
-    String err;
-    r.l0st_ok = pushL0st(l0st_host, r.l0st_port, r.achieved_rate_hz
-                                                     ? r.achieved_rate_hz
-                                                     : r.rate_hz,
-                         payload, n, &r.l0st_bytes, &err);
+    const uint8_t *payload = do_rx ? rx.data() : states.data();
+    r.l0st_ok = pushL0st(l0st_host, r.l0st_port,
+                         r.achieved_rate_hz ? r.achieved_rate_hz : r.rate_hz,
+                         payload, r.states_tx, &r.l0st_bytes, &err);
     if (!r.l0st_ok) {
       r.error = err;
     }
