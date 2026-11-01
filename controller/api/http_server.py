@@ -151,7 +151,7 @@ def send_node_command(node_id: str, msg: str, body: Optional[dict] = None) -> Di
     return {"ok": True, "sent": envelope}
 
 
-CONTROLLER_VERSION = "0.0.38"
+CONTROLLER_VERSION = "0.0.39"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -292,6 +292,22 @@ class Handler(BaseHTTPRequestHandler):
                     f"(offset_us={_LAST_SYNC.get('offset_us')}); not hard µs lock"
                 )
             self._json(200, body)
+            return
+
+        if path == "/api/v1/l0/status":
+            l0_dir = Path(__file__).resolve().parents[2] / "logs" / "l0"
+            latest = l0_dir / "latest.l0samp"
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "ingest_dir": str(l0_dir),
+                    "latest_exists": latest.is_file(),
+                    "latest_bytes": latest.stat().st_size if latest.is_file() else 0,
+                    "claim": "path_b_ingest_status",
+                    "note": "not_live_phy_until_external_tap",
+                },
+            )
             return
 
         # static

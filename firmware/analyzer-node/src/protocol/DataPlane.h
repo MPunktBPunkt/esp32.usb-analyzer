@@ -84,6 +84,14 @@ public:
 
   void closeProxySession();
 
+  /**
+   * Host MSC-proxy fill source for kCmdMscReq.
+   * "dut" = USB read DUT (MITM). "pattern" = lab_sector_v1 (OTG-loop safe;
+   * avoids Device↔Host recursion when Device is the DUT).
+   */
+  void setMscProxySourcePattern(bool on) { proxy_pattern_fill_ = on; }
+  bool mscProxySourcePattern() const { return proxy_pattern_fill_; }
+
   uint32_t txBytes() const { return tx_bytes_; }
   uint32_t rxBytes() const { return rx_bytes_; }
   uint32_t gaps() const { return gaps_; }
@@ -114,6 +122,7 @@ private:
   bool has_expect_ = false;
   uint32_t proxy_hits_ = 0;
   uint32_t proxy_fail_ = 0;
+  bool proxy_pattern_fill_ = false;
   const char *state_ = "offline";
   char last_pattern_[48] = {0};
   bool last_match_ = false;

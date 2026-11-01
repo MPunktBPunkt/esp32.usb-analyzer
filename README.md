@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.38-blue)
+![Version](https://img.shields.io/badge/version-0.0.39-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.38** Zwischenstand — **Gate 10** L0 scaffold (offline decoder + 10A) + observer baseline; TCP pipeline remains.  
+> **v0.0.39** Zwischenstand — **Gate 10** L0 scaffold (offline decoder + 10A) + observer baseline; TCP pipeline remains.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -43,7 +43,7 @@ Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debi
 | **A — DIRECT** | ESP1 ══ TCP ══ ESP2 | Gate 3 bulk + Gate 4 MSC-proxy slice |
 | **B — RELAY** | via Debian | discovery/control; USB data not relayed yet |
 
-## What we can measure today (0.0.38)
+## What we can measure today (0.0.39)
 
 Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) · AOA: [`LAB_AOA_HANDSHAKE_MEASURED.md`](docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md)
 
@@ -112,6 +112,10 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_usb_ctrl_neg.py                        # EP0 positive + negative series
 ./tools/lab_l0_feasibility.py                      # Gate 10A HPRT + Path A falsify
 ./tools/lab_observer_effect.py                     # observer-effect baseline (loop|proxy)
+./tools/l0_path_b_ingest.py --decode &           # Path B TCP :9760 ingest
+./tools/l0_path_b_sampler_sim.py                 # sampler stand-in (no PHY yet)
+./tools/lab_l0_live_pipeline.py --source sim --trigger-ep0
+./tools/lab_observer_effect.py --mode proxy      # direct USB vs WiFi MSC-proxy
 ./tools/lab_l0_correlate.py --synth                # L0↔L1 correlator (offline)
 ./tests/host/run_usb_fs_l0_tests.sh                # FS L0 offline decoder units
 ./tools/lab_perf_sweep.py --quick              # windowed vs pipeline TCP

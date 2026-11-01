@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <esp_timer.h>
+#include <usb_analyzer/UsbLabPattern.h>
 
 namespace usb_analyzer {
 namespace {
@@ -232,6 +233,14 @@ bool DataPlane::handleMscReq(WiFiClient &c, const uint8_t *hdr_bytes) {
 
   if (blocks == 0 || blocks > kMaxMscBlocks) {
     rsp.status = 2;
+  } else if (proxy_pattern_fill_) {
+    // Lab OTG-loop safe: no Host→DUT USB read (avoids proxy recursion).
+    for (uint32_t b = 0; b < blocks; b++) {
+      fillLabSector(sector_buf + b * 512u, 512u, req.lba + b);
+    }
+    rsp.len = blocks * 512u;
+    rsp.crc = crc32(sector_buf, rsp.len);
+    proxy_hits_++;
   } else if (!host_ || host_->deviceCount() == 0) {
     rsp.status = 3;
   } else if (!host_->readBlocks(req.lba, blocks, sector_buf)) {

@@ -510,20 +510,27 @@ bool UsbDeviceNode::applyDutIdentity(const DutInfoSnapshot &snap) {
   return true;
 }
 
-void UsbDeviceNode::setProxy(DataPlane *plane, const String &peer_ip) {
+void UsbDeviceNode::setProxy(DataPlane *plane, const String &peer_ip,
+                             bool skip_identity) {
   proxy_plane_ = plane;
   proxy_peer_ = peer_ip;
   proxy_on_ = plane && peer_ip.length() > 0;
+  proxy_skip_identity_ = proxy_on_ && skip_identity;
   memset(&proxied_dut_, 0, sizeof(proxied_dut_));
   if (!proxy_on_) {
+    proxy_skip_identity_ = false;
     if (plane) {
       plane->closeProxySession();
     }
     applyLabIdentity();
     scheduleSoftReenum();
+  } else if (proxy_skip_identity_) {
+    // Mark present so loop() does not refreshProxiedDut / soft-reenum.
+    proxied_dut_.present = true;
   }
-  Serial.printf("[device] MSC proxy %s peer=%s\n", proxy_on_ ? "ON" : "OFF",
-                proxy_peer_.c_str());
+  Serial.printf("[device] MSC proxy %s peer=%s skip_id=%u\n",
+                proxy_on_ ? "ON" : "OFF", proxy_peer_.c_str(),
+                proxy_skip_identity_ ? 1u : 0u);
 }
 
 bool UsbDeviceNode::refreshProxiedDut() {
@@ -791,7 +798,7 @@ void UsbDeviceNode::noteRead(uint32_t) {}
 void UsbDeviceNode::noteWrite(uint32_t) {}
 void UsbDeviceNode::noteProxyHit(uint32_t) {}
 void UsbDeviceNode::noteProxyFail() {}
-void UsbDeviceNode::setProxy(DataPlane *, const String &) {}
+void UsbDeviceNode::setProxy(DataPlane *, const String &, bool) {}
 bool UsbDeviceNode::refreshProxiedDut() { return false; }
 bool UsbDeviceNode::selftestProxyRead(uint32_t, uint32_t, uint8_t *, String *) {
   return false;

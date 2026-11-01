@@ -1,57 +1,55 @@
-# L0 Capture Hardware PoC — Path B (preferred after 10A)
+# L0 Capture Hardware PoC — Path B
 
-**Status:** Design + software ingest ready (0.0.38). Physical front-end **not yet soldered**.  
-**Claim:** HYPOTHESIS / design — not MEASURED wire packets from a real tap.
+**Software status (0.0.39):** ingest `:9760`, sampler sim, live pipeline — **MEASURED** end-to-end with sim.  
+**Hardware status:** external FS front-end **not soldered** — live D+/D− PHY still UNKNOWN.
 
-## Why not Path A (GPIO on S3 OTG pins)
+## Why not Path A
 
-GPIO19 = D−, GPIO20 = D+ are the **internal USB PHY** pins.  
-10A MEASURED: IO mux shows USB function while OTG runs; CPU GPIO sampling cannot provide a trustworthy 12 Mbit/s packet decoder and reconfiguring the pins is destructive to the Host/Device stack. → **Path A falsified as sniffer**.
+GPIO19/20 = internal USB PHY. 10A falsified CPU sniffer. See `LAB_GATE10A_FEASIBILITY.md`.
 
-## Path B — external digital front-end
+## Architecture
 
 ```text
-HU/DUT D+ ──●──────────────── peer
-            │ Hi-Z tap / buffer
-            ▼
-         USB FS receiver / comparator / PHY
-            │ line state (J/K/SE0) or recovered bits
-            ▼
-         Sampler (CPLD/MCU timer/DMA)  ≥24 MS/s preferred
-            │
-            ▼
-         ESP32-S3 (or Debian) ingest ──► tools/usb_fs_l0 decoder
+USB D+/D− ── Hi-Z tap / buffer ──► FS receiver / comparator
+                                      │ line state J/K/SE0
+                                      ▼
+                                 Sampler ≥24 MS/s
+                                      │ TCP L0ST :9760
+                                      ▼
+                          Debian l0_path_b_ingest.py
+                                      │ .l0samp
+                                      ▼
+                          usb_fs_l0 decoder → correlate ↔ ESP L1
 ```
 
-### PoC goals (minimum)
+## Software (shipped)
 
-1. Passive (no series FET in data path for Phase 1)
-2. Deliver **line-state stream** or **NRZI bits** into `.l0samp` files
-3. Decode with `tools/usb_fs_l0` → `l0_packet.v1`
-4. Correlate against ESP L1 capture (`lab_l0_correlate.py`)
+| Piece | Tool |
+|-------|------|
+| Protocol | `tools/usb_fs_l0/path_b_protocol.md` |
+| Ingest | `tools/l0_path_b_ingest.py --decode` |
+| Sampler stand-in | `tools/l0_path_b_sampler_sim.py` |
+| Live pipeline | `tools/lab_l0_live_pipeline.py --source sim\|ingest` |
+| Controller | `GET /api/v1/l0/status` |
 
-### Sample file (software interface already)
+## BOM (procure for real PHY)
 
-Magic `L0S1` — see `tools/usb_fs_l0/sample_io.py`:
+| Qty | Item | Role |
+|----:|------|------|
+| 1 | USB FS differential probe / SN65LVDS2 or USB3340-class ULPI PHY eval | Line receive |
+| 1 | Series 22–39 Ω / common-mode choke as designed | Bus protection |
+| 1 | Fast MCU/CPLD with DMA ≥24 MS/s (or second ESP32-S3 **not** on GPIO19/20) | Sampler |
+| 1 | Isolated 3V3 supply | Avoid ground loops |
+| — | Short matched D+/D− tap wires | Signal integrity |
 
-| Field | Content |
-|-------|---------|
-| rate_hz | e.g. 12000000 or 24000000 |
-| format | `line_state` (2-bit J/K/SE0/SE1) or `nrzi_bits` |
-| payload | packed samples |
+Do **not** hard-parallel ESP OTG pins onto a live bus.
 
-Synthetic generator: `python3 -m tools.usb_fs_l0.gen_synth_setup`.
+## Lab bring-up (sim → real)
 
-### Electrical caution
+```bash
+./tools/l0_path_b_ingest.py --listen 0.0.0.0:9760 --out logs/l0 --decode &
+./tools/l0_path_b_sampler_sim.py --target 127.0.0.1:9760
+./tools/lab_l0_live_pipeline.py --source ingest --trigger-ep0
+```
 
-- Tap must not violate FS eye / impedance; use proper USB differential probe / buffer.
-- Do **not** parallel raw ESP PHY pins onto a live bus without a designed front-end.
-- ESD / VBUS isolation as needed.
-
-## Path C (later)
-
-FPGA bit recovery when Path B cannot sustain continuous decode + timestamping.
-
-## Next hardware lab step
-
-Procure/build a FS differential line-state tap → feed ESP UART/SPI/I2S DMA → write `.l0samp` → run decoder. Until then, all L0 packet MEASURED claims are **synthetic/offline only**.
+Replace sampler_sim with hardware TCP client speaking `L0ST` when the front-end exists.

@@ -6,7 +6,7 @@ from typing import Any
 
 
 def _l1_kind(ev: dict[str, Any]) -> str:
-    t = (ev.get("type") or ev.get("t") or "").lower()
+    t = (ev.get("event_type") or ev.get("type") or ev.get("t") or "").lower()
     note = (ev.get("note") or "").lower()
     dec = ev.get("decoded") or {}
     if isinstance(dec, dict):
@@ -18,7 +18,7 @@ def _l1_kind(ev: dict[str, Any]) -> str:
             return "bot_cbw"
         if "bot_csw" in t or t == "bot_csw":
             return "bot_csw"
-    if "enum" in t or "enum" in note:
+    if "enum" in t or "enum" in note or "get_config" in note or "get_desc" in note:
         return "enum"
     if t in ("bot_cbw", "botcsw", "bot_csw"):
         return t
@@ -44,12 +44,32 @@ def _l0_kind(pkt: dict[str, Any]) -> str:
     return pid.lower() or "other"
 
 
+def _kinds_compatible(k0: str, k1: str) -> bool:
+    if k0 == "ep0" and k1 in ("ep0", "enum"):
+        return True
+    if k0 == "bot_cbw" and k1 == "bot_cbw":
+        return True
+    if k0 == "bot_csw" and k1 == "bot_csw":
+        return True
+    if k0 in ("handshake", "token", "data0", "data1") and k1 in (
+        "ep0",
+        "enum",
+        "bot_cbw",
+        "bot_csw",
+    ):
+        return True
+    if k0 == k1:
+        return True
+    return False
+
+
 def correlate(
     l0_packets: list[dict[str, Any]],
     l1_events: list[dict[str, Any]],
     window_us: int = 50_000,
+    ignore_time: bool = False,
 ) -> dict[str, Any]:
-    """Greedy time+kind match. Synthetic timestamps may be ordinal (0,1,2…)."""
+    """Greedy kind(+time) match. Use ignore_time for synth L0 vs real ESP clocks."""
     matches = []
     used_l1: set[int] = set()
     for i, pkt in enumerate(l0_packets):
@@ -61,19 +81,15 @@ def correlate(
             if j in used_l1:
                 continue
             k1 = _l1_kind(ev)
-            if k0 == "ep0" and k1 not in ("ep0", "enum"):
+            if not _kinds_compatible(k0, k1):
                 continue
-            if k0 == "bot_cbw" and k1 != "bot_cbw":
-                continue
-            if k0 == "bot_csw" and k1 != "bot_csw":
-                continue
-            if k0 in ("handshake", "token") and k1 not in ("ep0", "enum", "bot_cbw", "bot_csw", "other", ""):
-                # weak: allow nearby transfer markers
-                if k1 not in ("ep0", "enum", "bot_cbw", "bot_csw"):
-                    continue
             t1 = int(ev.get("timestamp_us") or ev.get("t_us") or j)
             dt = abs(t1 - t0)
-            # If both look ordinal/small, loosen window
+            if ignore_time:
+                # Prefer earliest unused compatible L1 event (order-preserving).
+                best = j
+                best_dt = dt
+                break
             lim = window_us if max(t0, t1) > 1000 else max(window_us, 100)
             if dt <= lim and (best_dt is None or dt < best_dt):
                 best = j
@@ -85,7 +101,8 @@ def correlate(
                     "l0_index": i,
                     "l1_index": best,
                     "l0_pid": pkt.get("pid"),
-                    "l1_type": l1_events[best].get("type"),
+                    "l1_type": l1_events[best].get("event_type")
+                    or l1_events[best].get("type"),
                     "dt_us": best_dt,
                     "kind": k0,
                 }
@@ -93,9 +110,14 @@ def correlate(
     return {
         "ok": True,
         "claim": "l0_l1_correlate_lab",
-        "note": "synthetic_or_offline_not_live_wire",
+        "note": (
+            "ignore_time_kind_order"
+            if ignore_time
+            else "synthetic_or_offline_not_live_wire"
+        ),
         "l0_n": len(l0_packets),
         "l1_n": len(l1_events),
         "matched": len(matches),
         "matches": matches,
+        "ignore_time": ignore_time,
     }

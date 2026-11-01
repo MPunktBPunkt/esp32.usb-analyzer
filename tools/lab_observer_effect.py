@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Gate 11 starter — observer-effect baseline (control metrics Δ).
-
-Compares Host direct OTG MSC READ vs Device MSC-proxy selftest path to the
-same DUT (when wired for proxy) OR vs Host probe alone on OTG loop.
+"""Observer-effect baseline (Gate 11).
 
 Modes:
-  loop   — OTG Host↔Device cable: direct Host probe only (+ optional 2nd probe)
-  proxy  — Host has FS DUT; Device proxy-selftest vs Host usb-host-read
+  loop   — Host OTG MSC READ repeatability
+  proxy  — direct Host USB READ vs Device→Host MSC-proxy (WiFi)
+           On OTG-loop: uses Host proxy-source=pattern + Device identity=0
+           to avoid Device↔Host USB recursion.
 
-Claim: observer_effect_baseline_lab — NOT transparent MITM / NOT L0.
+Claim: observer_effect_baseline_lab — NOT transparency FACT / NOT L0.
 """
 from __future__ import annotations
 
@@ -18,7 +17,6 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import zlib
 
 
 def get(url: str, timeout: float = 10) -> dict:
@@ -39,17 +37,14 @@ def post(url: str, timeout: float = 60) -> dict:
             return {"ok": False, "err": f"http_{e.code}", "body": body[:200]}
 
 
-def crc32_hex(data: bytes) -> str:
-    return f"{zlib.crc32(data) & 0xffffffff:08x}"
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="192.168.178.88")
     ap.add_argument("--device", default="192.168.178.89")
-    ap.add_argument("--mode", choices=("loop", "proxy"), default="loop")
+    ap.add_argument("--mode", choices=("loop", "proxy"), default="proxy")
     ap.add_argument("--blocks", type=int, default=32)
     ap.add_argument("--chunk", type=int, default=4)
+    ap.add_argument("--proxy-blocks", type=int, default=8)
     ap.add_argument("--runs", type=int, default=3)
     args = ap.parse_args()
 
@@ -78,7 +73,6 @@ def main() -> int:
         "ok": True,
         "mode": args.mode,
         "claim": "observer_effect_baseline_lab",
-        "note": "stack_path_delta_not_l0_not_transparency_fact",
         "direct": {
             "rate_kBs_avg": sum(direct_rates) / len(direct_rates),
             "duration_ms_avg": sum(direct_ms) / len(direct_ms),
@@ -87,54 +81,77 @@ def main() -> int:
     }
 
     if args.mode == "proxy":
-        # Arm is caller's job; try selftest vs host-read
-        peer = args.host
-        post(
+        # Host serves lab pattern over MSC-proxy (loop-safe).
+        src = post(f"http://{args.host}/api/lab/proxy-source?mode=pattern")
+        print("proxy-source", src)
+        arm = post(
             f"http://{args.device}/api/lab/usb-proxy?"
-            + urllib.parse.urlencode({"enable": 1, "peer": peer}),
-            timeout=20,
+            + urllib.parse.urlencode(
+                {"enable": 1, "peer": args.host, "identity": 0, "reenum": 0}
+            )
         )
-        time.sleep(0.5)
-        st = post(
-            f"http://{args.device}/api/lab/usb-proxy-selftest?"
-            + urllib.parse.urlencode({"lba": 0, "blocks": min(args.blocks, 8)}),
-            timeout=60,
-        )
-        print("proxy_selftest", json.dumps(st, indent=2)[:500])
-        hr = post(
-            f"http://{args.host}/api/lab/usb-host-read?"
-            + urllib.parse.urlencode({"lba": 0, "blocks": min(args.blocks, 8)}),
-            timeout=60,
-        )
-        print("host_read", "ok=", hr.get("ok"), "bytes=", hr.get("bytes"))
-        result["proxy"] = {
-            "selftest_ok": bool(st.get("ok")),
-            "host_read_ok": bool(hr.get("ok")),
-            "selftest_ms": st.get("duration_ms"),
-            "match": st.get("ok") and hr.get("ok"),
-        }
-        if not (st.get("ok") and hr.get("ok")):
+        print("proxy-arm", arm)
+        time.sleep(0.4)
+        st_times: list[float] = []
+        st_ok = True
+        for i in range(args.runs):
+            st = post(
+                f"http://{args.device}/api/lab/usb-proxy-selftest?"
+                + urllib.parse.urlencode(
+                    {"lba": 0, "blocks": min(args.proxy_blocks, 8)}
+                ),
+                timeout=60,
+            )
+            print(f"proxy[{i}]", "ok=", st.get("ok"), "ms=", st.get("duration_ms"),
+                  "err=", st.get("err"))
+            if not st.get("ok"):
+                st_ok = False
+                result["proxy_last"] = st
+                break
+            st_times.append(float(st.get("duration_ms") or 0))
+            time.sleep(0.1)
+        # restore
+        post(f"http://{args.device}/api/lab/usb-proxy?enable=0")
+        post(f"http://{args.host}/api/lab/proxy-source?mode=dut")
+
+        if not st_ok or not st_times:
             result["ok"] = False
-            result["err"] = "proxy_path_incomplete"
+            result["err"] = "proxy_path_fail"
             print(json.dumps(result, indent=2))
-            print("FAIL proxy path — check MITM wiring (DUT on Host, PC/gadget on Device)")
             return 1
-        # Rough Δ: proxy path slower than direct (expected)
+        p_ms = sum(st_times) / len(st_times)
         d_ms = result["direct"]["duration_ms_avg"]
-        p_ms = float(st.get("duration_ms") or 0)
+        # Normalize rough throughput estimate for proxy bytes
+        proxy_bytes = min(args.proxy_blocks, 8) * 512
+        proxy_kbs = (proxy_bytes / 1024.0) / (p_ms / 1000.0) if p_ms > 0 else 0
+        result["proxy"] = {
+            "ok": True,
+            "source": "pattern",
+            "identity": "skipped",
+            "duration_ms_avg": p_ms,
+            "rate_kBs_est": round(proxy_kbs, 1),
+            "blocks": min(args.proxy_blocks, 8),
+            "note": "wifi_msc_proxy_pattern_fill_otg_loop_safe",
+        }
         result["delta"] = {
             "proxy_minus_direct_ms": p_ms - d_ms,
-            "interpretation": "positive_ms_means_proxy_slower_than_direct_otg",
+            "direct_kBs": result["direct"]["rate_kBs_avg"],
+            "proxy_kBs_est": round(proxy_kbs, 1),
+            "interpretation": (
+                "positive_ms ⇒ proxy/WiFi slower than direct OTG USB; "
+                "pattern source ≠ DUT MITM transparency"
+            ),
         }
+        result["note"] = "otg_loop_proxy_vs_direct_not_pc_stick_mitm"
     else:
-        # loop: second probe series as repeatability baseline
         result["delta"] = {
             "rate_kBs_spread": max(direct_rates) - min(direct_rates),
-            "interpretation": "OTG_loop_repeatability_not_pc_stick_vs_mitm",
+            "interpretation": "OTG_loop_repeatability",
         }
+        result["note"] = "loop_repeatability_only"
 
     print(json.dumps(result, indent=2))
-    print("RESULT OK — observer-effect baseline recorded")
+    print("RESULT OK — observer-effect baseline")
     print("claim: observer_effect_baseline_lab (not transparency FACT)")
     return 0 if result.get("ok") else 1
 

@@ -1,19 +1,13 @@
-# Lab MEASURED — Observer-effect baseline starter (0.0.38)
+# Lab MEASURED — Observer-effect baseline (0.0.39)
 
-**Tool:** `tools/lab_observer_effect.py`  
-**Claim:** `observer_effect_baseline_lab` — **not** transparency FACT / **not** L0.
+**Tool:** `tools/lab_observer_effect.py --mode proxy`  
+**Topology:** OTG Host↔Device loop · Host `proxy-source=pattern` · Device `identity=0`
 
-## Mode `loop` (OTG Host↔Device) — this lab
+| Path | Result |
+|------|--------|
+| Direct Host MSC READ | **~844 kB/s**, ~9.5 ms (16 blocks / chunk 4) |
+| WiFi MSC-proxy selftest | **~25 kB/s est.**, ~160 ms avg (8 blocks, pattern fill) |
+| Δ | proxy slower by **~151 ms** |
 
-| Metric | Value |
-|--------|------:|
-| Host MSC READ rate avg | **842 kB/s** (32 blocks, chunk=4, 2 runs) |
-| Duration avg | **19 ms** |
-| Rate spread | **0** |
-
-Interpretation: repeatability baseline on stack path.  
-**Not** PC-stick-only vs MITM Δ (needs `--mode proxy` + MITM wiring).
-
-## Mode `proxy`
-
-Requires FS DUT on Host OTG and Device facing PC/gadget; records proxy-selftest vs host-read and ms Δ. Run when MITM topology is up.
+**Claim:** `observer_effect_baseline_lab`  
+**Not claimed:** PC-stick MITM transparency; DUT-sourced proxy (would recurse on loop).

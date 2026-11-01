@@ -70,9 +70,9 @@ Requirement text (do not over-constrain):
 - Lab AOA/BCL ≠ HU BCL-on-wire.
 - No D+/D− panel that implies Level-3 without MEASURED packets.
 
-## Next (after 0.0.38 software scaffold)
+## Next (after 0.0.39 software Path B pipe)
 
-1. **Path B hardware** — FS differential tap / line-state front-end → `.l0samp` ingest (see `docs/hardware/L0_CAPTURE_POC.md`)
-2. Live decode of real bus samples + `lab_l0_correlate.py` against ESP L1 capture
-3. Observer `--mode proxy` with MITM wiring (DUT on Host, PC on Device)
+1. **Solder/procure Path B front-end** (BOM in `L0_CAPTURE_POC.md`) — replace `sampler_sim`
+2. Live PHY samples → same ingest/pipeline (already MEASURED with sim)
+3. True MITM observer with FS stick on Host + Device→PC (pattern-proxy is loop stand-in)
 4. Keep Debian controller up: `systemctl --user status usb-analyzer-controller`

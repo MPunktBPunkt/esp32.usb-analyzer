@@ -302,12 +302,54 @@ void AnalyzerStatusModule::handleUsbProxy() {
                   F("{\"ok\":false,\"err\":\"no_dataplane\"}"));
     return;
   }
-  device_->setProxy(data_, peer);
+  bool skip_id = false;
+  if (server_->hasArg("identity")) {
+    const String id = server_->arg("identity");
+    skip_id = (id == "0" || id == "false" || id == "off" || id == "skip");
+  }
+  if (server_->hasArg("reenum")) {
+    const String r = server_->arg("reenum");
+    if (r == "0" || r == "false" || r == "off") {
+      skip_id = true;
+    }
+  }
+  device_->setProxy(data_, peer, skip_id);
   String j = "{\"ok\":true,\"proxy\":true,\"peer\":\"";
   j += peer;
-  j += "\",\"note\":\"MITM wiring: Device OTG→PC, Host OTG→DUT; not OTG-loop\"";
-  j += ",\"identity\":\"async_apply_dut_snapshot_soft_reenum\"";
-  j += ",\"claim\":\"gadget_identity_from_dut_snapshot\"}";
+  j += "\",\"skipIdentity\":";
+  j += skip_id ? "true" : "false";
+  j += ",\"note\":\"";
+  j += skip_id ? "otg_loop_lab_no_identity_reenum"
+               : "MITM wiring: Device OTG→PC, Host OTG→DUT; not OTG-loop";
+  j += "\",\"identity\":\"";
+  j += skip_id ? "skipped" : "async_apply_dut_snapshot_soft_reenum";
+  j += "\",\"claim\":\"gadget_identity_from_dut_snapshot\"}";
+  server_->send(200, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleProxySource() {
+  if (!server_ || !data_) {
+    return;
+  }
+  if (role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  String mode = server_->hasArg("mode") ? server_->arg("mode") : "";
+  if (mode.length() == 0 && server_->hasArg("source")) {
+    mode = server_->arg("source");
+  }
+  if (mode == "pattern" || mode == "lab") {
+    data_->setMscProxySourcePattern(true);
+  } else if (mode == "dut" || mode == "usb") {
+    data_->setMscProxySourcePattern(false);
+  }
+  String j = "{\"ok\":true,\"source\":\"";
+  j += data_->mscProxySourcePattern() ? "pattern" : "dut";
+  j += "\",\"claim\":\"msc_proxy_source_lab\"";
+  j += ",\"note\":\"pattern_avoids_otg_loop_proxy_recursion\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(200, F("application/json"), j);
 }
 
@@ -549,6 +591,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/usb-proxy", HTTP_ANY, [this]() { handleUsbProxy(); });
   server.on("/api/lab/usb-proxy-selftest", HTTP_ANY,
             [this]() { handleUsbProxySelftest(); });
+  server.on("/api/lab/proxy-source", HTTP_ANY,
+            [this]() { handleProxySource(); });
   server.on("/api/lab/usb-ctrl-forward", HTTP_ANY,
             [this]() { handleUsbCtrlForward(); });
   server.on("/api/lab/aoa-respond", HTTP_ANY, [this]() { handleAoaRespond(); });

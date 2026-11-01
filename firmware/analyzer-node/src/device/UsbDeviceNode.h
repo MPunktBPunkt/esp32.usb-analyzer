@@ -28,8 +28,11 @@ public:
   void notifySuspended(bool on);
 
   /** When enabled, onRead/onWrite go to peer Host DUT over WiFi (MITM path). */
-  void setProxy(DataPlane *plane, const String &peer_ip);
+  /** @param skip_identity  true → no DUT snapshot / soft-reenum (OTG-loop lab). */
+  void setProxy(DataPlane *plane, const String &peer_ip,
+                bool skip_identity = false);
   bool proxyEnabled() const { return proxy_on_; }
+  bool proxySkipIdentity() const { return proxy_skip_identity_; }
   const String &proxyPeer() const { return proxy_peer_; }
   bool refreshProxiedDut();
   bool hasProxiedDut() const { return proxied_dut_.present != 0; }
@@ -106,6 +109,7 @@ private:
   DataPlane *proxy_plane_ = nullptr;
   String proxy_peer_;
   bool proxy_on_ = false;
+  bool proxy_skip_identity_ = false;
   DutInfoSnapshot proxied_dut_{};
   bool identity_applied_ = false;
   bool pending_reenum_ = false;

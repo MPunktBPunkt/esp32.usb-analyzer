@@ -78,6 +78,14 @@ class TestCorrelate(unittest.TestCase):
         self.assertGreaterEqual(r["matched"], 1)
         kinds = [m["kind"] for m in r["matches"]]
         self.assertIn("ep0", kinds)
+        # Real ESP timestamps vs ordinal L0 → need ignore_time
+        l1_real = [
+            {"type": "enum_info", "timestamp_us": 9_000_000, "note": "get_descriptor"},
+            {"type": "enum_info", "timestamp_us": 9_000_100, "note": "ep0"},
+            {"type": "enum_info", "timestamp_us": 9_000_200, "note": "status"},
+        ]
+        r2 = correlate(l0, l1_real, ignore_time=True)
+        self.assertGreaterEqual(r2["matched"], 1)
 
 
 if __name__ == "__main__":

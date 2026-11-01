@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.39: Path B ingest+live L0 pipeline + OTG-loop-safe MSC proxy-source/pattern + observer proxy mode
 - Lab controller: harden HTTP handler, `run_lab_controller.sh`, user-systemd unit — recovers dead `:8080` UI
 - FW 0.0.38: Gate 10A–F scaffold — L0 feasibility API, offline FS decoder/correlator, observer-effect baseline tool, Path B PoC docs — **not** live D+/D− / HU
 - FW 0.0.37: TCP sliding-window pipeline (`pipeline=1` on `/api/lab/integrity`) — MEASURED vs barrier windowed; **not** USB MITM

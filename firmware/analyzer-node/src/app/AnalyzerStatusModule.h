@@ -42,6 +42,7 @@ private:
   void handleUsbHostRead();
   void handleUsbProxy();
   void handleUsbProxySelftest();
+  void handleProxySource();
   void handleUsbCtrlForward();
   void handleAoaRespond();
   void handleAoaHandshake();
