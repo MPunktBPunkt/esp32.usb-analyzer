@@ -99,6 +99,15 @@ See [`GATE10_STATUS.md`](GATE10_STATUS.md). Strictly separate:
 **Evidence:** `docs/evidence/LAB_GATE10A_E11_GPIO_SAMPLE.md`  
 **Claim:** `gate10a_e11_gpio_sample` — not live FS packets.
 
+### E1.2 Path B GPIO lab substitute (packages 1–4 software)
+
+**Hypothesis:** Free GPIOs can emit known FS line-state sequences for ingest/decoder tests without a soldered tap.
+
+**Protocol:** Host `path-b-gpio` mode `txrx_l0st` → Debian ingest → decode/correlate.
+
+**Tool:** `tools/lab_path_b_gpio.py` · Evidence: `LAB_PATH_B_GPIO_LAB_MEASURED.md`  
+**Claim:** `path_b_gpio_lab` — not live OTG PHY.
+
 ### E2 Offline decoder (10B–D)
 
 Host unit: `tools/usb_fs_l0` + `tests/host/run_usb_fs_l0_tests.sh` — NRZI, stuff, PID, CRC, packets.

@@ -56,6 +56,7 @@ private:
   void handleUsbCtrlNeg();
   void handleL0Feasibility();
   void handleE11GpioSample();
+  void handlePathBGpio();
   void handleSyncMarker();
   void handleCapture();
 };

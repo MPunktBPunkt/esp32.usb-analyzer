@@ -6,6 +6,7 @@
 #include "capture/CaptureLog.h"
 #include "device/UsbDeviceNode.h"
 #include "host/UsbHostNode.h" // HostMscProbeResult
+#include "l0/PathBGpioLab.h"
 #include "protocol/DataPlane.h"
 #include <cstring>
 #include <esp_timer.h>
@@ -612,6 +613,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleL0Feasibility(); });
   server.on("/api/lab/e11-gpio-sample", HTTP_ANY,
             [this]() { handleE11GpioSample(); });
+  server.on("/api/lab/path-b-gpio", HTTP_ANY,
+            [this]() { handlePathBGpio(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1358,6 +1361,79 @@ void AnalyzerStatusModule::handleE11GpioSample() {
   j += ",\"claim\":\"gate10a_e11_gpio_sample\"";
   j += ",\"experiment\":\"E1.1\"";
   j += ",\"gate\":\"10A\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handlePathBGpio() {
+  if (!server_) {
+    return;
+  }
+  String mode = server_->hasArg("mode") ? server_->arg("mode") : "txrx";
+  uint32_t rate = 100000;
+  int dp = PathBGpioLab::kDefaultDpPin;
+  int dm = PathBGpioLab::kDefaultDmPin;
+  uint16_t l0st_port = PathBGpioLab::kDefaultL0stPort;
+  String l0st_host = controller_host_;
+  if (server_->hasArg("rate")) {
+    rate = static_cast<uint32_t>(server_->arg("rate").toInt());
+  }
+  if (server_->hasArg("dp")) {
+    dp = server_->arg("dp").toInt();
+  }
+  if (server_->hasArg("dm")) {
+    dm = server_->arg("dm").toInt();
+  }
+  if (server_->hasArg("l0st_host")) {
+    l0st_host = server_->arg("l0st_host");
+  }
+  if (server_->hasArg("l0st_port")) {
+    l0st_port = static_cast<uint16_t>(server_->arg("l0st_port").toInt());
+  }
+  PathBGpioLab lab;
+  const PathBGpioLab::Result r =
+      lab.run(mode, rate, dp, dm, l0st_host, l0st_port);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"mode\":\"";
+  j += r.mode;
+  j += "\",\"dpPin\":";
+  j += String(r.dp_pin);
+  j += ",\"dmPin\":";
+  j += String(r.dm_pin);
+  j += ",\"rateHz\":";
+  j += String(r.rate_hz);
+  j += ",\"achievedRateHz\":";
+  j += String(r.achieved_rate_hz);
+  j += ",\"statesTx\":";
+  j += String(r.states_tx);
+  j += ",\"statesRx\":";
+  j += String(r.states_rx);
+  j += ",\"mismatches\":";
+  j += String(r.mismatches);
+  j += ",\"loopbackOk\":";
+  j += r.loopback_ok ? "true" : "false";
+  j += ",\"l0stOk\":";
+  j += r.l0st_ok ? "true" : "false";
+  j += ",\"l0stBytes\":";
+  j += String(r.l0st_bytes);
+  j += ",\"l0stHost\":\"";
+  j += r.l0st_host;
+  j += "\",\"l0stPort\":";
+  j += String(r.l0st_port);
+  j += ",\"durationUs\":";
+  j += String(r.duration_us);
+  j += ",\"note\":\"";
+  j += r.note;
+  j += "\"";
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"path_b_gpio_lab\"";
+  j += ",\"package\":\"1_path_b_lab_substitute\"";
+  j += ",\"notClaimed\":\"live_otg_dplus_dminus_phy\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }

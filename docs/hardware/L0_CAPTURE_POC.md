@@ -1,7 +1,13 @@
 # L0 Capture Hardware PoC — Path B
 
-**Software status (0.0.39):** ingest `:9760`, sampler sim, live pipeline — **MEASURED** end-to-end with sim.  
-**Hardware status:** external FS front-end **not soldered** — live D+/D− PHY still UNKNOWN.
+**Software status (0.0.41):** ingest `:9760`, sampler sim, **Path B GPIO lab** (Host bit-bang GPIO10/11 + L0ST), live pipeline — MEASURED.  
+**Hardware status:** external FS front-end **not soldered** — live OTG D+/D− PHY still UNKNOWN.
+
+## Can the Host ESP send test data on GPIO?
+
+**Yes (lab).** `/api/lab/path-b-gpio` drives synthetic SETUP/DATA0/ACK line-states on **free** pins (default GPIO10=D+, GPIO11=D−), self-samples them, optionally pushes `L0ST` to Debian.  
+Default rate **100 kHz** (slow, intentional). Cap 2 MHz — **not** a claim of FS 12 MHz wire capture.  
+**Never** uses GPIO19/20 (OTG PHY).
 
 ## Why not Path A
 

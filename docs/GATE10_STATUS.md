@@ -71,9 +71,24 @@ Requirement text (do not over-constrain):
 - Lab AOA/BCL ≠ HU BCL-on-wire.
 - No D+/D− panel that implies Level-3 without MEASURED packets.
 
-## Next (after 0.0.40 E1.1)
+## Packages after 0.0.40 (status in 0.0.41)
 
-1. **Solder/procure Path B front-end** (BOM in `L0_CAPTURE_POC.md`) — replace `sampler_sim`
-2. Live PHY samples → same ingest/pipeline (already MEASURED with sim)
-3. True MITM observer with FS stick on Host + Device→PC (pattern-proxy is loop stand-in)
-4. Keep Debian controller up: `systemctl --user status usb-analyzer-controller`
+| # | Package | Status |
+|---|---------|--------|
+| 1 | Path B front-end | **Lab substitute MEASURED** — GPIO10/11 bit-bang + L0ST (`path_b_gpio_lab`); soldered Hi-Z tap still open |
+| 2 | Live L0↔L1 on real samples | **MEASURED** via GPIO→ingest→pipeline (+ sim path) |
+| 3 | True MITM observer | **Loop proxy MEASURED**; FS-stick↔PC wiring still open |
+| 4 | Sampler FW/client | **Shipped** — ESP `path-b-gpio` + `sampler_sim` + ingest protocol |
+| 5 | 10G HU / Path C | **Parked** — see below |
+
+### Parked (5)
+
+- **10G** BMW/HU passive capture — needs Path B PHY on vehicle bus + session profile  
+- **Path C** FPGA/CPLD — only if Path B sampler rate/jitter insufficient  
+- CDC/UVC class slices / HS decision — still parked
+
+## Next hardware
+
+1. Procure/solder Path B Hi-Z tap (BOM) — replace GPIO lab / sim as *wire* source  
+2. Optional: jumper Host GPIO10/11 → second ESP RX for dual-node sampler  
+3. FS stick on Host + Device→PC for true observer MITM
