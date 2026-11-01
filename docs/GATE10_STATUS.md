@@ -20,7 +20,7 @@ L1/L2 TinyUSB stack remains the **reference channel**. L0 is an **independent** 
 
 | Phase | Prove | Status |
 |-------|-------|--------|
-| **10A** | Feasibility: GPIO19/20 vs OTG PHY; DWC status regs (Level-2) | **MEASURED** — Path A falsified; see `LAB_GATE10A_FEASIBILITY.md` |
+| **10A** | Feasibility: GPIO19/20 vs OTG PHY; DWC status regs (Level-2) | **MEASURED** — Path A falsified; E1.1 rate/jitter/destruct: `LAB_GATE10A_E11_GPIO_SAMPLE.md` |
 | **10B** | FS bit path: NRZI + bit-stuff (offline/synth) | **MEASURED** host unit |
 | **10C** | Packet decoder: Token/Data/Handshake | **MEASURED** host unit |
 | **10D** | CRC5/CRC16 + DATA0/1 | **MEASURED** host unit |
@@ -57,11 +57,12 @@ Requirement text (do not over-constrain):
 | Artifact | Path |
 |----------|------|
 | 10A evidence | `docs/evidence/LAB_GATE10A_FEASIBILITY.md` |
+| E1.1 GPIO sample | `docs/evidence/LAB_GATE10A_E11_GPIO_SAMPLE.md` |
 | Observer baseline | `docs/evidence/LAB_OBSERVER_EFFECT_BASELINE.md` |
 | Hardware PoC B | `docs/hardware/L0_CAPTURE_POC.md` |
 | Packet schema | `docs/schemas/l0_packet.v1.md` |
 | Decoder / correlator | `tools/usb_fs_l0/` |
-| Lab tools | `lab_l0_feasibility.py`, `lab_observer_effect.py`, `lab_l0_correlate.py` |
+| Lab tools | `lab_l0_feasibility.py`, `lab_e11_gpio_sample.py`, `lab_observer_effect.py`, `lab_l0_correlate.py` |
 
 ## Claim discipline
 
@@ -70,7 +71,7 @@ Requirement text (do not over-constrain):
 - Lab AOA/BCL ≠ HU BCL-on-wire.
 - No D+/D− panel that implies Level-3 without MEASURED packets.
 
-## Next (after 0.0.39 software Path B pipe)
+## Next (after 0.0.40 E1.1)
 
 1. **Solder/procure Path B front-end** (BOM in `L0_CAPTURE_POC.md`) — replace `sampler_sim`
 2. Live PHY samples → same ingest/pipeline (already MEASURED with sim)

@@ -55,6 +55,7 @@ private:
   void handleUsbSuspendResume();
   void handleUsbCtrlNeg();
   void handleL0Feasibility();
+  void handleE11GpioSample();
   void handleSyncMarker();
   void handleCapture();
 };

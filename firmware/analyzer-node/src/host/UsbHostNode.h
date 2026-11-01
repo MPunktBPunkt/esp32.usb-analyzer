@@ -254,6 +254,48 @@ public:
   };
   L0FeasibilityResult runL0Feasibility();
 
+  /**
+   * Experiment E1.1 / Gate 10A hardening: poll GPIO19/20 (D−/D+) while OTG
+   * owns the PHY, optionally with concurrent MSC traffic on the other core.
+   * Measures sample rate, poll jitter, edge counts, and bus stability.
+   * Claim: gate10a_e11_gpio_sample — NOT usable FS L0 capture.
+   */
+  struct E11GpioSampleResult {
+    bool ok = false;
+    bool host_begun = false;
+    bool dut_before = false;
+    bool dut_after = false;
+    bool prt_conn_before = false;
+    bool prt_conn_after = false;
+    bool prt_ena_before = false;
+    bool prt_ena_after = false;
+    uint32_t hprt_before = 0;
+    uint32_t hprt_after = 0;
+    uint32_t samples = 0;
+    uint32_t duration_us = 0;
+    uint32_t rate_ksps = 0; // thousand samples / second
+    uint32_t transitions_dm = 0;
+    uint32_t transitions_dp = 0;
+    uint32_t sample_dt_min_cy = 0;
+    uint32_t sample_dt_max_cy = 0;
+    uint32_t sample_dt_avg_cy = 0;
+    uint32_t cpu_mhz = 0;
+    uint32_t jitter_pp_ns = 0; // peak-to-peak poll period estimate
+    bool traffic_ok = false;
+    uint32_t traffic_rate_kBs = 0;
+    bool post_probe_ok = false;
+    bool bus_stable = false;
+    bool destructive = false;
+    bool meaningful_edges = false;
+    bool path_a_usable = false;
+    String path_a_reason;
+    String note;
+    String error;
+    uint32_t duration_ms = 0;
+  };
+  E11GpioSampleResult runE11GpioSample(uint32_t samples = 200000,
+                                       uint32_t traffic_blocks = 32);
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;

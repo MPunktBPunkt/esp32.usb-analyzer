@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.40: Gate 10A / E1.1 — GPIO19/20 peek-poll under live OTG bus (rate/jitter/destruct MEASURED)
 - FW 0.0.39: Path B ingest+live L0 pipeline + OTG-loop-safe MSC proxy-source/pattern + observer proxy mode
 - Lab controller: harden HTTP handler, `run_lab_controller.sh`, user-systemd unit — recovers dead `:8080` UI
 - FW 0.0.38: Gate 10A–F scaffold — L0 feasibility API, offline FS decoder/correlator, observer-effect baseline tool, Path B PoC docs — **not** live D+/D− / HU

@@ -11,7 +11,10 @@
 #include <algorithm>
 #include <cstring>
 #include <esp_timer.h>
+#include <esp_cpu.h>
 #include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <hal/usb_dwc_ll.h>
 #include <usb_analyzer/BclLabFrame.h>
 #include <usb_analyzer/UsbLabPattern.h>
@@ -1163,6 +1166,200 @@ UsbHostNode::L0FeasibilityResult UsbHostNode::runL0Feasibility() {
   return r;
 }
 
+namespace {
+
+struct E11SamplerShared {
+  volatile bool run = true;
+  volatile bool done = false;
+  uint32_t target = 0;
+  uint32_t samples = 0;
+  uint32_t transitions_dm = 0;
+  uint32_t transitions_dp = 0;
+  uint32_t dt_min = 0;
+  uint32_t dt_max = 0;
+  uint64_t dt_sum = 0;
+  uint32_t duration_us = 0;
+};
+
+void e11SampleTask(void *arg) {
+  auto *s = static_cast<E11SamplerShared *>(arg);
+  // Peek only — never gpio_set_direction / matrix remux (would kill OTG).
+  int prev_dm = gpio_get_level(GPIO_NUM_19);
+  int prev_dp = gpio_get_level(GPIO_NUM_20);
+  uint32_t last_cy = esp_cpu_get_cycle_count();
+  const int64_t t0 = esp_timer_get_time();
+  s->dt_min = UINT32_MAX;
+  s->dt_max = 0;
+  s->dt_sum = 0;
+  s->transitions_dm = 0;
+  s->transitions_dp = 0;
+  s->samples = 0;
+  while (s->run && s->samples < s->target) {
+    const int dm = gpio_get_level(GPIO_NUM_19);
+    const int dp = gpio_get_level(GPIO_NUM_20);
+    const uint32_t cy = esp_cpu_get_cycle_count();
+    const uint32_t dcy = cy - last_cy;
+    last_cy = cy;
+    if (s->samples > 0) {
+      if (dcy < s->dt_min) {
+        s->dt_min = dcy;
+      }
+      if (dcy > s->dt_max) {
+        s->dt_max = dcy;
+      }
+      s->dt_sum += dcy;
+    }
+    if (dm != prev_dm) {
+      s->transitions_dm++;
+      prev_dm = dm;
+    }
+    if (dp != prev_dp) {
+      s->transitions_dp++;
+      prev_dp = dp;
+    }
+    s->samples++;
+  }
+  s->duration_us =
+      static_cast<uint32_t>(esp_timer_get_time() - t0);
+  s->done = true;
+  vTaskDelete(nullptr);
+}
+
+} // namespace
+
+UsbHostNode::E11GpioSampleResult
+UsbHostNode::runE11GpioSample(uint32_t samples, uint32_t traffic_blocks) {
+  E11GpioSampleResult r;
+  const uint32_t t0 = millis();
+  r.host_begun = begin_ok_;
+  r.cpu_mhz = getCpuFrequencyMhz();
+  r.note = "peek_only_no_pin_remux;concurrent_msc_on_other_core";
+  r.path_a_usable = false;
+  r.path_a_reason =
+      "cpu_gpio_poll_rate_and_phy_ownership_insufficient_for_fs_l0";
+
+  if (!begin_ok_) {
+    r.error = "host_disabled";
+    r.ok = true;
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  if (samples < 1000) {
+    samples = 1000;
+  }
+  if (samples > 2000000) {
+    samples = 2000000;
+  }
+  if (traffic_blocks > 512) {
+    traffic_blocks = 512;
+  }
+
+  r.dut_before = deviceCount() > 0;
+  r.hprt_before = USB_DWC.hprt_reg.val;
+  r.prt_conn_before = usb_dwc_ll_hprt_get_conn_status(&USB_DWC);
+  r.prt_ena_before = usb_dwc_ll_hprt_get_port_en(&USB_DWC);
+
+  E11SamplerShared shared;
+  shared.target = samples;
+  // Pin sampler on APP CPU (1); MSC/WiFi stay on PRO CPU (0).
+  const BaseType_t created =
+      xTaskCreatePinnedToCore(e11SampleTask, "e11gpio", 4096, &shared,
+                              configMAX_PRIORITIES - 1, nullptr, 1);
+  if (created != pdPASS) {
+    r.error = "sampler_task_create_failed";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  // Concurrent bus traffic while sampling (if DUT present).
+  if (r.dut_before && traffic_blocks > 0) {
+    const HostMscProbeResult msc = runMscProbe(traffic_blocks, 0, 4);
+    r.traffic_ok = msc.ok && msc.pattern_ok;
+    r.traffic_rate_kBs = msc.rate_kBs;
+  } else {
+    // Idle window: let sampler run ~same wall time as a short transfer.
+    delay(50);
+    r.traffic_ok = false;
+  }
+
+  shared.run = false;
+  const uint32_t wait_t0 = millis();
+  while (!shared.done && (millis() - wait_t0) < 5000) {
+    delay(1);
+  }
+  if (!shared.done) {
+    r.error = "sampler_timeout";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+
+  r.samples = shared.samples;
+  r.duration_us = shared.duration_us;
+  r.transitions_dm = shared.transitions_dm;
+  r.transitions_dp = shared.transitions_dp;
+  r.sample_dt_min_cy = (shared.dt_min == UINT32_MAX) ? 0 : shared.dt_min;
+  r.sample_dt_max_cy = shared.dt_max;
+  if (shared.samples > 1) {
+    r.sample_dt_avg_cy =
+        static_cast<uint32_t>(shared.dt_sum / (shared.samples - 1));
+  }
+  if (r.duration_us > 0) {
+    r.rate_ksps = static_cast<uint32_t>(
+        (static_cast<uint64_t>(r.samples) * 1000ULL) / r.duration_us);
+  }
+  if (r.cpu_mhz > 0 && r.sample_dt_max_cy >= r.sample_dt_min_cy) {
+    const uint32_t pp_cy = r.sample_dt_max_cy - r.sample_dt_min_cy;
+    r.jitter_pp_ns =
+        static_cast<uint32_t>((static_cast<uint64_t>(pp_cy) * 1000ULL) /
+                              r.cpu_mhz);
+  }
+
+  r.dut_after = deviceCount() > 0;
+  r.hprt_after = USB_DWC.hprt_reg.val;
+  r.prt_conn_after = usb_dwc_ll_hprt_get_conn_status(&USB_DWC);
+  r.prt_ena_after = usb_dwc_ll_hprt_get_port_en(&USB_DWC);
+
+  // Post health: short MSC or GET_DESCRIPTOR.
+  if (r.dut_after) {
+    const HostMscProbeResult post = runMscProbe(8, 0, 4);
+    r.post_probe_ok = post.ok && post.pattern_ok;
+  } else {
+    r.post_probe_ok = false;
+  }
+
+  r.bus_stable = r.dut_after && r.prt_ena_after && r.post_probe_ok &&
+                 r.prt_conn_after;
+  // Peek-only is expected non-destructive; flag if bus died anyway.
+  r.destructive = !r.bus_stable;
+  // "Meaningful" = saw edges during concurrent traffic (not SE0-idle noise).
+  const uint32_t edges = r.transitions_dm + r.transitions_dp;
+  r.meaningful_edges = r.traffic_ok && edges >= 16;
+
+  // FS needs ≥12 MS/s (≥12000 ksps); prefer 24+. Measured poll is far below.
+  const bool rate_ok_for_fs = r.rate_ksps >= 24000;
+  r.path_a_usable = false;
+  if (r.destructive) {
+    r.path_a_reason = "gpio_poll_coincided_with_bus_instability";
+  } else if (!rate_ok_for_fs) {
+    r.path_a_reason =
+        "poll_rate_below_fs_nyquist_need_ge_24Msps_path_b_required";
+  } else if (!r.meaningful_edges) {
+    r.path_a_reason =
+        "no_packet_grade_edges_while_otg_owns_internal_phy_pins";
+  } else {
+    r.path_a_reason =
+        "edges_seen_but_not_a_validated_fs_packet_sniffer_prefer_path_b";
+  }
+
+  r.ok = true;
+  r.duration_ms = millis() - t0;
+  CaptureLog::instance().push(
+      CapRole::Host, CapType::EnumInfo, r.destructive ? 1 : 0, r.rate_ksps,
+      r.transitions_dm + r.transitions_dp, r.jitter_pp_ns, 0, "e11_gpio_sample");
+  return r;
+}
+
 UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
   CtrlNegResult r;
   const uint32_t t0 = millis();
@@ -1378,6 +1575,15 @@ UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
 UsbHostNode::L0FeasibilityResult UsbHostNode::runL0Feasibility() {
   L0FeasibilityResult r;
   r.path_a_sniffer_ok = false;
+  r.path_a_reason = "host_disabled";
+  r.error = "host_disabled";
+  r.ok = true;
+  return r;
+}
+UsbHostNode::E11GpioSampleResult
+UsbHostNode::runE11GpioSample(uint32_t, uint32_t) {
+  E11GpioSampleResult r;
+  r.path_a_usable = false;
   r.path_a_reason = "host_disabled";
   r.error = "host_disabled";
   r.ok = true;

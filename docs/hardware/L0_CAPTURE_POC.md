@@ -5,7 +5,8 @@
 
 ## Why not Path A
 
-GPIO19/20 = internal USB PHY. 10A falsified CPU sniffer. See `LAB_GATE10A_FEASIBILITY.md`.
+GPIO19/20 = internal USB PHY. 10A falsified CPU sniffer (`LAB_GATE10A_FEASIBILITY.md`).  
+E1.1 MEASURED peek-poll rate/jitter under live MSC (`LAB_GATE10A_E11_GPIO_SAMPLE.md`) — too slow for FS; remux not tested (kills OTG).
 
 ## Architecture
 

@@ -27,4 +27,5 @@
 }
 ```
 
-See also: `docs/hardware/L0_CAPTURE_POC.md`.
+See also: `docs/hardware/L0_CAPTURE_POC.md`.  
+E1.1 live poll metrics: `LAB_GATE10A_E11_GPIO_SAMPLE.md` (rate ≈2.1 Msps, 0 edges, not destructive).

@@ -610,6 +610,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/usb-ctrl-neg", HTTP_ANY, [this]() { handleUsbCtrlNeg(); });
   server.on("/api/lab/l0-feasibility", HTTP_ANY,
             [this]() { handleL0Feasibility(); });
+  server.on("/api/lab/e11-gpio-sample", HTTP_ANY,
+            [this]() { handleE11GpioSample(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1257,6 +1259,104 @@ void AnalyzerStatusModule::handleL0Feasibility() {
     j += "\"";
   }
   j += ",\"claim\":\"gate10a_feasibility\"";
+  j += ",\"gate\":\"10A\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleE11GpioSample() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  uint32_t samples = 200000;
+  uint32_t traffic_blocks = 32;
+  if (server_->hasArg("samples")) {
+    samples = static_cast<uint32_t>(server_->arg("samples").toInt());
+  }
+  if (server_->hasArg("traffic_blocks")) {
+    traffic_blocks =
+        static_cast<uint32_t>(server_->arg("traffic_blocks").toInt());
+  }
+  const UsbHostNode::E11GpioSampleResult r =
+      host_->runE11GpioSample(samples, traffic_blocks);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"hostBegun\":";
+  j += r.host_begun ? "true" : "false";
+  j += ",\"dutBefore\":";
+  j += r.dut_before ? "true" : "false";
+  j += ",\"dutAfter\":";
+  j += r.dut_after ? "true" : "false";
+  j += ",\"prtConnBefore\":";
+  j += r.prt_conn_before ? "true" : "false";
+  j += ",\"prtConnAfter\":";
+  j += r.prt_conn_after ? "true" : "false";
+  j += ",\"prtEnaBefore\":";
+  j += r.prt_ena_before ? "true" : "false";
+  j += ",\"prtEnaAfter\":";
+  j += r.prt_ena_after ? "true" : "false";
+  j += ",\"hprtBefore\":";
+  j += String(r.hprt_before);
+  j += ",\"hprtAfter\":";
+  j += String(r.hprt_after);
+  j += ",\"samples\":";
+  j += String(r.samples);
+  j += ",\"durationUs\":";
+  j += String(r.duration_us);
+  j += ",\"rateKsps\":";
+  j += String(r.rate_ksps);
+  j += ",\"transitionsDm\":";
+  j += String(r.transitions_dm);
+  j += ",\"transitionsDp\":";
+  j += String(r.transitions_dp);
+  j += ",\"sampleDtMinCy\":";
+  j += String(r.sample_dt_min_cy);
+  j += ",\"sampleDtMaxCy\":";
+  j += String(r.sample_dt_max_cy);
+  j += ",\"sampleDtAvgCy\":";
+  j += String(r.sample_dt_avg_cy);
+  j += ",\"cpuMhz\":";
+  j += String(r.cpu_mhz);
+  j += ",\"jitterPpNs\":";
+  j += String(r.jitter_pp_ns);
+  j += ",\"trafficOk\":";
+  j += r.traffic_ok ? "true" : "false";
+  j += ",\"trafficRateKBs\":";
+  j += String(r.traffic_rate_kBs);
+  j += ",\"postProbeOk\":";
+  j += r.post_probe_ok ? "true" : "false";
+  j += ",\"busStable\":";
+  j += r.bus_stable ? "true" : "false";
+  j += ",\"destructive\":";
+  j += r.destructive ? "true" : "false";
+  j += ",\"meaningfulEdges\":";
+  j += r.meaningful_edges ? "true" : "false";
+  j += ",\"pathA_usable\":";
+  j += r.path_a_usable ? "true" : "false";
+  j += ",\"pathA_reason\":\"";
+  j += r.path_a_reason;
+  j += "\",\"pathB_preferred\":true";
+  j += ",\"pinsFact\":\"GPIO20=D+_GPIO19=D-_internal_PHY\"";
+  j += ",\"mode\":\"gpio_peek_poll_no_remux\"";
+  if (r.note.length()) {
+    j += ",\"note\":\"";
+    j += r.note;
+    j += "\"";
+  }
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"durationMs\":";
+  j += String(r.duration_ms);
+  j += ",\"claim\":\"gate10a_e11_gpio_sample\"";
+  j += ",\"experiment\":\"E1.1\"";
   j += ",\"gate\":\"10A\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);

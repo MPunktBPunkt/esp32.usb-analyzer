@@ -85,6 +85,20 @@ See [`GATE10_STATUS.md`](GATE10_STATUS.md). Strictly separate:
 3. External comparator/LA parallel tap without breaking FS eye? → open (Path B PoC)
 4. External PHY + probe pads cleaner? → **preferred** after A falsify
 
+### E1.1 GPIO sample under live bus (10A hardening)
+
+**Hypothesis:** CPU GPIO poll on GPIO19/20 while OTG owns the PHY is too slow and/or destructive for FS L0.
+
+**Protocol (dual-ESP OTG loop):**
+
+1. Baseline: Host↔Device MSC, L1 events present
+2. Peek-only poll GPIO19/20 (APP CPU) concurrent with MSC (PRO CPU) — **no pin remux**
+3. Document: bus stable? meaningful edges? reachable ksps? poll jitter?
+
+**Tool:** `tools/lab_e11_gpio_sample.py` → `/api/lab/e11-gpio-sample`  
+**Evidence:** `docs/evidence/LAB_GATE10A_E11_GPIO_SAMPLE.md`  
+**Claim:** `gate10a_e11_gpio_sample` — not live FS packets.
+
 ### E2 Offline decoder (10B–D)
 
 Host unit: `tools/usb_fs_l0` + `tests/host/run_usb_fs_l0_tests.sh` — NRZI, stuff, PID, CRC, packets.

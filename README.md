@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.39-blue)
+![Version](https://img.shields.io/badge/version-0.0.40-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.39** Zwischenstand — **Gate 10** L0 scaffold (offline decoder + 10A) + observer baseline; TCP pipeline remains.  
+> **v0.0.40** Zwischenstand — Gate 10A **E1.1** GPIO19/20 poll under live bus (rate/jitter/destruct); Path B software pipe remains.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -74,6 +74,7 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **Bus Suspend/Resume** | Host HPRT `/api/lab/usb-suspend-resume` | Device suspend/resume counts + post EP0 | Stack HPRT — **not** L0 PHY |
 | **EP0 control-neg** | `/api/lab/usb-ctrl-neg` | positives + expected STALL/fail cases | Caller EP0 — **not** SETUP MITM |
 | **Gate 10A feasibility** | `/api/lab/l0-feasibility` | HPRT Level-2; Path A sniffer **falsified** | **not** live L0 packets |
+| **E1.1 GPIO sample** | `/api/lab/e11-gpio-sample` | Poll rate/jitter/edges + bus stability under MSC | **not** FS L0 sniffer |
 | **L0 offline decoder** | `tools/usb_fs_l0` + host tests | SETUP/DATA/ACK + CRC synth | **not** live D+/D− |
 | **L0↔L1 correlate** | `lab_l0_correlate.py --synth` | synthetic matches | live wire TBD (Path B) |
 | **Observer-effect baseline** | `lab_observer_effect.py` | direct vs proxy/loop Δ | **not** transparency FACT |
@@ -111,6 +112,7 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_usb_suspend_resume.py                  # HPRT suspend/resume + Device events
 ./tools/lab_usb_ctrl_neg.py                        # EP0 positive + negative series
 ./tools/lab_l0_feasibility.py                      # Gate 10A HPRT + Path A falsify
+./tools/lab_e11_gpio_sample.py                     # E1.1 GPIO19/20 poll rate/jitter/destruct
 ./tools/lab_observer_effect.py                     # observer-effect baseline (loop|proxy)
 ./tools/l0_path_b_ingest.py --decode &           # Path B TCP :9760 ingest
 ./tools/l0_path_b_sampler_sim.py                 # sampler stand-in (no PHY yet)
