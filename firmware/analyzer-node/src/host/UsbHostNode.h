@@ -231,6 +231,29 @@ public:
   };
   CtrlNegResult runCtrlNegSeries();
 
+  /**
+   * Gate 10A feasibility: DWC HPRT Level-2 regs + D+/D− pin ownership notes.
+   * Claim: gate10a_feasibility — NOT live L0 packet capture / NOT Path A sniffer.
+   */
+  struct L0FeasibilityResult {
+    bool ok = false;
+    bool host_begun = false;
+    bool dut_present = false;
+    uint32_t hprt_raw = 0;
+    bool prt_conn = false;
+    bool prt_ena = false;
+    bool prt_susp = false;
+    bool prt_overcur = false;
+    uint8_t prt_speed = 0; // 0=FS? DWC encoding — see note
+    int gpio19_level = -1; // D−
+    int gpio20_level = -1; // D+
+    bool path_a_sniffer_ok = false; // always false — falsified
+    String path_a_reason;
+    String note;
+    String error;
+  };
+  L0FeasibilityResult runL0Feasibility();
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;

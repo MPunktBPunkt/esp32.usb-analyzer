@@ -92,6 +92,14 @@ Forbidden exit phrasing: “USB Analyzer works” when only a narrower claim was
 
 **Prove or falsify:** Level 2/3 visualization feasibility. Protocol-state UI may exist earlier without claiming wire capture.
 
+**Status doc:** [`GATE10_STATUS.md`](GATE10_STATUS.md) — phases **10A–10F** active (0.0.38).  
+Passive L0 first; Path A (GPIO sniffer) falsified; Path B external tap preferred. Offline FS decoder + correlator shipped; live wire samples still open.
+
+## Gate 11 — Observer / MITM transparency (started)
+
+**Prove:** observer-effect baseline (control host stick-only vs proxied).  
+Tool: `tools/lab_observer_effect.py`. Full L0-A/L0-B MITM later.
+
 ## Gate SF-* — Store-and-Forward (planned after Gate 4/5)
 
 See [`STORE_FORWARD.md`](STORE_FORWARD.md). Not started. Do not schedule before transparent proxy + capture integrity exist.
@@ -109,5 +117,6 @@ See [`STORE_FORWARD.md`](STORE_FORWARD.md). Not started. Do not schedule before 
 
 ## Current pointer
 
-**Active gate:** Gate 1 lab MEASURED (DUT enum) → Gate 2.  
-**Parked:** Store-and-Forward design accepted, implementation deferred.
+**Active:** Gate **10** (L0 passive / Path B) + Gate **11** observer-effect baseline.  
+**L1/L2 lab stack:** mature through 0.0.37 — no further class sprawl as main track.  
+**Parked:** Store-and-Forward; HS; Isochronous; HU wire until 10G.

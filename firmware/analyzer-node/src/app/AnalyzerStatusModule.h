@@ -53,6 +53,7 @@ private:
   void handleSoftReenum();
   void handleUsbSuspendResume();
   void handleUsbCtrlNeg();
+  void handleL0Feasibility();
   void handleSyncMarker();
   void handleCapture();
 };

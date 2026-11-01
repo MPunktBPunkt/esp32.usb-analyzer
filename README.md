@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.37-blue)
+![Version](https://img.shields.io/badge/version-0.0.38-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.37** Zwischenstand — **TCP pipeline** bulk + Suspend/Resume + EP0 control-neg.  
+> **v0.0.38** Zwischenstand — **Gate 10** L0 scaffold (offline decoder + 10A) + observer baseline; TCP pipeline remains.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -43,7 +43,7 @@ Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debi
 | **A — DIRECT** | ESP1 ══ TCP ══ ESP2 | Gate 3 bulk + Gate 4 MSC-proxy slice |
 | **B — RELAY** | via Debian | discovery/control; USB data not relayed yet |
 
-## What we can measure today (0.0.37)
+## What we can measure today (0.0.38)
 
 Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) · AOA: [`LAB_AOA_HANDSHAKE_MEASURED.md`](docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md)
 
@@ -73,6 +73,10 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **HID interrupt** | Device `/api/lab/hid-inject` → Host `/api/lab/hid-observe` | keycode/report via EspUsbHost callback | Class IRQ — **not** L0 / HU |
 | **Bus Suspend/Resume** | Host HPRT `/api/lab/usb-suspend-resume` | Device suspend/resume counts + post EP0 | Stack HPRT — **not** L0 PHY |
 | **EP0 control-neg** | `/api/lab/usb-ctrl-neg` | positives + expected STALL/fail cases | Caller EP0 — **not** SETUP MITM |
+| **Gate 10A feasibility** | `/api/lab/l0-feasibility` | HPRT Level-2; Path A sniffer **falsified** | **not** live L0 packets |
+| **L0 offline decoder** | `tools/usb_fs_l0` + host tests | SETUP/DATA/ACK + CRC synth | **not** live D+/D− |
+| **L0↔L1 correlate** | `lab_l0_correlate.py --synth` | synthetic matches | live wire TBD (Path B) |
+| **Observer-effect baseline** | `lab_observer_effect.py` | direct vs proxy/loop Δ | **not** transparency FACT |
 | **RGB identify** | Status-Tab / `POST /api/led` | GPIO48 WS2812 | Board jumper may be needed |
 
 ### ESP Web UI (per node, port 80)
@@ -104,13 +108,18 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_hid_interrupt_verify.py                # HID interrupt Device→Host
 ./tools/lab_usb_suspend_resume.py                  # HPRT suspend/resume + Device events
 ./tools/lab_usb_ctrl_neg.py                        # EP0 positive + negative series
+./tools/lab_l0_feasibility.py                      # Gate 10A HPRT + Path A falsify
+./tools/lab_observer_effect.py                     # observer-effect baseline (loop|proxy)
+./tools/lab_l0_correlate.py --synth                # L0↔L1 correlator (offline)
+./tests/host/run_usb_fs_l0_tests.sh                # FS L0 offline decoder units
 ./tools/lab_perf_sweep.py --quick              # windowed vs pipeline TCP
 ./tools/lab_baseline_campaign.py                 # USB + TCP campaign → docs/evidence/
 ```
 
 ### Explicitly **not** measured / not claimed
 
-- D+/D− / DATA0/1 / ACK/NAK wire capture (Gate 10 — UNKNOWN)
+- Live D+/D− wire capture on bus (Gate 10 Path B — open; offline decoder MEASURED)
+- D+/D− / DATA0/1 / ACK/NAK **live** wire capture (Gate 10 — UNKNOWN until Path B)
 - Transparent MITM PC↔Stick with observer-effect baseline
 - Hard synchronized µs clocks across both ESPs (offset estimate only)
 - USB High-Speed

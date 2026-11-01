@@ -29,6 +29,7 @@
 | EP0 control-neg series | done (0.0.36) — TinyUSB MEASURED expects; **not** SETUP MITM |
 | Live SETUP interception / transparent control MITM | **not yet** |
 | Transparency claim | **not claimed** |
+| Observer-effect baseline tool | started (0.0.38) `lab_observer_effect.py` — **not** transparency FACT |
 
 ## Lab precursor (0.0.12) — OTG loop, not proxy
 

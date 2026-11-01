@@ -564,6 +564,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
   server.on("/api/lab/usb-suspend-resume", HTTP_ANY,
             [this]() { handleUsbSuspendResume(); });
   server.on("/api/lab/usb-ctrl-neg", HTTP_ANY, [this]() { handleUsbCtrlNeg(); });
+  server.on("/api/lab/l0-feasibility", HTTP_ANY,
+            [this]() { handleL0Feasibility(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1158,6 +1160,60 @@ void AnalyzerStatusModule::handleUsbSuspendResume() {
   }
   j += ",\"claim\":\"usb_bus_suspend_resume_lab\"";
   j += ",\"note\":\"hprt_stack_suspend_not_l0_phy\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleL0Feasibility() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  const UsbHostNode::L0FeasibilityResult r = host_->runL0Feasibility();
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"hostBegun\":";
+  j += r.host_begun ? "true" : "false";
+  j += ",\"dutPresent\":";
+  j += r.dut_present ? "true" : "false";
+  j += ",\"hprtRaw\":";
+  j += String(r.hprt_raw);
+  j += ",\"prtConn\":";
+  j += r.prt_conn ? "true" : "false";
+  j += ",\"prtEna\":";
+  j += r.prt_ena ? "true" : "false";
+  j += ",\"prtSusp\":";
+  j += r.prt_susp ? "true" : "false";
+  j += ",\"prtOvercur\":";
+  j += r.prt_overcur ? "true" : "false";
+  j += ",\"prtSpeed\":";
+  j += String(r.prt_speed);
+  j += ",\"gpio19_Dm\":";
+  j += String(r.gpio19_level);
+  j += ",\"gpio20_Dp\":";
+  j += String(r.gpio20_level);
+  j += ",\"pathA_snifferOk\":";
+  j += r.path_a_sniffer_ok ? "true" : "false";
+  j += ",\"pathA_reason\":\"";
+  j += r.path_a_reason;
+  j += "\",\"pathB_preferred\":true";
+  j += ",\"pinsFact\":\"GPIO20=D+_GPIO19=D-_internal_PHY\"";
+  if (r.note.length()) {
+    j += ",\"note\":\"";
+    j += r.note;
+    j += "\"";
+  }
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"gate10a_feasibility\"";
+  j += ",\"gate\":\"10A\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }

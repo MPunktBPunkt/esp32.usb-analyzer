@@ -6,7 +6,7 @@
 
 | Layer | Name | Status for this project |
 |-------|------|-------------------------|
-| **L0** | USB PHY / Wire (D+/D−, DATA0/1, ACK/NAK) | **UNKNOWN** — Gate 10 research; not promised |
+| **L0** | USB PHY / Wire (D+/D−, DATA0/1, ACK/NAK) | Offline decoder **MEASURED**; **live** tap UNKNOWN (Path B) — see Gate 10 |
 | **L1** | USB Controller / Host-Device stack | GO for design; implement Gate 5 |
 | **L2** | Protocol (MSC BOT / SCSI / descriptors) | GO via class hooks; implement Gate 6 |
 

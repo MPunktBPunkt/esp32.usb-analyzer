@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstring>
 #include <esp_timer.h>
+#include <driver/gpio.h>
 #include <hal/usb_dwc_ll.h>
 #include <usb_analyzer/BclLabFrame.h>
 #include <usb_analyzer/UsbLabPattern.h>
@@ -1130,6 +1131,38 @@ UsbHostNode::runBusSuspendResume(uint32_t hold_ms) {
   return r;
 }
 
+UsbHostNode::L0FeasibilityResult UsbHostNode::runL0Feasibility() {
+  L0FeasibilityResult r;
+  r.host_begun = begin_ok_;
+  r.dut_present = begin_ok_ && deviceCount() > 0;
+  // FACT: ESP32-S3 internal USB PHY uses GPIO20=D+, GPIO19=D−.
+  // Path A (GPIO sniffer while OTG owns pins) cannot deliver FS packet capture.
+  r.path_a_sniffer_ok = false;
+  r.path_a_reason =
+      "gpio19_20_are_internal_usb_phy_pins_cpu_sample_not_fs_packet_sniffer";
+  r.note = "level2_hprt_only_not_l0_packets_prefer_path_b_external_tap";
+
+  if (!begin_ok_) {
+    r.error = "host_disabled";
+    r.ok = true; // feasibility still reports Path A falsify
+    return r;
+  }
+
+  r.hprt_raw = USB_DWC.hprt_reg.val;
+  r.prt_conn = usb_dwc_ll_hprt_get_conn_status(&USB_DWC);
+  r.prt_ena = usb_dwc_ll_hprt_get_port_en(&USB_DWC);
+  r.prt_susp = usb_dwc_ll_hprt_get_port_suspend(&USB_DWC);
+  r.prt_overcur = usb_dwc_ll_hprt_get_port_overcur(&USB_DWC);
+  // prtspd: 0=HS(n/a), 1=FS, 2=LS on DWC — expose raw field
+  r.prt_speed = static_cast<uint8_t>(USB_DWC.hprt_reg.prtspd);
+
+  // Non-destructive level peek only — do not remux pins away from USB.
+  r.gpio19_level = gpio_get_level(GPIO_NUM_19);
+  r.gpio20_level = gpio_get_level(GPIO_NUM_20);
+  r.ok = true;
+  return r;
+}
+
 UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
   CtrlNegResult r;
   const uint32_t t0 = millis();
@@ -1340,6 +1373,14 @@ UsbHostNode::SuspendResumeResult UsbHostNode::runBusSuspendResume(uint32_t) {
 UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
   CtrlNegResult r;
   r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::L0FeasibilityResult UsbHostNode::runL0Feasibility() {
+  L0FeasibilityResult r;
+  r.path_a_sniffer_ok = false;
+  r.path_a_reason = "host_disabled";
+  r.error = "host_disabled";
+  r.ok = true;
   return r;
 }
 void UsbHostNode::noteHidReport(uint8_t, uint8_t, uint8_t, uint8_t,

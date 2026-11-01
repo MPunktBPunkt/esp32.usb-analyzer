@@ -70,22 +70,30 @@ Only after A4 pass.
 
 ## Track E — D+/D− research (Gate 10)
 
-Strictly separate three visualizations:
+See [`GATE10_STATUS.md`](GATE10_STATUS.md). Strictly separate:
 
 | Level | Meaning | Status |
 |-------|---------|--------|
-| 1 | USB protocol/state machine | GO (from L1 events) |
-| 2 | PHY/controller status registers | UNKNOWN → experiment |
-| 3 | Raw D+/D− waveform | UNKNOWN → experiment; may need external LA/PHY |
+| 1 | USB protocol/state machine | GO (L1 events) |
+| 2 | PHY/controller status registers | MEASURED via `/api/lab/l0-feasibility` (10A) |
+| 3 | Raw D+/D− waveform / packets | offline decoder MEASURED; live tap **not yet** |
 
-### E1 Feasibility questions
+### E1 Feasibility (10A)
 
-1. Can GPIO19/20 be read while OTG PHY owns them? (expect: no / destructive)
-2. What status bits does the DWC/OTG controller expose?
-3. Does external comparator/LA parallel tap work without breaking FS eye?
-4. Is external PHY + probe pads a cleaner instrument path?
+1. Can GPIO19/20 be a sniffer while OTG PHY owns them? → **falsified** as Path A (see evidence)
+2. What status bits does DWC HPRT expose? → MEASURED in feasibility JSON
+3. External comparator/LA parallel tap without breaking FS eye? → open (Path B PoC)
+4. External PHY + probe pads cleaner? → **preferred** after A falsify
 
-**Must not ship** a “D+/D− oscilloscope” UI that implies Level 3 without MEASURED proof.
+### E2 Offline decoder (10B–D)
+
+Host unit: `tools/usb_fs_l0` + `tests/host/run_usb_fs_l0_tests.sh` — NRZI, stuff, PID, CRC, packets.
+
+### E3 Correlation (10F)
+
+`tools/lab_l0_correlate.py` — synthetic L0 ↔ L1; live wire correlation after Path B samples exist.
+
+**Must not ship** a “D+/D− oscilloscope” UI that implies Level 3 without MEASURED live packets.
 
 ## Track F — Application (future, BMW/NBT)
 
