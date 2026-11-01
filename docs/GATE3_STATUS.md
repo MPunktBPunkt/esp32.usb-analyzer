@@ -20,6 +20,10 @@
 ./tools/lab_integrity_test.py --both-ways --frames 64 --frame-bytes 1024
 ```
 
+## 0.0.37 — pipeline
+
+`POST /api/lab/integrity?pipeline=1&window=8` — sliding window bulk. Compare with `tools/lab_perf_sweep.py --quick`.
+
 ## NEXT
 
 1. Gate 4: USB proxy Host↔TCP↔Device (needs DUT on Host OTG; Device may face PC or loop)

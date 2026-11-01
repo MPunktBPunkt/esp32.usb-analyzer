@@ -7,6 +7,7 @@
 | Piece | Status |
 |-------|--------|
 | Windowed TCP bulk (`?window=N` on `/api/lab/integrity`) | done — raises WiFi rate vs ACK-each |
+| TCP sliding-window pipeline (`pipeline=1`) | done (0.0.37) — overlap ACK/send; **not** USB |
 | MSC READ proxy Host←Device over `:9752` (`kCmdMscReq/Rsp`) | done |
 | MSC WRITE proxy Device→Host DUT (`kCmdMscWriteReq/Rsp`) | done (0.0.21) |
 | Persistent TCP proxy session + chunk≤16 | done (0.0.23) |

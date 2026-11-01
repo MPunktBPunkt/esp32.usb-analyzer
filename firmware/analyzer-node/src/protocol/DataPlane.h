@@ -27,12 +27,13 @@ struct IntegrityResult {
   uint32_t bytes_rx = 0;
   uint32_t duration_ms = 0;
   uint32_t window = 1;
+  bool pipeline = false;
   uint32_t rtt_min_us = 0;
   uint32_t rtt_avg_us = 0;
   uint32_t rtt_p50_us = 0;
   uint32_t rtt_p95_us = 0;
   uint32_t rtt_max_us = 0;
-  String mode; // "ack_each" | "windowed"
+  String mode; // "ack_each" | "windowed" | "pipeline"
   String error;
 };
 
@@ -50,10 +51,12 @@ public:
 
   /**
    * Windowed bulk: send `window` frames, then collect that many ACKs.
+   * With pipeline=true: sliding window (ACK frees next send) — overlaps RTT.
    * Raises WiFi TCP throughput toward link capacity (Gate 4 substrate).
    */
   IntegrityResult runBulk(const String &peer_ip, uint32_t frames,
-                          uint32_t frame_bytes, uint32_t window);
+                          uint32_t frame_bytes, uint32_t window,
+                          bool pipeline = false);
 
   /**
    * Device→Host MSC proxy: ask peer Host to READ blocks from its DUT.

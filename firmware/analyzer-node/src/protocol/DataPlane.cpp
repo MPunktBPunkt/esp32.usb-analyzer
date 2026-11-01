@@ -307,22 +307,27 @@ void DataPlane::loop() {
 
 IntegrityResult DataPlane::runIntegrity(const String &peer_ip, uint32_t frames,
                                         uint32_t frame_bytes) {
-  return runBulk(peer_ip, frames, frame_bytes, 1);
+  return runBulk(peer_ip, frames, frame_bytes, 1, false);
 }
 
 IntegrityResult DataPlane::runBulk(const String &peer_ip, uint32_t frames,
-                                   uint32_t frame_bytes, uint32_t window) {
+                                   uint32_t frame_bytes, uint32_t window,
+                                   bool pipeline) {
   IntegrityResult r;
   last_peer_ = peer_ip;
-  r.mode = (window <= 1) ? "ack_each" : "windowed";
-  r.window = window < 1 ? 1 : window;
   if (window < 1) {
     window = 1;
   }
   if (window > 64) {
     window = 64;
   }
+  // Pipeline only meaningful with window>1; else same as ack_each.
+  if (window <= 1) {
+    pipeline = false;
+  }
   r.window = window;
+  r.pipeline = pipeline;
+  r.mode = (window <= 1) ? "ack_each" : (pipeline ? "pipeline" : "windowed");
 
   if (frame_bytes == 0 || frame_bytes > kMaxFrame) {
     r.error = "bad_frame_bytes";
@@ -358,83 +363,130 @@ IntegrityResult DataPlane::runBulk(const String &peer_ip, uint32_t frames,
     return r;
   }
   state_ = "push";
-  snprintf(last_pattern_, sizeof(last_pattern_), "bulk win=%u frames=%u size=%u",
+  snprintf(last_pattern_, sizeof(last_pattern_),
+           "bulk %s win=%u frames=%u size=%u", r.mode.c_str(),
            static_cast<unsigned>(window), static_cast<unsigned>(frames),
            static_cast<unsigned>(frame_bytes));
 
   static uint8_t buf[kMaxFrame];
   static uint32_t rtts[512];
+  static int64_t send_ts[64]; // per in-flight slot (window ≤ 64)
   uint32_t rtt_n = 0;
   const uint32_t t0 = millis();
 
-  for (uint32_t base = 0; base < frames;) {
-    acceptIfNeeded();
-    serviceInbound();
-
-    const uint32_t batch =
-        (base + window > frames) ? (frames - base) : window;
-    const int64_t t_batch = esp_timer_get_time();
-
-    for (uint32_t i = 0; i < batch; i++) {
-      const uint32_t seq = base + i;
-      fillPattern(buf, frame_bytes, seq);
-      Hdr hdr{};
-      hdr.magic = kMagic;
-      hdr.ver = kVer;
-      hdr.cmd = kCmdPush;
-      hdr.status = 0;
-      hdr.seq = seq;
-      hdr.len = frame_bytes;
-      hdr.crc = crc32(buf, frame_bytes);
-      if (!writeExact(client, reinterpret_cast<uint8_t *>(&hdr), sizeof(hdr)) ||
-          !writeExact(client, buf, frame_bytes)) {
-        r.error = "write_fail";
-        client.stop();
-        state_ = "listen";
-        last_result_ = r;
-        has_last_ = true;
-        last_match_ = false;
-        return r;
-      }
-      r.frames_sent++;
-      r.bytes_tx += sizeof(hdr) + frame_bytes;
-      tx_bytes_ += sizeof(hdr) + frame_bytes;
+  auto send_one = [&](uint32_t seq) -> bool {
+    fillPattern(buf, frame_bytes, seq);
+    Hdr hdr{};
+    hdr.magic = kMagic;
+    hdr.ver = kVer;
+    hdr.cmd = kCmdPush;
+    hdr.status = 0;
+    hdr.seq = seq;
+    hdr.len = frame_bytes;
+    hdr.crc = crc32(buf, frame_bytes);
+    if (!writeExact(client, reinterpret_cast<uint8_t *>(&hdr), sizeof(hdr)) ||
+        !writeExact(client, buf, frame_bytes)) {
+      return false;
     }
+    send_ts[seq % 64u] = esp_timer_get_time();
+    r.frames_sent++;
+    r.bytes_tx += sizeof(hdr) + frame_bytes;
+    tx_bytes_ += sizeof(hdr) + frame_bytes;
+    return true;
+  };
 
-    for (uint32_t i = 0; i < batch; i++) {
-      Hdr ack{};
-      if (!readExact(client, reinterpret_cast<uint8_t *>(&ack), sizeof(ack),
-                     8000)) {
-        r.error = "ack_timeout";
-        client.stop();
-        state_ = "listen";
-        last_result_ = r;
-        has_last_ = true;
-        last_match_ = false;
-        return r;
-      }
-      r.bytes_rx += sizeof(ack);
-      rx_bytes_ += sizeof(ack);
-      const uint32_t seq = base + i;
-      if (ack.magic != kMagic || ack.cmd != kCmdAck || ack.seq != seq ||
-          ack.status != 0) {
-        r.frames_fail++;
-        gaps_++;
-        r.error = "ack_fail_status_" + String(ack.status);
-        client.stop();
-        state_ = "listen";
-        last_match_ = false;
-        has_last_ = true;
-        last_result_ = r;
-        return r;
-      }
-      r.frames_acked++;
+  auto recv_one_ack = [&](uint32_t expect_seq) -> bool {
+    Hdr ack{};
+    if (!readExact(client, reinterpret_cast<uint8_t *>(&ack), sizeof(ack),
+                   8000)) {
+      r.error = "ack_timeout";
+      return false;
     }
+    r.bytes_rx += sizeof(ack);
+    rx_bytes_ += sizeof(ack);
+    if (ack.magic != kMagic || ack.cmd != kCmdAck || ack.seq != expect_seq ||
+        ack.status != 0) {
+      r.frames_fail++;
+      gaps_++;
+      r.error = "ack_fail_status_" + String(ack.status);
+      return false;
+    }
+    r.frames_acked++;
     if (rtt_n < 512u) {
-      rtts[rtt_n++] =
-          static_cast<uint32_t>(esp_timer_get_time() - t_batch) / batch;
+      const int64_t dt = esp_timer_get_time() - send_ts[expect_seq % 64u];
+      rtts[rtt_n++] = dt > 0 ? static_cast<uint32_t>(dt) : 0;
     }
-    base += batch;
+    return true;
+  };
+
+  if (pipeline) {
+    // Sliding window: each ACK frees one new send (overlaps RTT).
+    uint32_t next_send = 0;
+    uint32_t next_ack = 0;
+    uint32_t inflight = 0;
+    while (next_ack < frames) {
+      acceptIfNeeded();
+      serviceInbound();
+      while (inflight < window && next_send < frames) {
+        if (!send_one(next_send)) {
+          r.error = "write_fail";
+          client.stop();
+          state_ = "listen";
+          last_result_ = r;
+          has_last_ = true;
+          last_match_ = false;
+          return r;
+        }
+        next_send++;
+        inflight++;
+      }
+      if (inflight == 0) {
+        break;
+      }
+      if (!recv_one_ack(next_ack)) {
+        client.stop();
+        state_ = "listen";
+        last_match_ = false;
+        has_last_ = true;
+        last_result_ = r;
+        return r;
+      }
+      next_ack++;
+      inflight--;
+    }
+  } else {
+    // Classic barrier batches: send window, then collect window ACKs.
+    for (uint32_t base = 0; base < frames;) {
+      acceptIfNeeded();
+      serviceInbound();
+
+      const uint32_t batch =
+          (base + window > frames) ? (frames - base) : window;
+
+      for (uint32_t i = 0; i < batch; i++) {
+        if (!send_one(base + i)) {
+          r.error = "write_fail";
+          client.stop();
+          state_ = "listen";
+          last_result_ = r;
+          has_last_ = true;
+          last_match_ = false;
+          return r;
+        }
+      }
+
+      for (uint32_t i = 0; i < batch; i++) {
+        if (!recv_one_ack(base + i)) {
+          client.stop();
+          state_ = "listen";
+          last_match_ = false;
+          has_last_ = true;
+          last_result_ = r;
+          return r;
+        }
+      }
+      base += batch;
+    }
   }
 
   client.stop();
@@ -464,10 +516,11 @@ IntegrityResult DataPlane::runBulk(const String &peer_ip, uint32_t frames,
       CapRole::Plane, CapType::TcpBulk, r.ok ? 0 : 1, r.bytes_tx, frames, window,
       r.duration_ms * 1000u, r.mode.c_str());
   Serial.printf(
-      "[data] bulk %s → %s win=%u frames=%u/%u %u ms %u kB/s\n",
-      r.ok ? "OK" : "FAIL", peer_ip.c_str(), static_cast<unsigned>(window),
-      static_cast<unsigned>(r.frames_acked), static_cast<unsigned>(frames),
-      static_cast<unsigned>(r.duration_ms), static_cast<unsigned>(rate_kbs_));
+      "[data] bulk %s → %s mode=%s win=%u frames=%u/%u %u ms %u kB/s\n",
+      r.ok ? "OK" : "FAIL", peer_ip.c_str(), r.mode.c_str(),
+      static_cast<unsigned>(window), static_cast<unsigned>(r.frames_acked),
+      static_cast<unsigned>(frames), static_cast<unsigned>(r.duration_ms),
+      static_cast<unsigned>(rate_kbs_));
   return r;
 }
 

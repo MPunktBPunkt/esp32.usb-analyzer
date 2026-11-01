@@ -1,12 +1,12 @@
 # esp32.usb-analyzer
 
-![Version](https://img.shields.io/badge/version-0.0.36-blue)
+![Version](https://img.shields.io/badge/version-0.0.37-blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Gate](https://img.shields.io/badge/gate-7%20timeline%20slice-yellow)](docs/GATE7_STATUS.md)
 
 Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debian control plane.
 
-> **v0.0.36** Zwischenstand — enum/HID + **Suspend/Resume** + **EP0 control-neg** lab slices.  
+> **v0.0.37** Zwischenstand — **TCP pipeline** bulk + Suspend/Resume + EP0 control-neg.  
 > **Nicht claimed:** transparent MITM, hard µs clock lock, D+/D− Wire-Capture, HU/BCL-on-Bulk, USB-IF Compliance.
 
 ## Goal architecture
@@ -43,7 +43,7 @@ Experimental **USB Protocol Analyzer / USB MITM** lab: two ESP32-S3 nodes + Debi
 | **A — DIRECT** | ESP1 ══ TCP ══ ESP2 | Gate 3 bulk + Gate 4 MSC-proxy slice |
 | **B — RELAY** | via Debian | discovery/control; USB data not relayed yet |
 
-## What we can measure today (0.0.36)
+## What we can measure today (0.0.37)
 
 Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED.md`](docs/evidence/LAB_BASELINE_MEASURED.md) · AOA: [`LAB_AOA_HANDSHAKE_MEASURED.md`](docs/evidence/LAB_AOA_HANDSHAKE_MEASURED.md)
 
@@ -55,7 +55,7 @@ Classification: **MEASURED** in lab · see [`docs/evidence/LAB_BASELINE_MEASURED
 | **USB sector / transfer RTT** | Probe `rtt_us` min/avg/p50/p95/max | ~**0.73 ms**/sector; ~**2.2 ms**/4-block | Host stack timing |
 | **DUT enumeration** | `/api/status` → `otg` + `dut` | VID/PID/serial/speed | L1 descriptors |
 | **WiFi TCP integrity** both ways | `POST /api/lab/integrity?peer=&frames=&frame_bytes=` | 0 frame fails | Not USB MITM |
-| **WiFi TCP bulk throughput** | same + `window=4…12` | ~**140 kB/s** (ack-each) → ~**260–360 kB/s** (windowed) | Protocol RTT-bound |
+| **WiFi TCP bulk throughput** | `window=` + optional `pipeline=1` | ~**140 kB/s** ack-each → ~**300 kB/s** windowed → ~**436 kB/s** pipeline (`4096×8`) | WiFi RTT; win≥16 cliffs |
 | **MSC proxy Host serve** | TCP `MscReq`→Host READ DUT→payload | CRC/pattern OK on loop DUT | Gate‑4 slice; MITM wiring separate |
 | **Gadget DUT identity** | DUT snapshot → Device VID/PID + MSC inquiry/capacity + soft re-enum | PC `lsusb` shows DUT-like id after arm | Snapshot apply — **not** control MITM |
 | **MSC bulk proxy selftest** | Device proxy-read vs Host DUT raw (`lab_usb_proxy_verify.py`) | byte-exact CRC/hex match | WiFi MSC tunnel — **not** transparent MITM |
@@ -104,7 +104,7 @@ ENV=analyzer-s3-device ./tools/flash_lab_ota.sh 192.168.178.89
 ./tools/lab_hid_interrupt_verify.py                # HID interrupt Device→Host
 ./tools/lab_usb_suspend_resume.py                  # HPRT suspend/resume + Device events
 ./tools/lab_usb_ctrl_neg.py                        # EP0 positive + negative series
-./tools/lab_perf_sweep.py
+./tools/lab_perf_sweep.py --quick              # windowed vs pipeline TCP
 ./tools/lab_baseline_campaign.py                 # USB + TCP campaign → docs/evidence/
 ```
 

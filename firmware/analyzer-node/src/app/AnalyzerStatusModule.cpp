@@ -205,6 +205,7 @@ void AnalyzerStatusModule::handleIntegrity() {
   uint32_t frames = 64;
   uint32_t frame_bytes = 1024;
   uint32_t window = 8; // Gate-4 default: windowed bulk (override with window=1)
+  bool pipeline = false;
   if (server_->hasArg("frames")) {
     frames = static_cast<uint32_t>(server_->arg("frames").toInt());
   }
@@ -213,6 +214,10 @@ void AnalyzerStatusModule::handleIntegrity() {
   }
   if (server_->hasArg("window")) {
     window = static_cast<uint32_t>(server_->arg("window").toInt());
+  }
+  if (server_->hasArg("pipeline")) {
+    const String p = server_->arg("pipeline");
+    pipeline = (p == "1" || p == "true" || p == "on");
   }
   // optional JSON body
   const int p = body.indexOf("\"peer\"");
@@ -235,14 +240,16 @@ void AnalyzerStatusModule::handleIntegrity() {
     return;
   }
 
-  const IntegrityResult r =
-      data_->runBulk(peer, frames, frame_bytes, window == 0 ? 1 : window);
+  const IntegrityResult r = data_->runBulk(
+      peer, frames, frame_bytes, window == 0 ? 1 : window, pipeline);
   String j = "{";
   j += "\"ok\":";
   j += r.ok ? "true" : "false";
   j += ",\"peer\":\"" + peer + "\"";
   j += ",\"mode\":\"" + r.mode + "\"";
   j += ",\"window\":" + String(r.window);
+  j += ",\"pipeline\":";
+  j += r.pipeline ? "true" : "false";
   j += ",\"frames_sent\":" + String(r.frames_sent);
   j += ",\"frames_acked\":" + String(r.frames_acked);
   j += ",\"frames_fail\":" + String(r.frames_fail);
