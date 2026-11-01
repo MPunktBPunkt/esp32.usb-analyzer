@@ -113,3 +113,5 @@ Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wi
 | A | Gate 9 delay/fail/disconnect + REQUEST_SENSE observe | **MEASURED** (OTG loop) |
 | B | Soft Path-B stack-gap campaign (synth/GPIO vs live L1) | **MEASURED** |
 | C | Path-B bring-up dry-run + HW checklist | **MEASURED** (offline+live) |
+
+**Übergabe nächste KI:** [`docs/reports/HANDOVER_0.0.46.md`](reports/HANDOVER_0.0.46.md) — Messinventar, Blindstellen B0–B9, Testmethoden, P0–P3.

@@ -120,5 +120,6 @@ See [`STORE_FORWARD.md`](STORE_FORWARD.md). Not started. Do not schedule before 
 ## Current pointer
 
 **Active:** Gate **10** (L0 passive / Path B) + Gate **11** observer-effect baseline.  
-**L1/L2 lab stack:** mature through 0.0.37 — no further class sprawl as main track.  
-**Parked:** Store-and-Forward; HS; Isochronous; HU wire until 10G.
+**L1/L2 lab stack:** mature through 0.0.46 (Gate 9 fault-inject included).  
+**Parked:** Store-and-Forward; HS; Isochronous; HU wire until 10G.  
+**Handover:** [`reports/HANDOVER_0.0.46.md`](reports/HANDOVER_0.0.46.md).
