@@ -17,8 +17,12 @@
 3. `POST /api/config` `{usbGadget:msc,enableHub:false}` → `gadgetNvsOk:true`.
 4. Reboot → **sticky** `msc` + `enableHub=false`.
 5. Switch `aoa_observe` → reboot → **sticky**; switch back `msc` → **sticky**.
-6. BMW stimulus `bmw_mount_scan` vs MSC hu-probe: see `LAB_BMW_HU_STIMULUS_HUPROBE_MEASURED.md`.
+6. Switch `aoa_phone_like` → reboot → **sticky** `aoa_phone_like`; back to `msc` → **sticky**.
+7. BMW stimulus `bmw_mount_scan` vs MSC hu-probe: see `LAB_BMW_HU_STIMULUS_HUPROBE_MEASURED.md`.
+8. Clean rebuild from `f440867` → `FW_GIT_DIRTY=0` (prior dirty BuildId was local `firmware/dist` deletes, not source drift).
 
 ## Not claimed
 
-Root-cause of pre-0.3.35 silent drop beyond “full/legacy namespace risk”; field boards may still need one factory-reset.
+- Power-cycle (VBUS/rail) sticky — only soft `ESP.restart` MEASURED here.
+- Phone→Accessory full enum path (AOA 51–53 identity switch on wire).
+- Root-cause of pre-0.3.35 silent drop beyond “full/legacy namespace risk”.

@@ -136,14 +136,18 @@ Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wi
 | Soak n=100 soft-reenum | `lab_hotplug_soak.py --cycles 100` | MEASURED (0 fail) |
 | CLEAR_HALT vs BOT_RESET hooks | `lab_clear_halt_vs_bot.py` | MEASURED (`both_…`) |
 | Physical VBUS unplug | — | still open |
-| `aoa_phone_like` sticky boot | hu-probe NVS | UNKNOWN this session |
+| `aoa_phone_like` sticky boot | hu-probe NVS 0.3.35 | MEASURED (soft reboot; Power-Cycle still P0) |
 
-### BMW-like Host stimulus (0.0.49)
+### BMW-like Host stimulus (0.0.49 → 0.0.50)
 
 | Method | Tool / evidence | Status |
 |--------|-----------------|--------|
-| Host `/api/lab/bmw-hu-stimulus` (P-MOUNT/P-MREAD subset) | Host FW 0.0.49 | shipped |
-| Cross-check vs pidrive L3 | `LAB_BMW_HU_STIMULUS_PIDRIVE_MEASURED` | MEASURED — DUT counters match |
-| Cross-check vs hu-probe MSC | blocked | `usb_gadget` NVS not sticky → stuck `aoa_observe` |
-| AOA plane negative | `LAB_BMW_HU_STIMULUS_HUPROBE_MEASURED` | MEASURED — zero MSC counters (correct) |
-| hu-probe NVS sticky defect | `LAB_HUPROBE_USB_GADGET_NVS_STICKY` | MEASURED |
+| Host `/api/lab/bmw-hu-stimulus` (+Sense/MaxLUN/Sync, `bmw_mount_deep`) | Host FW **0.0.50** | shipped |
+| Cross-check vs pidrive L3 | `LAB_BMW_HU_STIMULUS_PIDRIVE_MEASURED` | MEASURED — DUT counters byte-exact |
+| Cross-check vs hu-probe MSC | `LAB_BMW_HU_STIMULUS_HUPROBE_MEASURED` | MEASURED — visible; `read_count` semantics ≠ Host READ count |
+| AOA plane negative (pre-fix) | earlier sticky-AOA run | MEASURED — zero MSC counters (correct) |
+| hu-probe NVS sticky defect | `LAB_HUPROBE_USB_GADGET_NVS_STICKY` | MEASURED (pre-0.3.35) |
+| hu-probe NVS sticky fix | `LAB_HUPROBE_USB_GADGET_NVS_FIX` | MEASURED — `msc`/`aoa_observe`/`aoa_phone_like` |
+| Soft-unplug claim boundary | `LAB_SOFT_UNPLUG_CLAIM` | docs |
+| Lab UI + proxy allowlist | Controller **0.0.41** | shipped |
+| Handover | `docs/reports/2026-11-02-handover-0.0.50.md` | — |

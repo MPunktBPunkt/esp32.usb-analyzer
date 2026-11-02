@@ -151,7 +151,26 @@ def send_node_command(node_id: str, msg: str, body: Optional[dict] = None) -> Di
     return {"ok": True, "sent": envelope}
 
 
-CONTROLLER_VERSION = "0.0.40"
+CONTROLLER_VERSION = "0.0.41"
+
+# Lab proxy allowlist — destructive / unconstrained paths stay confirm-gated elsewhere.
+_LAB_PROXY_GET = frozenset(
+    {
+        "/api/status",
+        "/api/config",
+        "/api/capture",
+        "/api/events",
+        "/api/metrics",
+    }
+)
+_LAB_PROXY_POST = frozenset(
+    {
+        "/api/lab/sync-marker",
+        "/api/lab/bmw-hu-stimulus",
+        "/api/usb/cycle",
+        "/api/connected/gadget/reboot",
+    }
+)
 
 
 def _proxy_node_http(
@@ -472,15 +491,34 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/v1/lab/proxy":
             role = str(body.get("role") or "host").lower()
-            node_path = str(body.get("path") or "/api/status")
-            if not node_path.startswith("/api/"):
-                self._json(400, {"ok": False, "err": "path_must_start_with_/api/"})
+            if role not in ("host", "device"):
+                self._json(400, {"ok": False, "err": "role_host_or_device"})
                 return
+            node_path = str(body.get("path") or "/api/status").split("?", 1)[0]
             method = str(body.get("method") or "GET").upper()
+            allowed = _LAB_PROXY_GET if method == "GET" else _LAB_PROXY_POST if method == "POST" else frozenset()
+            if node_path not in allowed:
+                self._json(
+                    403,
+                    {
+                        "ok": False,
+                        "err": "proxy_path_not_allowlisted",
+                        "method": method,
+                        "path": node_path,
+                        "allowed_get": sorted(_LAB_PROXY_GET),
+                        "allowed_post": sorted(_LAB_PROXY_POST),
+                        "note": "lab_lan_only_still_restrictive",
+                    },
+                )
+                return
             raw_body = body.get("body")
             data = None
             if raw_body is not None:
-                data = json.dumps(raw_body).encode("utf-8") if not isinstance(raw_body, (bytes, bytearray)) else bytes(raw_body)
+                data = (
+                    json.dumps(raw_body).encode("utf-8")
+                    if not isinstance(raw_body, (bytes, bytearray))
+                    else bytes(raw_body)
+                )
             result = _proxy_node_http(
                 role,
                 node_path,

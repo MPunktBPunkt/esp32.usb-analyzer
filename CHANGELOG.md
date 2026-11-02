@@ -2,6 +2,8 @@
 
 ## Unreleased (post-0.0.1)
 
+- Controller 0.0.41: lab `/api/v1/lab/proxy` allowlist (GET status/config/capture/events/metrics; POST sync/stimulus/usb-cycle/gadget-reboot)
+- Docs: Handover 0.0.50 + Cross-Repo-Bericht/GATE10 auf aktuellen Stand; `aoa_phone_like` sticky MEASURED
 - 0.0.50: BMW stimulus +REQUEST_SENSE/MaxLUN/SYNCHRONIZE_CACHE + `bmw_mount_deep`; Lab UI actions (:8080) + controller lab proxy; soft-unplug claim doc; cross-repo sticky/telemetry packages
 - 0.0.49: BMW-HU-like Host stimulus (`/api/lab/bmw-hu-stimulus`) + cross-check vs pidrive/hu-probe; hu-probe usb_gadget NVS sticky defect
 - 0.0.48: Foreign DUT campaign (Analyzer-Host × pidrive L3 MP3/ID3 + hu-probe AOA Lab A/B); soak n=100; CLEAR_HALT vs BOT_RESET class-control hooks
