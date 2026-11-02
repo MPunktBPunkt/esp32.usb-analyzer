@@ -1,0 +1,237 @@
+{
+  "host_dut": {
+    "present": true,
+    "id": "303a:1001",
+    "vid": 12346,
+    "pid": 4097,
+    "address": 50,
+    "configurationValue": 1,
+    "interfaces": 1,
+    "hidIface": false,
+    "speed": "full",
+    "manufacturer": "Espressif Systems",
+    "product": "Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)",
+    "serial": "PD0332"
+  },
+  "device_fw": {
+    "fwType": "pidrive",
+    "version": "0.0.0",
+    "msc": {
+      "huContract": {
+        "scanHeadBlocks": 160,
+        "scanHeadBytes": 81920,
+        "menuReread": "usb_cycle",
+        "softRemount": "noop_on_nbt",
+        "freshNotRequired": true,
+        "bodyDynamic": true,
+        "fullMenu": false,
+        "slots": 4,
+        "slotBytes": 8388608,
+        "geo": "FAT16 L3 16MiB fav0=8M"
+      },
+      "sectorCount": 32768,
+      "imageBytes": 262144,
+      "usbSerial": "PD0332",
+      "slotMap": [
+        {
+          "i": 0,
+          "uid": "fav0",
+          "name": "Rock Antenne",
+          "path": "FAVORIT/01.MP3",
+          "kind": "station",
+          "lba0": 81,
+          "lba1": 16464,
+          "startCluster": 4,
+          "fileBytes": 8388608,
+          "active": true,
+          "bytes": 0,
+          "fromHead": 0,
+          "midFile": 0,
+          "maxSeq": 0,
+          "lastAgeMs": 0
+        },
+        {
+          "i": 1,
+          "uid": "fav1",
+          "name": "Rock Antenne Bayern",
+          "path": "FAVORIT/02.MP3",
+          "kind": "station",
+          "lba0": 16465,
+          "lba1": 17488,
+          "startCluster": 2052,
+          "fileBytes": 524288,
+          "active": true,
+          "bytes": 0,
+          "fromHead": 0,
+          "midFile": 0,
+          "maxSeq": 0,
+          "lastAgeMs": 0
+        },
+        {
+          "i": 2,
+          "uid": "fav2",
+          "name": "Radio BOB!",
+          "path": "FAVORIT/03.MP3",
+          "kind": "station",
+          "lba0": 17489,
+          "lba1": 18512,
+          "startCluster": 2180,
+          "fileBytes": 524288,
+          "active": true,
+          "bytes": 0,
+          "fromHead": 0,
+          "midFile": 0,
+          "maxSeq": 0,
+          "lastAgeMs": 0
+        },
+        {
+          "i": 3,
+          "uid": "pump:page_next",
+          "name": "Menue",
+          "path": "STEUER/04.MP3",
+          "kind": "action",
+          "lba0": 18513,
+          "lba1": 18525,
+          "startCluster": 2308,
+          "fileBytes": 6656,
+          "active": true,
+          "bytes": 0,
+          "fromHead": 0,
+          "midFile": 0,
+          "maxSeq": 0,
+          "lastAgeMs": 0
+        }
+      ],
+      "ready": true,
+      "plugged": true
+    }
+  },
+  "enum": {
+    "ok": true,
+    "dutPresent": true,
+    "address": 50,
+    "configurationValue": 1,
+    "interfaces": 1,
+    "hidIface": false,
+    "getDescOk": true,
+    "getConfigOk": true,
+    "getConfigMatch": true,
+    "getConfigByte": 1,
+    "duration_ms": 1,
+    "claim": "usb_enum_outcome_lab",
+    "note": "post_enum_stack_outcome_not_setup_mitm_not_l0"
+  },
+  "probe_read": {
+    "ok": true,
+    "msc_ready": true,
+    "pattern_ok": false,
+    "pattern_fail_bytes": 16303,
+    "dut": "303a:1001",
+    "inquiry": {
+      "vendor": "PIDRIVE ",
+      "product": "USB_MEDIA       ",
+      "revision": "0332"
+    },
+    "capacity_blocks": 32768,
+    "block_size": 512,
+    "chunk": 4,
+    "transfers": 8,
+    "blocks_read": 32,
+    "bytes_read": 16384,
+    "duration_ms": 27,
+    "rate_kBs": 592,
+    "rtt_us": {
+      "min": 2441,
+      "avg": 3256,
+      "p50": 2851,
+      "p95": 6933,
+      "max": 6933
+    },
+    "dir": "read",
+    "path": "usb_otg_host_to_device_msc",
+    "note": "direct_otg_cable_not_wifi_mitm"
+  },
+  "boot": {
+    "ok": true,
+    "crc32": "a091debc",
+    "duration_ms": 2,
+    "oem": "mkfs.fat",
+    "bytes_per_sec": 512,
+    "sec_per_cluster": 8,
+    "fat_count": 2,
+    "root_ents": 512,
+    "total_secs_16": 32768,
+    "fat_secs_16": 16,
+    "total_secs_32": 0,
+    "fs_type": "FAT16   ",
+    "sig": "55aa"
+  },
+  "fav0_head": {
+    "ok": true,
+    "crc32": "58fcc3cf",
+    "duration_ms": 17,
+    "id3": {
+      "magic": "ID3",
+      "len_head": 2048,
+      "version": "2.4.0",
+      "flags": 0,
+      "size": 34,
+      "total": 44,
+      "frames": [
+        {
+          "id": "TSSE",
+          "size": 14,
+          "data_preview": "034c61766636312e372e31303300"
+        }
+      ],
+      "ascii_preview": "ID3......\"TSSE.......Lavf61.7.103.............P.................................Info............................................"
+    }
+  },
+  "fav0_near_end": {
+    "ok": true,
+    "crc32": "6d2f14a7",
+    "duration_ms": 2,
+    "nonzero": 906
+  },
+  "fav1_head": {
+    "ok": true,
+    "crc32": "53d7a6e7",
+    "magic": "ID3",
+    "ascii": "ID3......\"TSSE.......Lavf61.7.103.............P................."
+  },
+  "device_after_reads": {
+    "readCount": 12,
+    "bytesRead": 20992,
+    "bytesBoot": 2560,
+    "bytesFat": 14336,
+    "bytesDir": 0,
+    "bytesFile": 4096,
+    "lastReadLba": 16465,
+    "host": {
+      "inquiry": 1,
+      "capacity": 1,
+      "tur": 6,
+      "turNotReady": 0,
+      "prevent": 0,
+      "otherScsi": 0,
+      "startStop": 0,
+      "lastOpcode": 0,
+      "msToInquiry": 63134,
+      "msToCapacity": 63135,
+      "msToTur": 63133,
+      "hint": "generic"
+    },
+    "huContract": {
+      "scanHeadBlocks": 160,
+      "scanHeadBytes": 81920,
+      "menuReread": "usb_cycle",
+      "softRemount": "noop_on_nbt",
+      "freshNotRequired": true,
+      "bodyDynamic": true,
+      "fullMenu": false,
+      "slots": 4,
+      "slotBytes": 8388608,
+      "geo": "FAT16 L3 16MiB fav0=8M"
+    }
+  }
+}

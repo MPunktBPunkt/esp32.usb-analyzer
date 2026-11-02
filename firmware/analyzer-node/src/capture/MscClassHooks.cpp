@@ -64,4 +64,18 @@ extern "C" void analyzer_msc_on_csw(const void *csw, uint32_t len) {
       static_cast<uint8_t>(len > 13 ? 13 : len));
 }
 
+extern "C" void analyzer_msc_on_clear_halt(uint8_t ep_addr,
+                                           uint8_t need_reset_stage) {
+  // status=0 (informational); arg0=ep, arg1=NEED_RESET stage flag
+  usb_analyzer::CaptureLog::instance().push(
+      usb_analyzer::CapRole::Device, usb_analyzer::CapType::Error, 0, 0, ep_addr,
+      need_reset_stage, 0, "ep_clear_halt");
+}
+
+extern "C" void analyzer_msc_on_bot_reset(void) {
+  usb_analyzer::CaptureLog::instance().push(
+      usb_analyzer::CapRole::Device, usb_analyzer::CapType::Error, 0, 0, 0xFF, 0,
+      0, "msc_bot_reset");
+}
+
 #endif // ANALYZER_ENABLE_USB_DEVICE

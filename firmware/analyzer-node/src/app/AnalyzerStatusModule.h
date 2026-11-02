@@ -62,6 +62,7 @@ private:
   void handleWireStimulus();
   void handleFaultInject();
   void handleFaultObserve();
+  void handleBmwHuStimulus();
   void handleSyncMarker();
   void handleCapture();
 };

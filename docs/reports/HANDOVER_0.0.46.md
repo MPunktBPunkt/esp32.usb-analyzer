@@ -155,15 +155,17 @@ Evidence: `docs/evidence/LAB_*.md` (20 Dateien) · Tools: 29× `tools/lab_*.py` 
 
 ### P0 — ohne neue Hardware
 
-| # | Task | Status (0.0.47) |
+| # | Task | Status (0.0.48) |
 |---|------|-----------------|
 | 1 | Property-based Fuzz L0 + BCL | ✅ `test_usb_fs_l0_fuzz.py` · BCL `test_fuzz_random_buffers` |
 | 2 | Golden fixtures + regression | ✅ `test_l0_golden.py` · `fixtures/*.expected.json` |
 | 3 | REQUEST_SENSE isolation | ✅ `lab_sense_isolation.py` · `LAB_GATE9_SENSE_ISOLATION` |
-| 4 | Hotplug/Soak | ✅ `lab_hotplug_soak.py` (soft-reenum cycles) |
+| 4 | Hotplug/Soak | ✅ `lab_hotplug_soak.py` — **n=100** soft-reenum (0 fail) |
 | 5 | Gate-9 extend fail_after/fail_mid/stall | ✅ `lab_gate9_extended.py` |
+| 6 | Fremd-DUT Diversität | ✅ Analyzer-Host × pidrive L3 + hu-probe AOA Lab A/B |
+| 7 | CLEAR_HALT vs BOT | ✅ `lab_clear_halt_vs_bot.py` · locus `both_clear_halt_and_bot_reset` |
 
-Noch offen in P0-Nähe: Fremdgeräte-Diversität; physischer Unplug; CLEAR_HALT vs BOT als getrennte FACT; n≥100 Soak.
+Noch offen in P0-Nähe: **physischer Unplug** (VBUS); hu-probe `aoa_phone_like` sticky boot (UNKNOWN).
 
 ### P1 — sobald Hardware da / vor Ort
 

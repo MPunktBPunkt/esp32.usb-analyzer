@@ -628,6 +628,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleFaultInject(); });
   server.on("/api/lab/fault-observe", HTTP_ANY,
             [this]() { handleFaultObserve(); });
+  server.on("/api/lab/bmw-hu-stimulus", HTTP_ANY,
+            [this]() { handleBmwHuStimulus(); });
   server.on("/api/lab/sync-marker", HTTP_ANY, [this]() { handleSyncMarker(); });
   server.on("/api/capture", HTTP_GET, [this]() { handleCapture(); });
   server.on("/api/led", HTTP_ANY, [this]() { handleLed(); });
@@ -1855,6 +1857,70 @@ void AnalyzerStatusModule::handleFaultObserve() {
   }
   j += ",\"claim\":\"gate9_fault_observe_lab\"";
   j += ",\"note\":\"bot_sense_recovery_not_l0\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(r.ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleBmwHuStimulus() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  String profile = "bmw_mount";
+  uint16_t tur_count = 32;
+  uint32_t scan_blocks = 160;
+  uint32_t file_lba0 = 0;
+  if (server_->hasArg("profile")) {
+    profile = server_->arg("profile");
+  }
+  if (server_->hasArg("tur")) {
+    tur_count = static_cast<uint16_t>(server_->arg("tur").toInt());
+  }
+  if (server_->hasArg("scan_blocks")) {
+    scan_blocks = static_cast<uint32_t>(server_->arg("scan_blocks").toInt());
+  }
+  if (server_->hasArg("file_lba0")) {
+    file_lba0 = static_cast<uint32_t>(server_->arg("file_lba0").toInt());
+  }
+  const UsbHostNode::BmwHuStimulusResult r =
+      host_->runBmwHuStimulus(profile.c_str(), tur_count, scan_blocks, file_lba0);
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"profile\":\"";
+  j += r.profile;
+  j += "\",\"inquiryOk\":";
+  j += String(r.inquiry_ok);
+  j += ",\"capacityOk\":";
+  j += String(r.capacity_ok);
+  j += ",\"turOk\":";
+  j += String(r.tur_ok);
+  j += ",\"turFail\":";
+  j += String(r.tur_fail);
+  j += ",\"readOk\":";
+  j += String(r.read_ok);
+  j += ",\"readFail\":";
+  j += String(r.read_fail);
+  j += ",\"bytesRead\":";
+  j += String(r.bytes_read);
+  j += ",\"capacityBlocks\":";
+  j += String(static_cast<uint32_t>(r.capacity_blocks));
+  j += ",\"inquiryProduct\":\"";
+  j += r.inquiry_product;
+  j += "\",\"duration_ms\":";
+  j += String(r.duration_ms);
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"bmw_hu_stimulus_lab\"";
+  j += ",\"note\":\"";
+  j += r.note;
+  j += "\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(r.ok ? 200 : 500, F("application/json"), j);
 }

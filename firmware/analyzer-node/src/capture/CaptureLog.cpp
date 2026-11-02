@@ -197,6 +197,15 @@ void CaptureLog::eventToJson(const CapEvent &e, String &out) const {
     out += from_complete ? ",\"source\":\"class_complete_cb\""
                          : ",\"source\":\"class_api_inferred\"";
     out += "}";
+  } else if (e.type == CapType::Error && e.note[0] &&
+             (strcmp(e.note, "ep_clear_halt") == 0 ||
+              strcmp(e.note, "msc_bot_reset") == 0)) {
+    out += ",\"decoded\":{\"protocol\":\"msc-bot\",\"command\":\"";
+    out += e.note;
+    out += "\",\"ep_addr\":" + String(e.arg0);
+    out += ",\"need_reset_stage\":" + String(e.arg1);
+    out += ",\"source\":\"class_hook_mscd_control\"";
+    out += "}";
   } else if (e.type == CapType::EnumInfo && e.note[0] &&
              (strncmp(e.note, "bcl_frame", 9) == 0 ||
               strncmp(e.note, "bcl_echo", 8) == 0)) {

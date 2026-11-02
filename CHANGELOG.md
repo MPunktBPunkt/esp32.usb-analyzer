@@ -2,6 +2,8 @@
 
 ## Unreleased (post-0.0.1)
 
+- 0.0.49: BMW-HU-like Host stimulus (`/api/lab/bmw-hu-stimulus`) + cross-check vs pidrive/hu-probe; hu-probe usb_gadget NVS sticky defect
+- 0.0.48: Foreign DUT campaign (Analyzer-Host × pidrive L3 MP3/ID3 + hu-probe AOA Lab A/B); soak n=100; CLEAR_HALT vs BOT_RESET class-control hooks
 - 0.0.47: P0 test methods — L0/BCL fuzz, golden `.l0samp` regression, REQUEST_SENSE isolation, hotplug/soak, Gate9 fail_after/fail_mid
 - 0.0.46: Software-only while Path-B HW waits — Gate 9 fault-inject/sense/recovery, correlator gap classes, soft Path-B campaign + bring-up dry-run
 - 0.0.45: L0∖L1 stack-gap lab (stimulus wire GT vs Device TinyUSB capture)

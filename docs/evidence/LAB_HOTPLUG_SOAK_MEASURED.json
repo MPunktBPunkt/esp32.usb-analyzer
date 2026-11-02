@@ -1,134 +1,1014 @@
 {
   "ok": true,
   "claim": "hotplug_soak_lab",
-  "cycles": 12,
+  "cycles": 100,
   "fail_enum": 0,
   "fail_msc": 0,
-  "recovery_ms_p50": 2181.549072265625,
-  "recovery_ms_p95": 2322.1781253814697,
-  "host_heap_drift": 56,
-  "device_heap_drift": 20,
+  "recovery_ms_p50": 1685.0508451461792,
+  "recovery_ms_p95": 1943.4057235717773,
+  "host_heap_drift": 208,
+  "device_heap_drift": 236,
   "heal_ok": true,
   "rows": [
     {
       "i": 0,
       "ok": true,
-      "recovery_ms": 2177.7,
-      "rate_kBs": 500,
-      "host_heap": 109432,
-      "device_heap": 139884,
+      "recovery_ms": 1686.2,
+      "rate_kBs": 1000,
+      "host_heap": 109300,
+      "device_heap": 139812,
       "device_mount": "connected",
-      "mountCount": 39
+      "mountCount": 2
     },
     {
       "i": 1,
       "ok": true,
-      "recovery_ms": 2181.7,
+      "recovery_ms": 1698.3,
       "rate_kBs": 1000,
-      "host_heap": 109404,
-      "device_heap": 139896,
+      "host_heap": 109308,
+      "device_heap": 139820,
       "device_mount": "connected",
-      "mountCount": 40
+      "mountCount": 3
     },
     {
       "i": 2,
       "ok": true,
-      "recovery_ms": 2193.7,
+      "recovery_ms": 1687.4,
       "rate_kBs": 1000,
-      "host_heap": 109432,
-      "device_heap": 139900,
+      "host_heap": 109276,
+      "device_heap": 139808,
       "device_mount": "connected",
-      "mountCount": 41
+      "mountCount": 4
     },
     {
       "i": 3,
       "ok": true,
-      "recovery_ms": 2322.2,
-      "rate_kBs": 500,
-      "host_heap": 109436,
-      "device_heap": 139880,
+      "recovery_ms": 1816.9,
+      "rate_kBs": 1000,
+      "host_heap": 109300,
+      "device_heap": 139812,
       "device_mount": "connected",
-      "mountCount": 42
+      "mountCount": 5
     },
     {
       "i": 4,
       "ok": true,
-      "recovery_ms": 2185.2,
-      "rate_kBs": 500,
-      "host_heap": 109424,
-      "device_heap": 139880,
+      "recovery_ms": 1670.5,
+      "rate_kBs": 1000,
+      "host_heap": 109312,
+      "device_heap": 139804,
       "device_mount": "connected",
-      "mountCount": 43
+      "mountCount": 6
     },
     {
       "i": 5,
       "ok": true,
-      "recovery_ms": 2176.1,
+      "recovery_ms": 1677.9,
       "rate_kBs": 500,
-      "host_heap": 109388,
-      "device_heap": 139880,
+      "host_heap": 109312,
+      "device_heap": 139820,
       "device_mount": "connected",
-      "mountCount": 44
+      "mountCount": 7
     },
     {
       "i": 6,
       "ok": true,
-      "recovery_ms": 2174.9,
+      "recovery_ms": 1686.7,
       "rate_kBs": 500,
-      "host_heap": 109436,
-      "device_heap": 139880,
+      "host_heap": 109312,
+      "device_heap": 139820,
       "device_mount": "connected",
-      "mountCount": 45
+      "mountCount": 8
     },
     {
       "i": 7,
       "ok": true,
-      "recovery_ms": 2184.4,
-      "rate_kBs": 1000,
-      "host_heap": 109440,
-      "device_heap": 139880,
+      "recovery_ms": 1676.9,
+      "rate_kBs": 500,
+      "host_heap": 109308,
+      "device_heap": 139680,
       "device_mount": "connected",
-      "mountCount": 46
+      "mountCount": 9
     },
     {
       "i": 8,
       "ok": true,
-      "recovery_ms": 2175.2,
-      "rate_kBs": 500,
-      "host_heap": 109444,
-      "device_heap": 139900,
+      "recovery_ms": 1818.9,
+      "rate_kBs": 1000,
+      "host_heap": 109308,
+      "device_heap": 139816,
       "device_mount": "connected",
-      "mountCount": 47
+      "mountCount": 10
     },
     {
       "i": 9,
       "ok": true,
-      "recovery_ms": 2181.0,
-      "rate_kBs": 500,
-      "host_heap": 109424,
-      "device_heap": 139896,
+      "recovery_ms": 1675.9,
+      "rate_kBs": 1000,
+      "host_heap": 109300,
+      "device_heap": 139820,
       "device_mount": "connected",
-      "mountCount": 48
+      "mountCount": 11
     },
     {
       "i": 10,
       "ok": true,
-      "recovery_ms": 2181.4,
+      "recovery_ms": 1811.1,
       "rate_kBs": 1000,
-      "host_heap": 109428,
-      "device_heap": 139880,
+      "host_heap": 109288,
+      "device_heap": 139820,
       "device_mount": "connected",
-      "mountCount": 49
+      "mountCount": 12
     },
     {
       "i": 11,
       "ok": true,
-      "recovery_ms": 2183.5,
+      "recovery_ms": 1959.1,
       "rate_kBs": 1000,
-      "host_heap": 109436,
-      "device_heap": 139880,
+      "host_heap": 109300,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 13
+    },
+    {
+      "i": 12,
+      "ok": true,
+      "recovery_ms": 1819.9,
+      "rate_kBs": 1000,
+      "host_heap": 109304,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 14
+    },
+    {
+      "i": 13,
+      "ok": true,
+      "recovery_ms": 1674.6,
+      "rate_kBs": 1000,
+      "host_heap": 109316,
+      "device_heap": 139596,
+      "device_mount": "connected",
+      "mountCount": 15
+    },
+    {
+      "i": 14,
+      "ok": true,
+      "recovery_ms": 1817.2,
+      "rate_kBs": 500,
+      "host_heap": 109292,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 16
+    },
+    {
+      "i": 15,
+      "ok": true,
+      "recovery_ms": 1683.8,
+      "rate_kBs": 500,
+      "host_heap": 109292,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 17
+    },
+    {
+      "i": 16,
+      "ok": true,
+      "recovery_ms": 1819.7,
+      "rate_kBs": 1000,
+      "host_heap": 109304,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 18
+    },
+    {
+      "i": 17,
+      "ok": true,
+      "recovery_ms": 1679.4,
+      "rate_kBs": 1000,
+      "host_heap": 109296,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 19
+    },
+    {
+      "i": 18,
+      "ok": true,
+      "recovery_ms": 1689.4,
+      "rate_kBs": 1000,
+      "host_heap": 109304,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 20
+    },
+    {
+      "i": 19,
+      "ok": true,
+      "recovery_ms": 1676.9,
+      "rate_kBs": 1000,
+      "host_heap": 109264,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 21
+    },
+    {
+      "i": 20,
+      "ok": true,
+      "recovery_ms": 1677.5,
+      "rate_kBs": 1000,
+      "host_heap": 109288,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 22
+    },
+    {
+      "i": 21,
+      "ok": true,
+      "recovery_ms": 1682.0,
+      "rate_kBs": 500,
+      "host_heap": 109280,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 23
+    },
+    {
+      "i": 22,
+      "ok": true,
+      "recovery_ms": 1821.7,
+      "rate_kBs": 1000,
+      "host_heap": 109268,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 24
+    },
+    {
+      "i": 23,
+      "ok": true,
+      "recovery_ms": 1678.6,
+      "rate_kBs": 500,
+      "host_heap": 109284,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 25
+    },
+    {
+      "i": 24,
+      "ok": true,
+      "recovery_ms": 1678.6,
+      "rate_kBs": 1000,
+      "host_heap": 109292,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 26
+    },
+    {
+      "i": 25,
+      "ok": true,
+      "recovery_ms": 1678.4,
+      "rate_kBs": 1000,
+      "host_heap": 109280,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 27
+    },
+    {
+      "i": 26,
+      "ok": true,
+      "recovery_ms": 1684.9,
+      "rate_kBs": 1000,
+      "host_heap": 109276,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 28
+    },
+    {
+      "i": 27,
+      "ok": true,
+      "recovery_ms": 1815.7,
+      "rate_kBs": 500,
+      "host_heap": 109304,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 29
+    },
+    {
+      "i": 28,
+      "ok": true,
+      "recovery_ms": 1816.4,
+      "rate_kBs": 1000,
+      "host_heap": 109296,
+      "device_heap": 139804,
+      "device_mount": "connected",
+      "mountCount": 30
+    },
+    {
+      "i": 29,
+      "ok": true,
+      "recovery_ms": 1685.0,
+      "rate_kBs": 500,
+      "host_heap": 109328,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 31
+    },
+    {
+      "i": 30,
+      "ok": true,
+      "recovery_ms": 1670.8,
+      "rate_kBs": 1000,
+      "host_heap": 109324,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 32
+    },
+    {
+      "i": 31,
+      "ok": true,
+      "recovery_ms": 1958.2,
+      "rate_kBs": 1000,
+      "host_heap": 109280,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 33
+    },
+    {
+      "i": 32,
+      "ok": true,
+      "recovery_ms": 1817.5,
+      "rate_kBs": 1000,
+      "host_heap": 109292,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 34
+    },
+    {
+      "i": 33,
+      "ok": true,
+      "recovery_ms": 1685.3,
+      "rate_kBs": 1000,
+      "host_heap": 109300,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 35
+    },
+    {
+      "i": 34,
+      "ok": true,
+      "recovery_ms": 1674.4,
+      "rate_kBs": 500,
+      "host_heap": 109268,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 36
+    },
+    {
+      "i": 35,
+      "ok": true,
+      "recovery_ms": 1678.0,
+      "rate_kBs": 500,
+      "host_heap": 109304,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 37
+    },
+    {
+      "i": 36,
+      "ok": true,
+      "recovery_ms": 1683.1,
+      "rate_kBs": 1000,
+      "host_heap": 109328,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 38
+    },
+    {
+      "i": 37,
+      "ok": true,
+      "recovery_ms": 1677.5,
+      "rate_kBs": 1000,
+      "host_heap": 109288,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 39
+    },
+    {
+      "i": 38,
+      "ok": true,
+      "recovery_ms": 1690.4,
+      "rate_kBs": 500,
+      "host_heap": 109152,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 40
+    },
+    {
+      "i": 39,
+      "ok": true,
+      "recovery_ms": 1678.7,
+      "rate_kBs": 500,
+      "host_heap": 109128,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 41
+    },
+    {
+      "i": 40,
+      "ok": true,
+      "recovery_ms": 1678.3,
+      "rate_kBs": 1000,
+      "host_heap": 109144,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 42
+    },
+    {
+      "i": 41,
+      "ok": true,
+      "recovery_ms": 1672.5,
+      "rate_kBs": 1000,
+      "host_heap": 109144,
+      "device_heap": 139800,
+      "device_mount": "connected",
+      "mountCount": 43
+    },
+    {
+      "i": 42,
+      "ok": true,
+      "recovery_ms": 1819.8,
+      "rate_kBs": 1000,
+      "host_heap": 109164,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 44
+    },
+    {
+      "i": 43,
+      "ok": true,
+      "recovery_ms": 1678.5,
+      "rate_kBs": 500,
+      "host_heap": 109156,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 45
+    },
+    {
+      "i": 44,
+      "ok": true,
+      "recovery_ms": 1819.4,
+      "rate_kBs": 1000,
+      "host_heap": 109140,
+      "device_heap": 139800,
+      "device_mount": "connected",
+      "mountCount": 46
+    },
+    {
+      "i": 45,
+      "ok": true,
+      "recovery_ms": 1819.2,
+      "rate_kBs": 1000,
+      "host_heap": 109124,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 47
+    },
+    {
+      "i": 46,
+      "ok": true,
+      "recovery_ms": 1820.9,
+      "rate_kBs": 1000,
+      "host_heap": 109140,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 48
+    },
+    {
+      "i": 47,
+      "ok": true,
+      "recovery_ms": 1822.8,
+      "rate_kBs": 1000,
+      "host_heap": 109120,
+      "device_heap": 139800,
+      "device_mount": "connected",
+      "mountCount": 49
+    },
+    {
+      "i": 48,
+      "ok": true,
+      "recovery_ms": 1969.7,
+      "rate_kBs": 1000,
+      "host_heap": 109140,
+      "device_heap": 139804,
       "device_mount": "connected",
       "mountCount": 50
+    },
+    {
+      "i": 49,
+      "ok": true,
+      "recovery_ms": 1687.8,
+      "rate_kBs": 1000,
+      "host_heap": 109136,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 51
+    },
+    {
+      "i": 50,
+      "ok": true,
+      "recovery_ms": 1680.4,
+      "rate_kBs": 1000,
+      "host_heap": 109156,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 52
+    },
+    {
+      "i": 51,
+      "ok": true,
+      "recovery_ms": 1822.6,
+      "rate_kBs": 1000,
+      "host_heap": 109120,
+      "device_heap": 139832,
+      "device_mount": "connected",
+      "mountCount": 53
+    },
+    {
+      "i": 52,
+      "ok": true,
+      "recovery_ms": 1721.7,
+      "rate_kBs": 1000,
+      "host_heap": 109140,
+      "device_heap": 139804,
+      "device_mount": "connected",
+      "mountCount": 54
+    },
+    {
+      "i": 53,
+      "ok": true,
+      "recovery_ms": 1682.4,
+      "rate_kBs": 1000,
+      "host_heap": 109168,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 55
+    },
+    {
+      "i": 54,
+      "ok": true,
+      "recovery_ms": 1678.5,
+      "rate_kBs": 500,
+      "host_heap": 109160,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 56
+    },
+    {
+      "i": 55,
+      "ok": true,
+      "recovery_ms": 1678.2,
+      "rate_kBs": 500,
+      "host_heap": 109140,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 57
+    },
+    {
+      "i": 56,
+      "ok": true,
+      "recovery_ms": 1676.9,
+      "rate_kBs": 1000,
+      "host_heap": 109172,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 58
+    },
+    {
+      "i": 57,
+      "ok": true,
+      "recovery_ms": 1676.8,
+      "rate_kBs": 1000,
+      "host_heap": 109176,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 59
+    },
+    {
+      "i": 58,
+      "ok": true,
+      "recovery_ms": 1670.2,
+      "rate_kBs": 500,
+      "host_heap": 109156,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 60
+    },
+    {
+      "i": 59,
+      "ok": true,
+      "recovery_ms": 1683.6,
+      "rate_kBs": 1000,
+      "host_heap": 109176,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 61
+    },
+    {
+      "i": 60,
+      "ok": true,
+      "recovery_ms": 1683.5,
+      "rate_kBs": 1000,
+      "host_heap": 109156,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 62
+    },
+    {
+      "i": 61,
+      "ok": true,
+      "recovery_ms": 1683.2,
+      "rate_kBs": 1000,
+      "host_heap": 109176,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 63
+    },
+    {
+      "i": 62,
+      "ok": true,
+      "recovery_ms": 1816.7,
+      "rate_kBs": 1000,
+      "host_heap": 109156,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 64
+    },
+    {
+      "i": 63,
+      "ok": true,
+      "recovery_ms": 1690.0,
+      "rate_kBs": 1000,
+      "host_heap": 109144,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 65
+    },
+    {
+      "i": 64,
+      "ok": true,
+      "recovery_ms": 1811.6,
+      "rate_kBs": 1000,
+      "host_heap": 109160,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 66
+    },
+    {
+      "i": 65,
+      "ok": true,
+      "recovery_ms": 1683.1,
+      "rate_kBs": 500,
+      "host_heap": 109164,
+      "device_heap": 139608,
+      "device_mount": "connected",
+      "mountCount": 67
+    },
+    {
+      "i": 66,
+      "ok": true,
+      "recovery_ms": 1685.3,
+      "rate_kBs": 1000,
+      "host_heap": 109152,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 68
+    },
+    {
+      "i": 67,
+      "ok": true,
+      "recovery_ms": 1962.7,
+      "rate_kBs": 1000,
+      "host_heap": 109172,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 69
+    },
+    {
+      "i": 68,
+      "ok": true,
+      "recovery_ms": 1678.2,
+      "rate_kBs": 1000,
+      "host_heap": 109160,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 70
+    },
+    {
+      "i": 69,
+      "ok": true,
+      "recovery_ms": 1682.0,
+      "rate_kBs": 1000,
+      "host_heap": 109164,
+      "device_heap": 139800,
+      "device_mount": "connected",
+      "mountCount": 71
+    },
+    {
+      "i": 70,
+      "ok": true,
+      "recovery_ms": 1671.3,
+      "rate_kBs": 500,
+      "host_heap": 109160,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 72
+    },
+    {
+      "i": 71,
+      "ok": true,
+      "recovery_ms": 1683.6,
+      "rate_kBs": 1000,
+      "host_heap": 109156,
+      "device_heap": 139812,
+      "device_mount": "connected",
+      "mountCount": 73
+    },
+    {
+      "i": 72,
+      "ok": true,
+      "recovery_ms": 1811.0,
+      "rate_kBs": 500,
+      "host_heap": 109164,
+      "device_heap": 139800,
+      "device_mount": "connected",
+      "mountCount": 74
+    },
+    {
+      "i": 73,
+      "ok": true,
+      "recovery_ms": 1685.1,
+      "rate_kBs": 1000,
+      "host_heap": 109140,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 75
+    },
+    {
+      "i": 74,
+      "ok": true,
+      "recovery_ms": 1687.4,
+      "rate_kBs": 500,
+      "host_heap": 109164,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 76
+    },
+    {
+      "i": 75,
+      "ok": true,
+      "recovery_ms": 1689.0,
+      "rate_kBs": 1000,
+      "host_heap": 109160,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 77
+    },
+    {
+      "i": 76,
+      "ok": true,
+      "recovery_ms": 1677.2,
+      "rate_kBs": 500,
+      "host_heap": 109164,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 78
+    },
+    {
+      "i": 77,
+      "ok": true,
+      "recovery_ms": 1678.2,
+      "rate_kBs": 500,
+      "host_heap": 109160,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 79
+    },
+    {
+      "i": 78,
+      "ok": true,
+      "recovery_ms": 1818.0,
+      "rate_kBs": 1000,
+      "host_heap": 109136,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 80
+    },
+    {
+      "i": 79,
+      "ok": true,
+      "recovery_ms": 1672.0,
+      "rate_kBs": 1000,
+      "host_heap": 109152,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 81
+    },
+    {
+      "i": 80,
+      "ok": true,
+      "recovery_ms": 1949.7,
+      "rate_kBs": 1000,
+      "host_heap": 109140,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 82
+    },
+    {
+      "i": 81,
+      "ok": true,
+      "recovery_ms": 1822.9,
+      "rate_kBs": 1000,
+      "host_heap": 109132,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 83
+    },
+    {
+      "i": 82,
+      "ok": true,
+      "recovery_ms": 1686.8,
+      "rate_kBs": 1000,
+      "host_heap": 109288,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 84
+    },
+    {
+      "i": 83,
+      "ok": true,
+      "recovery_ms": 1811.0,
+      "rate_kBs": 1000,
+      "host_heap": 109276,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 85
+    },
+    {
+      "i": 84,
+      "ok": true,
+      "recovery_ms": 1818.4,
+      "rate_kBs": 1000,
+      "host_heap": 109264,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 86
+    },
+    {
+      "i": 85,
+      "ok": true,
+      "recovery_ms": 1686.4,
+      "rate_kBs": 1000,
+      "host_heap": 109276,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 87
+    },
+    {
+      "i": 86,
+      "ok": true,
+      "recovery_ms": 1824.0,
+      "rate_kBs": 500,
+      "host_heap": 109308,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 88
+    },
+    {
+      "i": 87,
+      "ok": true,
+      "recovery_ms": 1682.3,
+      "rate_kBs": 1000,
+      "host_heap": 109292,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 89
+    },
+    {
+      "i": 88,
+      "ok": true,
+      "recovery_ms": 1671.0,
+      "rate_kBs": 1000,
+      "host_heap": 109292,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 90
+    },
+    {
+      "i": 89,
+      "ok": true,
+      "recovery_ms": 1676.9,
+      "rate_kBs": 1000,
+      "host_heap": 109276,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 91
+    },
+    {
+      "i": 90,
+      "ok": true,
+      "recovery_ms": 1690.6,
+      "rate_kBs": 1000,
+      "host_heap": 109264,
+      "device_heap": 139816,
+      "device_mount": "connected",
+      "mountCount": 92
+    },
+    {
+      "i": 91,
+      "ok": true,
+      "recovery_ms": 1677.1,
+      "rate_kBs": 500,
+      "host_heap": 109300,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 93
+    },
+    {
+      "i": 92,
+      "ok": true,
+      "recovery_ms": 1820.4,
+      "rate_kBs": 1000,
+      "host_heap": 109272,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 94
+    },
+    {
+      "i": 93,
+      "ok": true,
+      "recovery_ms": 1686.0,
+      "rate_kBs": 1000,
+      "host_heap": 109292,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 95
+    },
+    {
+      "i": 94,
+      "ok": true,
+      "recovery_ms": 1816.2,
+      "rate_kBs": 1000,
+      "host_heap": 109300,
+      "device_heap": 139808,
+      "device_mount": "connected",
+      "mountCount": 96
+    },
+    {
+      "i": 95,
+      "ok": true,
+      "recovery_ms": 1671.2,
+      "rate_kBs": 1000,
+      "host_heap": 109284,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 97
+    },
+    {
+      "i": 96,
+      "ok": true,
+      "recovery_ms": 1677.2,
+      "rate_kBs": 500,
+      "host_heap": 109288,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 98
+    },
+    {
+      "i": 97,
+      "ok": true,
+      "recovery_ms": 1675.9,
+      "rate_kBs": 1000,
+      "host_heap": 109312,
+      "device_heap": 139824,
+      "device_mount": "connected",
+      "mountCount": 99
+    },
+    {
+      "i": 98,
+      "ok": true,
+      "recovery_ms": 1816.7,
+      "rate_kBs": 1000,
+      "host_heap": 109288,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 100
+    },
+    {
+      "i": 99,
+      "ok": true,
+      "recovery_ms": 1684.2,
+      "rate_kBs": 500,
+      "host_heap": 109276,
+      "device_heap": 139820,
+      "device_mount": "connected",
+      "mountCount": 101
     }
   ],
   "not_claimed": [

@@ -692,6 +692,124 @@ UsbHostNode::runFaultObserve(uint32_t lba, uint32_t blocks, bool do_sense,
   return r;
 }
 
+UsbHostNode::BmwHuStimulusResult
+UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
+                              uint32_t scan_blocks, uint32_t file_lba0) {
+  BmwHuStimulusResult r;
+  r.profile = profile ? profile : "bmw_mount";
+  r.note = "not_real_hu_no_mode_sense_no_prevent";
+  const uint32_t t0 = millis();
+  if (!begin_ok_ || host_released_ || deviceCount() == 0) {
+    r.error = "no_dut";
+    r.duration_ms = millis() - t0;
+    return r;
+  }
+  if (tur_count == 0) {
+    tur_count = 1;
+  }
+  if (tur_count > 128) {
+    tur_count = 128;
+  }
+
+  const bool do_mount = r.profile.startsWith("bmw_mount");
+  const bool do_scan = r.profile == "bmw_mount_scan";
+  const bool idle_tur = r.profile == "bmw_idle_tur";
+
+  // Desk FACT P-MREAD (hu-probe 2026-10-19): lba/blocks pairs.
+  static const uint16_t kPmread[][2] = {
+      {0, 8}, {0, 8}, {24, 8}, {0, 8}, {0, 1}, {1, 3},
+      {7, 2}, {1, 1}, {2, 1},  {3, 5}, {24, 8}};
+  static const size_t kPmreadN = sizeof(kPmread) / sizeof(kPmread[0]);
+
+  if (do_mount || idle_tur) {
+    EspUsbHostMscInquiry inq{};
+    if (g_usb.mscInquiry(inq)) {
+      r.inquiry_ok = 1;
+      r.inquiry_product = inq.product;
+      CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 0, 0, 0, 0,
+                                  "bmw_stim_inquiry");
+    }
+    for (uint16_t i = 0; i < 3; i++) {
+      uint64_t blocks = 0;
+      uint32_t bsz = 0;
+      if (g_usb.mscCapacity64(blocks, bsz)) {
+        r.capacity_ok++;
+        r.capacity_blocks = blocks;
+        CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 0, i,
+                                    static_cast<uint32_t>(blocks), 0,
+                                    "bmw_stim_capacity");
+      }
+    }
+    for (uint16_t i = 0; i < tur_count; i++) {
+      const bool ok = g_usb.mscTestUnitReady();
+      if (ok) {
+        r.tur_ok++;
+      } else {
+        r.tur_fail++;
+      }
+      if (idle_tur) {
+        delay(2200); // P-TUR ~2239 ms idle cadence
+      } else if ((i & 3u) == 3u) {
+        delay(1); // keep burst tight like P-MOUNT TUR cluster
+      }
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, r.tur_ok,
+                                r.tur_fail, tur_count, 0, "bmw_stim_tur");
+  }
+
+  if (do_mount) {
+    uint8_t buf[512 * 8];
+    for (size_t i = 0; i < kPmreadN; i++) {
+      const uint32_t lba = kPmread[i][0];
+      const uint32_t n = kPmread[i][1];
+      const bool ok = readBlocks(lba, n, buf);
+      if (ok) {
+        r.read_ok++;
+        r.bytes_read += n * 512u;
+      } else {
+        r.read_fail++;
+      }
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::MscRead, r.read_fail ? 1 : 0,
+                                r.bytes_read, 0, r.read_ok, 0, "bmw_stim_pmread");
+  }
+
+  if (do_scan && scan_blocks > 0) {
+    uint32_t lba = file_lba0;
+    if (lba == 0) {
+      // Heuristic: after FAT boot/root — hu-probe demo often near LBA 9–81;
+      // caller should pass file_lba0 for pidrive fav0 (=81).
+      lba = 9;
+    }
+    uint8_t buf[512 * 8];
+    uint32_t left = scan_blocks;
+    while (left > 0) {
+      const uint32_t n = left > 8 ? 8 : left;
+      const bool ok = readBlocks(lba, n, buf);
+      if (ok) {
+        r.read_ok++;
+        r.bytes_read += n * 512u;
+      } else {
+        r.read_fail++;
+        break;
+      }
+      lba += n;
+      left -= n;
+    }
+    CaptureLog::instance().push(CapRole::Host, CapType::MscRead, r.read_fail ? 1 : 0,
+                                r.bytes_read, file_lba0, scan_blocks, 0,
+                                "bmw_stim_scan");
+  }
+
+  r.ok = (r.inquiry_ok + r.capacity_ok + r.tur_ok + r.read_ok) > 0 &&
+         r.read_fail == 0 && (idle_tur ? r.tur_ok > 0 : true);
+  if (!r.ok && r.error.length() == 0) {
+    r.error = "stimulus_partial_or_read_fail";
+  }
+  r.duration_ms = millis() - t0;
+  return r;
+}
+
 bool UsbHostNode::writeBlocks(uint32_t lba, uint32_t blocks, const uint8_t *in) {
   if (!begin_ok_ || !in || blocks == 0 || blocks > 16 || deviceCount() == 0) {
     return false;
@@ -1708,6 +1826,13 @@ UsbHostNode::FaultObserveResult
 UsbHostNode::runFaultObserve(uint32_t, uint32_t, bool, bool) {
   FaultObserveResult r;
   r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::BmwHuStimulusResult
+UsbHostNode::runBmwHuStimulus(const char *, uint16_t, uint32_t, uint32_t) {
+  BmwHuStimulusResult r;
+  r.error = "host_disabled";
+  r.note = "not_real_hu_no_mode_sense_no_prevent";
   return r;
 }
 void UsbHostNode::noteHidReport(uint8_t, uint8_t, uint8_t, uint8_t,

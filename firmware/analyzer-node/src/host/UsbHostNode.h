@@ -332,6 +332,33 @@ public:
                                      bool do_sense = true,
                                      bool do_recovery = true);
 
+  /**
+   * BMW-NBT-like MSC host stimulus (desk FACT P-MOUNT/P-MREAD subset).
+   * Profiles: bmw_mount | bmw_mount_scan | bmw_idle_tur
+   * Emits INQUIRY / CAPACITY×N / TUR burst / READ10 sequence via EspUsbHost.
+   * Claim: bmw_hu_stimulus_lab — NOT real HU · NOT MODE_SENSE/PREVENT (not in EspUsbHost API).
+   */
+  struct BmwHuStimulusResult {
+    bool ok = false;
+    String profile;
+    uint16_t inquiry_ok = 0;
+    uint16_t capacity_ok = 0;
+    uint16_t tur_ok = 0;
+    uint16_t tur_fail = 0;
+    uint16_t read_ok = 0;
+    uint16_t read_fail = 0;
+    uint32_t bytes_read = 0;
+    uint32_t duration_ms = 0;
+    uint64_t capacity_blocks = 0;
+    String inquiry_product;
+    String error;
+    String note;
+  };
+  BmwHuStimulusResult runBmwHuStimulus(const char *profile = "bmw_mount",
+                                       uint16_t tur_count = 32,
+                                       uint32_t scan_blocks = 160,
+                                       uint32_t file_lba0 = 0);
+
 private:
   bool ready_ = false;
   bool begin_ok_ = false;

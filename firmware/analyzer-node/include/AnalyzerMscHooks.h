@@ -13,6 +13,10 @@ extern "C" {
 
 void analyzer_msc_on_cbw(const void *cbw, uint32_t len);
 void analyzer_msc_on_csw(const void *csw, uint32_t len);
+/** CLEAR_FEATURE(ENDPOINT_HALT) seen in mscd_control_xfer — not BOT_RESET. */
+void analyzer_msc_on_clear_halt(uint8_t ep_addr, uint8_t need_reset_stage);
+/** MSC class BOT Mass Storage Reset (bRequest 0xFF). */
+void analyzer_msc_on_bot_reset(void);
 
 #ifdef __cplusplus
 }

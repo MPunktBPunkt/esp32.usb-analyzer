@@ -1,0 +1,157 @@
+{
+  "set_lab_b": {
+    "http": 200,
+    "j": {
+      "ok": true,
+      "action": "hypothesis_respond",
+      "hypothesis_respond": false,
+      "note": "lab_a_responder_vs_lab_b_observe_not_host_ack",
+      "connected_app": {
+        "plane": "CONTROL",
+        "scenario": "ca_c1_link",
+        "gate": "C1a.5",
+        "state": "idle",
+        "running": false,
+        "link_observing": false,
+        "usb_gadget": "aoa_observe",
+        "msc_interface_present": false,
+        "vendor_interface_present": true,
+        "aoa_identity_profile": "accessory",
+        "frames": 0,
+        "malformed": 0,
+        "incomplete": 0,
+        "unknown_cmd": 0,
+        "runs": 0,
+        "link_runs": 1,
+        "ca_usb_count": 19,
+        "last_sid": "20261102-090946_lab_ca_c1_link",
+        "claims": "aoa_observe_p0_usb_only_no_msc",
+        "not_claimed": "nbt_wire_bcl,sas,rhmi,cds,av,aoa_equals_bcl",
+        "msc_detached_for_link": false,
+        "p0": {
+          "P0_0": true,
+          "P0_A": true,
+          "P0_B": true,
+          "P0_B_aoa_entry_callback_seen": true,
+          "P0_B_scope": "vendor_callback_51_52_53_58",
+          "P0_C": true,
+          "P0_D": true,
+          "P0_E": true
+        },
+        "transport": {
+          "id": "aoa",
+          "impl": "observe",
+          "usb_role_intent": "device_in_accessory_mode",
+          "usb_stack_bound": true,
+          "armed": false,
+          "connected": false,
+          "usb_function_mounted": false,
+          "application_peer_proven": false,
+          "rx_bytes": 7,
+          "tx_bytes": 0,
+          "inject_count": 0,
+          "rx_overflow": 0,
+          "bulk_rx_events": 1,
+          "last_event": "DISCONNECTED",
+          "c1b_stage": "P0",
+          "vid": 6353,
+          "pid": 11520,
+          "identity_note": "hypothesis_google_accessory_0x18D1_0x2D00",
+          "vendor_mounted": true,
+          "attach_count": 1,
+          "setup_count": 8,
+          "vendor_setup_count": 8,
+          "drops": 0,
+          "capture_valid": true,
+          "visibility_scope": "usbvendor_onrequest_only",
+          "is_full_ep0_trace": false,
+          "aoa_control_count": 8,
+          "aoa51": 1,
+          "aoa52": 6,
+          "aoa53": 1,
+          "aoa58": 0,
+          "aoa51_respond_ok": 1,
+          "hypothesis_respond": false,
+          "aoa_mode": "observe"
+        }
+      }
+    }
+  },
+  "link_start": {
+    "http": 200,
+    "ok": true,
+    "note": "aoa_observe_passive_no_bcl_tx",
+    "err": null
+  },
+  "lab_b": {
+    "http": 500,
+    "host": {
+      "ok": false,
+      "profile": "lab",
+      "protocol": 0,
+      "protocolOk": false,
+      "stringsOk": 0,
+      "startOk": false,
+      "reenumOk": false,
+      "dutBefore": "18d1:2d00",
+      "dutAfter": "0000:0000",
+      "duration_ms": 0,
+      "err": "aoa51_fail",
+      "claim": "aoa_control_handshake_lab",
+      "note": "not_hu_wire_not_bcl_not_accessory_bulk"
+    },
+    "before": {
+      "aoa51": 1,
+      "aoa52": 6,
+      "aoa53": 1,
+      "aoa51_respond_ok": 1,
+      "hypothesis_respond": false
+    },
+    "after": {
+      "aoa51": 2,
+      "aoa52": 6,
+      "aoa53": 1,
+      "aoa51_respond_ok": 1,
+      "hypothesis_respond": false
+    }
+  },
+  "cfg_phone": {
+    "http": 200,
+    "j": {
+      "ok": true
+    },
+    "readback": "aoa_phone_like"
+  },
+  "reboot": {
+    "http": 200,
+    "j": {
+      "ok": true,
+      "action": "gadget_reboot",
+      "usbGadget": "aoa_phone_like",
+      "note": "restart_after_nvs_save"
+    }
+  },
+  "phone_check": {
+    "i": 24,
+    "usb_gadget": "aoa_observe",
+    "cfg": "aoa_observe",
+    "dut": {
+      "present": true,
+      "id": "18d1:2d00",
+      "vid": 6353,
+      "pid": 11520,
+      "address": 54,
+      "configurationValue": 1,
+      "interfaces": 1,
+      "hidIface": false,
+      "speed": "full",
+      "manufacturer": "Google",
+      "product": "AOA Observe",
+      "serial": "HUPROBE-AOA0"
+    }
+  },
+  "lab_a_from_phone": {
+    "skipped": true,
+    "reason": "usb_gadget not phone_like"
+  }
+}

@@ -126,3 +126,24 @@ Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wi
 | REQUEST_SENSE isolation | `lab_sense_isolation.py` | lab MEASURED |
 | Hotplug/soak | `lab_hotplug_soak.py` | lab MEASURED |
 | Gate9 fail_after / fail_mid | `lab_gate9_extended.py` | lab MEASURED |
+
+### No-HW follow-ups (0.0.48)
+
+| Method | Tool / evidence | Status |
+|--------|-----------------|--------|
+| Foreign DUT pidrive L3 (16 MiB FAT16 + MP3/ID3) | `LAB_PIDRIVE_FOREIGN_DUT_MEASURED` | MEASURED |
+| Foreign DUT hu-probe AOA Lab A/B | `LAB_HUPROBE_AOA_FOREIGN_DUT_MEASURED` | MEASURED |
+| Soak n=100 soft-reenum | `lab_hotplug_soak.py --cycles 100` | MEASURED (0 fail) |
+| CLEAR_HALT vs BOT_RESET hooks | `lab_clear_halt_vs_bot.py` | MEASURED (`both_…`) |
+| Physical VBUS unplug | — | still open |
+| `aoa_phone_like` sticky boot | hu-probe NVS | UNKNOWN this session |
+
+### BMW-like Host stimulus (0.0.49)
+
+| Method | Tool / evidence | Status |
+|--------|-----------------|--------|
+| Host `/api/lab/bmw-hu-stimulus` (P-MOUNT/P-MREAD subset) | Host FW 0.0.49 | shipped |
+| Cross-check vs pidrive L3 | `LAB_BMW_HU_STIMULUS_PIDRIVE_MEASURED` | MEASURED — DUT counters match |
+| Cross-check vs hu-probe MSC | blocked | `usb_gadget` NVS not sticky → stuck `aoa_observe` |
+| AOA plane negative | `LAB_BMW_HU_STIMULUS_HUPROBE_MEASURED` | MEASURED — zero MSC counters (correct) |
+| hu-probe NVS sticky defect | `LAB_HUPROBE_USB_GADGET_NVS_STICKY` | MEASURED |

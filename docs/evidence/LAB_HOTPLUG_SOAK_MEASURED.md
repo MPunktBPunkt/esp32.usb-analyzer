@@ -1,9 +1,9 @@
-# Lab MEASURED — Hotplug/Soak · 0.0.47
+# Lab MEASURED — Hotplug/Soak · 0.0.48
 
 **Claim:** `hotplug_soak_lab`
-**Cycles:** 12 · fail_enum=0 · fail_msc=0
-**Recovery ms p50/p95:** 2181.549072265625 / 2322.1781253814697
-**Heap drift Host/Device:** 56 / 20
+**Cycles:** 100 · fail_enum=0 · fail_msc=0
+**Recovery ms p50/p95:** 1685.0508451461792 / 1943.4057235717773
+**Heap drift Host/Device:** 208 / 236
 **Final heal MSC:** True
 
 ## Verdict

@@ -291,6 +291,10 @@ bool mscd_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t 
        TUSB_REQ_CLEAR_FEATURE     == request->bRequest                    &&
        TUSB_REQ_FEATURE_EDPT_HALT == request->wValue ) {
     uint8_t const ep_addr = tu_u16_low(request->wIndex);
+#if defined(ANALYZER_MSC_CLASS_HOOK) && ANALYZER_MSC_CLASS_HOOK
+    analyzer_msc_on_clear_halt(ep_addr,
+                               (uint8_t)(p_msc->stage == MSC_STAGE_NEED_RESET));
+#endif
 
     if (p_msc->stage == MSC_STAGE_NEED_RESET) {
       // reset recovery is required to recover from this stage
@@ -324,6 +328,9 @@ bool mscd_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t 
       TU_LOG_DRV("  MSC BOT Reset\r\n");
       TU_VERIFY(request->wValue == 0 && request->wLength == 0);
       proc_bot_reset(p_msc); // driver state reset
+#if defined(ANALYZER_MSC_CLASS_HOOK) && ANALYZER_MSC_CLASS_HOOK
+      analyzer_msc_on_bot_reset();
+#endif
       tud_control_status(rhport, request);
     break;
 
