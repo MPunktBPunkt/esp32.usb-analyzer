@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- Lab: `tools/lab_capability_audit.py` + Capability-Audit 0.0.50 (7/7 + Gate10 9/9); frische Baseline USB≈917 kB/s / TCP≈332 kB/s
 - Controller 0.0.41: lab `/api/v1/lab/proxy` allowlist (GET status/config/capture/events/metrics; POST sync/stimulus/usb-cycle/gadget-reboot)
 - Docs: Handover 0.0.50 + Cross-Repo-Bericht/GATE10 auf aktuellen Stand; `aoa_phone_like` sticky MEASURED
 - 0.0.50: BMW stimulus +REQUEST_SENSE/MaxLUN/SYNCHRONIZE_CACHE + `bmw_mount_deep`; Lab UI actions (:8080) + controller lab proxy; soft-unplug claim doc; cross-repo sticky/telemetry packages

@@ -1,9 +1,9 @@
 # Lab baseline — MEASURED (OTG loop + WiFi TCP)
 
-**Date (UTC):** 2026-10-31T12:07Z  
-**Firmware:** Host `0.0.13` · Device `0.0.14`  
+**Date (UTC):** 2026-11-02T19:57Z  
+**Firmware:** Host `0.0.50` · Device `0.0.50`  
 **Topology:** `.88` Host OTG ↔ USB-C ↔ `.89` Device MSC; WiFi TCP parallel  
-**Raw JSON:** [`LAB_BASELINE_20261031T120705Z.json`](LAB_BASELINE_20261031T120705Z.json)  
+**Raw JSON:** [`LAB_BASELINE_20261102T195715Z.json`](LAB_BASELINE_20261102T195715Z.json)  
 **Repro:** `python3 tools/lab_baseline_campaign.py`
 
 Classification: **MEASURED** (this lab run). Not USB-IF compliance. Not Gate‑4 MITM.
@@ -14,7 +14,7 @@ Classification: **MEASURED** (this lab run). Not USB-IF compliance. Not Gate‑4
 |----------|----------------|
 | FS USB Host→Device MSC READ on OTG cable | D+/D− wire / packet capture |
 | Byte pattern integrity (`lab_sector_v1`) | High-Speed USB |
-| WiFi TCP ESP↔ESP PUSH/ACK integrity | USB-over-WiFi proxy (Gate 4) |
+| WiFi TCP ESP↔ESP PUSH/ACK integrity | USB-over-WiFi proxy transparency |
 | Throughput + transfer RTT percentiles | Observer-effect vs real HU |
 
 ## A) USB OTG MSC (cable) — Host → Device
@@ -25,72 +25,55 @@ DUT: `303a:1001` · speed **full** · Inquiry `MPB`/`ANALYZER` · capacity **512
 
 | blocks | chunk | kB/s | RTT p50 (µs) | RTT p95 (µs) | RTT max (µs) |
 |-------:|------:|-----:|-------------:|-------------:|-------------:|
-| 1 | 1 | 500 | 748 | 748 | 748 |
-| 64 | 1 | 653 | 729 | 768 | 792 |
-| 512 | 1 | 651 | 730 | 802 | 1319 |
-| 128 | 2 | 780 | 1249 | 1271 | 1670 |
-| 512 | 4 | 885 | 2171 | 2239 | 2525 |
-| 512 | 8 | **934** | 4127 | 4267 | 4590 |
+| 1 | 1 | 500 | 800 | 800 | 800 |
+| 8 | 1 | 666 | 801 | 817 | 817 |
+| 32 | 1 | 571 | 845 | 1078 | 1091 |
+| 64 | 1 | 615 | 802 | 824 | 1219 |
+| 128 | 1 | 615 | 764 | 941 | 1222 |
+| 256 | 1 | 618 | 802 | 855 | 1290 |
+| 512 | 1 | 622 | 802 | 817 | 1252 |
+| 64 | 2 | 780 | 1253 | 1338 | 1373 |
+| 128 | 2 | 771 | 1254 | 1352 | 1410 |
+| 256 | 4 | 853 | 2248 | 2414 | 2523 |
+| 512 | 4 | 856 | 2239 | 2513 | 2721 |
+| 512 | 8 | **914–917** | ~4220 | ~4310 | ~4600 |
 
 ### Sustained (3× full media, chunk=8)
 
 | Metric | Value |
 |--------|------:|
-| Rate min/avg/max | **934 / 936 / 937 kB/s** |
+| Rate min/avg/max | **907 / 911.7 / 914 kB/s** |
 | Pattern fail bytes | **0** |
 | Transfers OK | 3/3 |
 
-### USB limits (this stack)
+### USB limits (this stack, 0.0.50)
 
 | Limit | MEASURED |
 |-------|----------|
-| Peak payload rate | **~0.93 MB/s** (~7.5 Mbit/s useful) |
-| vs FS theoretical bulk | Well below ~12 Mbit/s line / ~1.2 MB/s class ceiling — stack + 512 B BOT overhead |
-| Single-sector RTT p50 | **~0.73 ms** |
-| 8-sector transfer RTT p50 | **~4.1 ms** |
-| Data loss / pattern errors | **none** in this campaign (after Device multi-LBA fill fix in 0.0.14) |
-| Media size | 256 KiB gadget — long streams wrap / stop at capacity |
+| Peak payload rate | **~0.92 MB/s** (~7.3 Mbit/s useful) |
+| vs FS theoretical bulk | Below ~12 Mbit/s line — stack + 512 B BOT overhead |
+| Single-sector RTT p50 | **~0.80 ms** |
+| 8-sector transfer RTT p50 | **~4.2 ms** |
+| Data loss / pattern errors | **none** |
+
+Compare prior 0.0.13/0.0.14 baseline (~934 kB/s peak): same order of magnitude; small variance expected (WiFi load, DUT address churn).
 
 ## B) WiFi TCP integrity (ESP↔ESP)
 
 | frame_bytes | frames | ok | kB/s | RTT p50 (µs) |
 |------------:|-------:|:--:|-----:|-------------:|
-| 64 | 64 | ✓ | ~0 | ~249 900 |
-| 1024 | 64 | ✓ | 4 | ~249 800 |
-| 2048 | 64 | ✓ | 125 | ~12 700 |
-| 2048 | 128 | ✓ | **139** | ~11 700 |
-| 4096 | 64 | ✓ | 53 | ~16 700 (p95 spikes) |
+| 64 | 64 | ✓ | 2 | ~232 k |
+| 256 | 64 | ✓ | 52 | ~23 k |
+| 1024 | 64 | ✓ | 205 | ~17 k |
+| 2048 | 64 | ✓ | **332** | ~19 k |
+| 4096 | 64 | ✓ | 209 | ~36 k |
+| 2048 | 128 | ✓ | 279 | ~20 k |
 
-### TCP limits
+TCP peak this run: **332 kB/s** (higher than early 0.0.13 ~139 kB/s baseline after pipeline work).
 
-| Limit | MEASURED |
-|-------|----------|
-| Peak | **~139 kB/s** |
-| Small-frame regime | RTT-dominated (~250 ms PUSH→ACK) → near-zero useful rate |
-| Frame errors | **0** in this sweep |
-| Relation to USB cable | TCP ≪ USB OTG MSC; WiFi hop is the bottleneck for Mode‑A data plane today |
+## Repro
 
-## C) USB OTG MSC WRITE (cable) — Host → Device — FW 0.0.18
-
-**Date:** 2026-10-31 · OTG loop · write-cache 64 LBA · immediate readback
-
-| blocks | chunk | kB/s | pattern_ok |
-|-------:|------:|-----:|:----------:|
-| 64 | 1 | **246** | ✓ |
-| 64 | 4 | **410** | ✓ |
-| 64 | 8 | **463** | ✓ |
-
-WRITE ≪ READ (~888–934 kB/s) on this stack — expected (BOT OUT + gadget store + readback).
-
-## Audit takeaways
-
-1. **USB OTG loop is integrity-clean** at measured loads (pattern match, 0 fail bytes).  
-2. **Useful USB ceiling on this lab path ≈ 0.93 MB/s** with 4 KiB MSC READs — not wire-rate.  
-3. **WiFi TCP ACK-each ≈ 0.14 MB/s**; with **window=8** bulk (0.0.15) ≈ **0.26 MB/s** MEASURED — still ≪ USB cable; window=16 can regress.  
-4. **MSC proxy Host serve** (0.0.15): TCP `MscReq`→Host READ DUT→payload OK + pattern match (lab).  
-5. **MSC WRITE** (0.0.18): ~0.25–0.46 MB/s with readback OK; pollutes `lab_sector_v1` at written LBAs.  
-6. **Not claimed:** transparent MITM, HU timing fidelity, or L0 bit-level visibility.
-
-## Earlier false positive (document for audit hygiene)
-
-Campaign `…T120435Z` (Device still 0.0.12) showed `pattern_ok=false` for `chunk>1`. **Cause:** gadget filled multi-sector callbacks with a single LBA base — verification bug, **not** USB bit errors. Fixed in Device **0.0.14**; re-run `…T120705Z` is authoritative.
+```bash
+# Device role on .89: analyzer-s3-device @ same FW as host
+python3 tools/lab_baseline_campaign.py
+```

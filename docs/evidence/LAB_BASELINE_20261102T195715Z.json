@@ -1,0 +1,590 @@
+{
+  "classification": "MEASURED",
+  "timestamp_utc": "20261102T195715Z",
+  "fw_claim": "usb-analyzer analyzer-node",
+  "topology": "OTG Host(.88) \u2194 USB-C \u2194 Device(.89); WiFi TCP parallel",
+  "not_claimed": [
+    "Gate4 USB-over-WiFi proxy",
+    "D+/D- wire capture",
+    "USB High-Speed"
+  ],
+  "nodes": {
+    "host": {
+      "ip": "192.168.178.88",
+      "version": "0.0.50",
+      "role": "host",
+      "otg": {
+        "mode": "host",
+        "state": "device_attached",
+        "connected": true,
+        "devices": 1,
+        "meaning": "dut_on_otg"
+      },
+      "dut": {
+        "present": true,
+        "id": "303a:1001",
+        "vid": 12346,
+        "pid": 4097,
+        "address": 15,
+        "configurationValue": 1,
+        "interfaces": 3,
+        "hidIface": true,
+        "speed": "full",
+        "manufacturer": "MPB",
+        "product": "ANALYZER",
+        "serial": "lab-gadget"
+      },
+      "gadget": null
+    },
+    "device": {
+      "ip": "192.168.178.89",
+      "version": "0.0.50",
+      "role": "device",
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "dut": null,
+      "gadget": {
+        "readOps": 0,
+        "readBytes": 0,
+        "writeOps": 0,
+        "writeBytes": 0,
+        "pattern": "lab_sector_v1",
+        "proxy": false,
+        "proxyPeer": "",
+        "identityApplied": false,
+        "appliedId": "303a:1001",
+        "blockCount": 512,
+        "blockSize": 512,
+        "proxyHits": 0,
+        "proxyFails": 0,
+        "proxyBytes": 0,
+        "hid": true,
+        "hidInjects": 0,
+        "suspendCount": 0,
+        "resumeCount": 0,
+        "mountCount": 2,
+        "unmountCount": 1,
+        "lastBusEvent": "mount",
+        "lastBusEventMs": 94259,
+        "claim": "gadget_identity_from_dut_snapshot",
+        "aoa": {
+          "respond": false,
+          "reenumOnStart": true,
+          "bulkEcho": true,
+          "vendorMounted": true,
+          "setup": 0,
+          "aoa51": 0,
+          "aoa52": 0,
+          "aoa53": 0,
+          "aoa51Ok": 0,
+          "stringBytes": 0,
+          "bulkRx": 0,
+          "bulkTx": 0,
+          "bulkFifo": 0,
+          "bulkPolls": 12764,
+          "tudVendorAvail": 0,
+          "lastStringIndex": 255,
+          "claim": "aoa_control_handshake_lab",
+          "note": "not_hu_wire_not_bcl"
+        },
+        "proxiedDut": {
+          "present": false
+        }
+      }
+    }
+  },
+  "usb_otg_msc": [
+    {
+      "blocks": 1,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 500,
+      "bytes_read": 512,
+      "duration_ms": 1,
+      "transfers": 1,
+      "rtt_us": {
+        "min": 800,
+        "avg": 800,
+        "p50": 800,
+        "p95": 800,
+        "max": 800
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 8,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 666,
+      "bytes_read": 4096,
+      "duration_ms": 6,
+      "transfers": 8,
+      "rtt_us": {
+        "min": 737,
+        "avg": 776,
+        "p50": 801,
+        "p95": 817,
+        "max": 817
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 32,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 571,
+      "bytes_read": 16384,
+      "duration_ms": 28,
+      "transfers": 32,
+      "rtt_us": {
+        "min": 736,
+        "avg": 870,
+        "p50": 845,
+        "p95": 1078,
+        "max": 1091
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 64,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 615,
+      "bytes_read": 32768,
+      "duration_ms": 52,
+      "transfers": 64,
+      "rtt_us": {
+        "min": 735,
+        "avg": 792,
+        "p50": 802,
+        "p95": 824,
+        "max": 1219
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 128,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 615,
+      "bytes_read": 65536,
+      "duration_ms": 104,
+      "transfers": 128,
+      "rtt_us": {
+        "min": 735,
+        "avg": 794,
+        "p50": 764,
+        "p95": 941,
+        "max": 1222
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 256,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 618,
+      "bytes_read": 131072,
+      "duration_ms": 207,
+      "transfers": 256,
+      "rtt_us": {
+        "min": 736,
+        "avg": 793,
+        "p50": 802,
+        "p95": 855,
+        "max": 1290
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 512,
+      "chunk": 1,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 622,
+      "bytes_read": 262144,
+      "duration_ms": 411,
+      "transfers": 512,
+      "rtt_us": {
+        "min": 725,
+        "avg": 785,
+        "p50": 802,
+        "p95": 817,
+        "max": 1252
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 64,
+      "chunk": 2,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 780,
+      "bytes_read": 32768,
+      "duration_ms": 41,
+      "transfers": 32,
+      "rtt_us": {
+        "min": 1225,
+        "avg": 1260,
+        "p50": 1253,
+        "p95": 1338,
+        "max": 1373
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 128,
+      "chunk": 2,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 771,
+      "bytes_read": 65536,
+      "duration_ms": 83,
+      "transfers": 64,
+      "rtt_us": {
+        "min": 1212,
+        "avg": 1263,
+        "p50": 1254,
+        "p95": 1352,
+        "max": 1410
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 256,
+      "chunk": 4,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 853,
+      "bytes_read": 131072,
+      "duration_ms": 150,
+      "transfers": 64,
+      "rtt_us": {
+        "min": 2193,
+        "avg": 2275,
+        "p50": 2248,
+        "p95": 2414,
+        "max": 2523
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 512,
+      "chunk": 4,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 856,
+      "bytes_read": 262144,
+      "duration_ms": 299,
+      "transfers": 128,
+      "rtt_us": {
+        "min": 2178,
+        "avg": 2274,
+        "p50": 2239,
+        "p95": 2513,
+        "max": 2721
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 512,
+      "chunk": 8,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 914,
+      "bytes_read": 262144,
+      "duration_ms": 280,
+      "transfers": 64,
+      "rtt_us": {
+        "min": 4155,
+        "avg": 4242,
+        "p50": 4218,
+        "p95": 4411,
+        "max": 4470
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 512,
+      "chunk": 8,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 917,
+      "bytes_read": 262144,
+      "duration_ms": 279,
+      "transfers": 64,
+      "rtt_us": {
+        "min": 4165,
+        "avg": 4237,
+        "p50": 4221,
+        "p95": 4293,
+        "max": 4542
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    },
+    {
+      "blocks": 512,
+      "chunk": 8,
+      "ok": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "rate_kBs": 914,
+      "bytes_read": 262144,
+      "duration_ms": 280,
+      "transfers": 64,
+      "rtt_us": {
+        "min": 4154,
+        "avg": 4240,
+        "p50": 4226,
+        "p95": 4316,
+        "max": 4598
+      },
+      "path": "usb_otg_host_to_device_msc",
+      "err": null
+    }
+  ],
+  "tcp_wifi": [
+    {
+      "frame_bytes": 64,
+      "frames": 64,
+      "ok": true,
+      "frames_fail": 0,
+      "rate_kBs": 2,
+      "rtt_us": {
+        "min": 85156,
+        "avg": 242639,
+        "p50": 231622,
+        "p95": 374466,
+        "max": 514486
+      },
+      "path": "tcp_wifi_esp_esp",
+      "err": null
+    },
+    {
+      "frame_bytes": 256,
+      "frames": 64,
+      "ok": true,
+      "frames_fail": 0,
+      "rate_kBs": 52,
+      "rtt_us": {
+        "min": 9945,
+        "avg": 21857,
+        "p50": 22623,
+        "p95": 32315,
+        "max": 35717
+      },
+      "path": "tcp_wifi_esp_esp",
+      "err": null
+    },
+    {
+      "frame_bytes": 1024,
+      "frames": 64,
+      "ok": true,
+      "frames_fail": 0,
+      "rate_kBs": 205,
+      "rtt_us": {
+        "min": 12790,
+        "avg": 17707,
+        "p50": 17444,
+        "p95": 22296,
+        "max": 25071
+      },
+      "path": "tcp_wifi_esp_esp",
+      "err": null
+    },
+    {
+      "frame_bytes": 2048,
+      "frames": 64,
+      "ok": true,
+      "frames_fail": 0,
+      "rate_kBs": 332,
+      "rtt_us": {
+        "min": 9748,
+        "avg": 20937,
+        "p50": 19054,
+        "p95": 33685,
+        "max": 36030
+      },
+      "path": "tcp_wifi_esp_esp",
+      "err": null
+    },
+    {
+      "frame_bytes": 4096,
+      "frames": 64,
+      "ok": true,
+      "frames_fail": 0,
+      "rate_kBs": 209,
+      "rtt_us": {
+        "min": 8379,
+        "avg": 50330,
+        "p50": 36040,
+        "p95": 174311,
+        "max": 322308
+      },
+      "path": "tcp_wifi_esp_esp",
+      "err": null
+    },
+    {
+      "frame_bytes": 2048,
+      "frames": 128,
+      "ok": true,
+      "frames_fail": 0,
+      "rate_kBs": 279,
+      "rtt_us": {
+        "min": 10726,
+        "avg": 24671,
+        "p50": 20007,
+        "p95": 37547,
+        "max": 151246
+      },
+      "path": "tcp_wifi_esp_esp",
+      "err": null
+    }
+  ],
+  "limits": {
+    "usb_sustained_kBs": {
+      "min": 907,
+      "avg": 911.7,
+      "max": 914,
+      "pattern_fail_bytes_total": 0
+    },
+    "usb_peak_kBs": 917,
+    "tcp_peak_kBs": 332,
+    "usb_pattern_loss_observed": false,
+    "notes": [
+      "USB path = Full-Speed OTG cable MSC READ Host\u2192Device (not MITM).",
+      "Theoretical FS bulk ceiling ~1.2 MB/s class; lab stack+gadget overhead applies.",
+      "TCP path = WiFi ESP\u2194ESP PUSH/ACK; RTT-dominated for small frames.",
+      "pattern_fail_bytes>0 would be data corruption on USB lab pattern."
+    ]
+  },
+  "usb_sustained": [
+    {
+      "ok": true,
+      "msc_ready": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "dut": "303a:1001",
+      "inquiry": {
+        "vendor": "MPB     ",
+        "product": "ANALYZER        ",
+        "revision": "0001"
+      },
+      "capacity_blocks": 512,
+      "block_size": 512,
+      "chunk": 8,
+      "transfers": 64,
+      "blocks_read": 512,
+      "bytes_read": 262144,
+      "duration_ms": 280,
+      "rate_kBs": 914,
+      "rtt_us": {
+        "min": 4158,
+        "avg": 4246,
+        "p50": 4225,
+        "p95": 4421,
+        "max": 4739
+      },
+      "dir": "read",
+      "path": "usb_otg_host_to_device_msc",
+      "note": "direct_otg_cable_not_wifi_mitm"
+    },
+    {
+      "ok": true,
+      "msc_ready": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "dut": "303a:1001",
+      "inquiry": {
+        "vendor": "MPB     ",
+        "product": "ANALYZER        ",
+        "revision": "0001"
+      },
+      "capacity_blocks": 512,
+      "block_size": 512,
+      "chunk": 8,
+      "transfers": 64,
+      "blocks_read": 512,
+      "bytes_read": 262144,
+      "duration_ms": 282,
+      "rate_kBs": 907,
+      "rtt_us": {
+        "min": 4152,
+        "avg": 4278,
+        "p50": 4235,
+        "p95": 4514,
+        "max": 4571
+      },
+      "dir": "read",
+      "path": "usb_otg_host_to_device_msc",
+      "note": "direct_otg_cable_not_wifi_mitm"
+    },
+    {
+      "ok": true,
+      "msc_ready": true,
+      "pattern_ok": true,
+      "pattern_fail_bytes": 0,
+      "dut": "303a:1001",
+      "inquiry": {
+        "vendor": "MPB     ",
+        "product": "ANALYZER        ",
+        "revision": "0001"
+      },
+      "capacity_blocks": 512,
+      "block_size": 512,
+      "chunk": 8,
+      "transfers": 64,
+      "blocks_read": 512,
+      "bytes_read": 262144,
+      "duration_ms": 280,
+      "rate_kBs": 914,
+      "rtt_us": {
+        "min": 4157,
+        "avg": 4248,
+        "p50": 4218,
+        "p95": 4522,
+        "max": 4644
+      },
+      "dir": "read",
+      "path": "usb_otg_host_to_device_msc",
+      "note": "direct_otg_cable_not_wifi_mitm"
+    }
+  ]
+}
