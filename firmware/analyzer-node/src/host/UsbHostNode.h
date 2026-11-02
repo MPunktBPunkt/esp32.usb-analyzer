@@ -345,11 +345,16 @@ public:
     uint16_t capacity_ok = 0;
     uint16_t tur_ok = 0;
     uint16_t tur_fail = 0;
+    uint16_t sense_ok = 0;
+    uint16_t sense_fail = 0;
+    uint16_t max_lun_ok = 0;
+    uint16_t sync_cache_ok = 0;
     uint16_t read_ok = 0;
     uint16_t read_fail = 0;
     uint32_t bytes_read = 0;
     uint32_t duration_ms = 0;
     uint64_t capacity_blocks = 0;
+    uint8_t max_lun = 0;
     String inquiry_product;
     String error;
     String note;

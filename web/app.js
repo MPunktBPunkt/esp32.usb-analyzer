@@ -339,9 +339,80 @@ function connectSSE() {
   };
 }
 
+const labOut = document.getElementById("lab-action-out");
+const labStatus = document.getElementById("lab-node-status");
+
+function showLab(obj) {
+  if (labOut) labOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+}
+
+async function refreshLabStatus() {
+  try {
+    const j = await (await fetch("/api/v1/lab/status")).json();
+    const hv = j.host?.body?.version ?? j.host?.err ?? "?";
+    const hn = j.host?.body?.name ?? "";
+    const dv = j.device?.body?.version ?? j.device?.err ?? "?";
+    const dn = j.device?.body?.name ?? j.device?.body?.fwType ?? "";
+    if (labStatus) {
+      labStatus.textContent =
+        `host ${j.host?.ip || "?"} ${hn} v${hv} · device ${j.device?.ip || "?"} ${dn} v${dv}`;
+    }
+    return j;
+  } catch (e) {
+    if (labStatus) labStatus.textContent = `lab status error ${e}`;
+    return null;
+  }
+}
+
+document.getElementById("btn-lab-refresh")?.addEventListener("click", async () => {
+  const j = await refreshLabStatus();
+  showLab(j || { ok: false });
+  log("lab status refresh");
+});
+
+document.getElementById("btn-lab-stimulus")?.addEventListener("click", async () => {
+  try {
+    showLab("running bmw-hu-stimulus…");
+    const r = await fetch("/api/v1/lab/bmw-hu-stimulus", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: "bmw_mount_scan", tur: 32, scan_blocks: 80, file_lba0: 81 }),
+    });
+    const j = await r.json();
+    showLab(j);
+    log(`bmw stimulus → ${r.status}`);
+    refreshLabStatus();
+  } catch (e) {
+    showLab(String(e));
+    log(`stimulus error ${e}`);
+  }
+});
+
+async function softCycle(role) {
+  try {
+    showLab(`soft-cycle ${role}…`);
+    const r = await fetch("/api/v1/lab/usb-cycle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role, holdMs: 600 }),
+    });
+    const j = await r.json();
+    showLab(j);
+    log(`usb-cycle ${role} → ${r.status}`);
+  } catch (e) {
+    showLab(String(e));
+    log(`usb-cycle error ${e}`);
+  }
+}
+
+document.getElementById("btn-lab-cycle-dev")?.addEventListener("click", () => softCycle("device"));
+document.getElementById("btn-lab-cycle-host")?.addEventListener("click", () => softCycle("host"));
+
 refresh();
+refreshLabStatus();
 connectSSE();
 setInterval(refresh, 5000);
+setInterval(refreshLabStatus, 8000);
 pollCapture();
 setInterval(pollCapture, 1500);
 renderStats();

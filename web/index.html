@@ -28,6 +28,19 @@
       </article>
     </section>
 
+    <section class="panel" id="lab-actions">
+      <h2>Lab actions</h2>
+      <p class="muted">Proxy via controller · soft USB = D+ pull-up <span class="mono">≠ VBUS</span></p>
+      <div class="lab-status mono" id="lab-node-status">host — · device —</div>
+      <div class="actions">
+        <button type="button" id="btn-lab-refresh">Refresh status</button>
+        <button type="button" id="btn-lab-stimulus">BMW stimulus</button>
+        <button type="button" id="btn-lab-cycle-dev">Soft-cycle device</button>
+        <button type="button" id="btn-lab-cycle-host">Soft-cycle host</button>
+      </div>
+      <pre id="lab-action-out" class="inspect">run an action…</pre>
+    </section>
+
     <section class="panel">
       <h2>Capture</h2>
       <p class="muted">timestamp_domain=<span class="mono" id="cap-domain">local_per_node</span> · <span id="cap-sync-badge">clocks not synchronized</span> · not D+/D− · click a row for inspector</p>

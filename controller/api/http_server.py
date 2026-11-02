@@ -11,7 +11,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from controller.node_registry.registry import REGISTRY
 
@@ -151,7 +151,35 @@ def send_node_command(node_id: str, msg: str, body: Optional[dict] = None) -> Di
     return {"ok": True, "sent": envelope}
 
 
-CONTROLLER_VERSION = "0.0.39"
+CONTROLLER_VERSION = "0.0.40"
+
+
+def _proxy_node_http(
+    role: str,
+    path: str,
+    method: str = "GET",
+    body: Optional[bytes] = None,
+    query: str = "",
+    timeout: float = 30.0,
+) -> Dict[str, Any]:
+    ip = _node_ip_for_role(role) or (LAB_HOST_IP if role == "host" else LAB_DEVICE_IP)
+    url = f"http://{ip}{path}"
+    if query:
+        url = f"{url}?{query}"
+    data = body if method.upper() != "GET" else None
+    req = urllib.request.Request(url, data=data, method=method.upper())
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8")
+            try:
+                parsed: Any = json.loads(raw)
+            except json.JSONDecodeError:
+                parsed = {"raw": raw}
+            return {"ok": True, "role": role, "ip": ip, "path": path, "status": resp.status, "body": parsed}
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return {"ok": False, "role": role, "ip": ip, "path": path, "err": str(exc)}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -310,6 +338,21 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/v1/lab/status":
+            host = _proxy_node_http("host", "/api/status", timeout=4.0)
+            device = _proxy_node_http("device", "/api/status", timeout=4.0)
+            self._json(
+                200,
+                {
+                    "ok": True,
+                    "controller": CONTROLLER_VERSION,
+                    "host": host,
+                    "device": device,
+                    "lab": {"host_ip": LAB_HOST_IP, "device_ip": LAB_DEVICE_IP},
+                },
+            )
+            return
+
         # static
         rel = "index.html" if path == "/" else path.lstrip("/")
         file_path = (WEB_ROOT / rel).resolve()
@@ -392,6 +435,61 @@ class Handler(BaseHTTPRequestHandler):
             _LAST_SYNC.clear()
             _LAST_SYNC.update(out)
             self._json(200, out)
+            return
+
+        if path == "/api/v1/lab/bmw-hu-stimulus":
+            profile = str(body.get("profile") or "bmw_mount_scan")
+            tur = int(body.get("tur") or 32)
+            scan_blocks = int(body.get("scan_blocks") or 160)
+            file_lba0 = int(body.get("file_lba0") or 0)
+            q = (
+                f"profile={quote(profile)}"
+                f"&tur={tur}&scan_blocks={scan_blocks}&file_lba0={file_lba0}"
+            )
+            result = _proxy_node_http(
+                "host",
+                "/api/lab/bmw-hu-stimulus",
+                method="POST",
+                body=b"",
+                query=q,
+                timeout=300.0,
+            )
+            self._json(200 if result.get("ok") else 502, result)
+            return
+
+        if path == "/api/v1/lab/usb-cycle":
+            role = str(body.get("role") or "device").lower()
+            if role not in ("host", "device"):
+                role = "device"
+            hold = int(body.get("holdMs") or 600)
+            payload = json.dumps({"holdMs": hold}).encode("utf-8")
+            result = _proxy_node_http(
+                role, "/api/usb/cycle", method="POST", body=payload, timeout=20.0
+            )
+            result["note"] = "soft_usb=D+_pullup_not_VBUS"
+            self._json(200 if result.get("ok") else 502, result)
+            return
+
+        if path == "/api/v1/lab/proxy":
+            role = str(body.get("role") or "host").lower()
+            node_path = str(body.get("path") or "/api/status")
+            if not node_path.startswith("/api/"):
+                self._json(400, {"ok": False, "err": "path_must_start_with_/api/"})
+                return
+            method = str(body.get("method") or "GET").upper()
+            raw_body = body.get("body")
+            data = None
+            if raw_body is not None:
+                data = json.dumps(raw_body).encode("utf-8") if not isinstance(raw_body, (bytes, bytearray)) else bytes(raw_body)
+            result = _proxy_node_http(
+                role,
+                node_path,
+                method=method,
+                body=data,
+                query=str(body.get("query") or ""),
+                timeout=float(body.get("timeout") or 30),
+            )
+            self._json(200 if result.get("ok") else 502, result)
             return
 
         self._json(404, {"ok": False, "err": "not_found"})

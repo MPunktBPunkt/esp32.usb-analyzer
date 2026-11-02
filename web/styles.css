@@ -128,7 +128,16 @@ main { padding: 1rem 1.5rem 2rem; display: grid; gap: 1rem; }
 }
 .card .title { font-family: var(--mono); font-weight: 600; }
 .card .sub { color: var(--muted); font-size: 0.85rem; font-family: var(--mono); }
-.actions { display: flex; gap: 0.4rem; align-items: start; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: start; }
+.lab-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.65rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px dashed var(--line);
+  background: #0c1216;
+}
+#lab-action-out { max-height: 12rem; margin-top: 0.65rem; }
 button {
   font: inherit;
   font-size: 0.8rem;

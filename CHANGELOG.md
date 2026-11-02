@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- 0.0.50: BMW stimulus +REQUEST_SENSE/MaxLUN/SYNCHRONIZE_CACHE + `bmw_mount_deep`; Lab UI actions (:8080) + controller lab proxy; soft-unplug claim doc; cross-repo sticky/telemetry packages
 - 0.0.49: BMW-HU-like Host stimulus (`/api/lab/bmw-hu-stimulus`) + cross-check vs pidrive/hu-probe; hu-probe usb_gadget NVS sticky defect
 - 0.0.48: Foreign DUT campaign (Analyzer-Host × pidrive L3 MP3/ID3 + hu-probe AOA Lab A/B); soak n=100; CLEAR_HALT vs BOT_RESET class-control hooks
 - 0.0.47: P0 test methods — L0/BCL fuzz, golden `.l0samp` regression, REQUEST_SENSE isolation, hotplug/soak, Gate9 fail_after/fail_mid

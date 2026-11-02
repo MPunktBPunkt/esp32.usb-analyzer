@@ -103,7 +103,7 @@ def main() -> int:
     ap.add_argument(
         "--profile",
         default="bmw_mount_scan",
-        choices=("bmw_mount", "bmw_mount_scan", "bmw_idle_tur"),
+        choices=("bmw_mount", "bmw_mount_scan", "bmw_mount_deep", "bmw_idle_tur"),
     )
     ap.add_argument("--tur", type=int, default=32)
     ap.add_argument("--scan-blocks", type=int, default=160)
@@ -202,20 +202,22 @@ def main() -> int:
     }
 
     lines = [
-        f"# Lab MEASURED — BMW-HU-like stimulus × {args.dut} · 0.0.49",
+        f"# Lab MEASURED — BMW-HU-like stimulus × {args.dut} · 0.0.50",
         "",
         f"**Claim:** `{out['claim']}`",
         f"**Profile:** `{args.profile}` · tur={args.tur} · scan_blocks={args.scan_blocks} · file_lba0={args.file_lba0}",
         f"**Host stimulus ok:** {stim.get('ok')} · inquiry={stim.get('inquiryOk')} capacity={stim.get('capacityOk')} "
-        f"tur={stim.get('turOk')}/{stim.get('turFail')} reads={stim.get('readOk')}/{stim.get('readFail')} "
+        f"tur={stim.get('turOk')}/{stim.get('turFail')} sense={stim.get('senseOk')}/{stim.get('senseFail')} "
+        f"maxLun={stim.get('maxLunOk')} sync={stim.get('syncCacheOk')} "
+        f"reads={stim.get('readOk')}/{stim.get('readFail')} "
         f"bytes={stim.get('bytesRead')} · {stim.get('duration_ms')} ms",
         f"**DUT visible:** {visible} · delta={json.dumps(delta, default=str)[:500]}",
         "",
         "## Epistemik",
         "",
         "- Desk FACT mount grammar from hu-probe feld (P-MOUNT / P-MREAD).",
-        "- Analyzer Host emits INQUIRY + CAPACITY×3 + TUR burst + READ10 sequence.",
-        "- **Not emitted:** MODE_SENSE6 / PREVENT_ALLOW (EspUsbHost API gap).",
+        "- Analyzer Host emits INQUIRY + MaxLUN + CAPACITY + TUR + REQUEST_SENSE + READ10 + SYNCHRONIZE_CACHE.",
+        "- **Not emitted:** MODE_SENSE6 / PREVENT_ALLOW (EspUsbHost API gap — mscCommand private).",
         "- **Not claimed:** real BMW NBT · HU cache prediction · Path B L0.",
         "",
         "## Verdict",

@@ -697,7 +697,7 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
                               uint32_t scan_blocks, uint32_t file_lba0) {
   BmwHuStimulusResult r;
   r.profile = profile ? profile : "bmw_mount";
-  r.note = "not_real_hu_no_mode_sense_no_prevent";
+  r.note = "not_real_hu_no_mode_sense_no_prevent;+sense+maxlun+sync";
   const uint32_t t0 = millis();
   if (!begin_ok_ || host_released_ || deviceCount() == 0) {
     r.error = "no_dut";
@@ -712,14 +712,20 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
   }
 
   const bool do_mount = r.profile.startsWith("bmw_mount");
-  const bool do_scan = r.profile == "bmw_mount_scan";
+  const bool do_scan =
+      (r.profile == "bmw_mount_scan" || r.profile == "bmw_mount_deep");
   const bool idle_tur = r.profile == "bmw_idle_tur";
+  const bool deep = r.profile == "bmw_mount_deep";
 
   // Desk FACT P-MREAD (hu-probe 2026-10-19): lba/blocks pairs.
   static const uint16_t kPmread[][2] = {
       {0, 8}, {0, 8}, {24, 8}, {0, 8}, {0, 1}, {1, 3},
       {7, 2}, {1, 1}, {2, 1},  {3, 5}, {24, 8}};
   static const size_t kPmreadN = sizeof(kPmread) / sizeof(kPmread[0]);
+  // Extra FAT/root probes for bmw_mount_deep (still not MODE_SENSE/PREVENT).
+  static const uint16_t kPmreadDeep[][2] = {
+      {0, 1}, {1, 1}, {2, 1}, {8, 4}, {16, 4}, {24, 8}, {32, 8}};
+  static const size_t kPmreadDeepN = sizeof(kPmreadDeep) / sizeof(kPmreadDeep[0]);
 
   if (do_mount || idle_tur) {
     EspUsbHostMscInquiry inq{};
@@ -729,7 +735,14 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
       CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 0, 0, 0, 0,
                                   "bmw_stim_inquiry");
     }
-    for (uint16_t i = 0; i < 3; i++) {
+    uint8_t maxLun = 0;
+    if (g_usb.mscMaxLun(maxLun)) {
+      r.max_lun_ok = 1;
+      r.max_lun = maxLun;
+      CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, maxLun, 0, 0, 0,
+                                  "bmw_stim_maxlun");
+    }
+    for (uint16_t i = 0; i < (deep ? 5u : 3u); i++) {
       uint64_t blocks = 0;
       uint32_t bsz = 0;
       if (g_usb.mscCapacity64(blocks, bsz)) {
@@ -746,12 +759,29 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
         r.tur_ok++;
       } else {
         r.tur_fail++;
+        EspUsbHostMscSense sense{};
+        if (g_usb.mscRequestSense(sense)) {
+          r.sense_ok++;
+        } else {
+          r.sense_fail++;
+        }
       }
       if (idle_tur) {
         delay(2200); // P-TUR ~2239 ms idle cadence
       } else if ((i & 3u) == 3u) {
         delay(1); // keep burst tight like P-MOUNT TUR cluster
       }
+    }
+    // Baseline sense sample even when TUR all-ok (HU often does this).
+    {
+      EspUsbHostMscSense sense{};
+      if (g_usb.mscRequestSense(sense)) {
+        r.sense_ok++;
+      } else {
+        r.sense_fail++;
+      }
+      CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, r.sense_ok,
+                                  r.sense_fail, 0, 0, "bmw_stim_sense");
     }
     CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, r.tur_ok,
                                 r.tur_fail, tur_count, 0, "bmw_stim_tur");
@@ -770,8 +800,26 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
         r.read_fail++;
       }
     }
+    if (deep) {
+      for (size_t i = 0; i < kPmreadDeepN; i++) {
+        const uint32_t lba = kPmreadDeep[i][0];
+        const uint32_t n = kPmreadDeep[i][1];
+        const bool ok = readBlocks(lba, n, buf);
+        if (ok) {
+          r.read_ok++;
+          r.bytes_read += n * 512u;
+        } else {
+          r.read_fail++;
+        }
+      }
+    }
     CaptureLog::instance().push(CapRole::Host, CapType::MscRead, r.read_fail ? 1 : 0,
                                 r.bytes_read, 0, r.read_ok, 0, "bmw_stim_pmread");
+    if (g_usb.mscSynchronizeCache()) {
+      r.sync_cache_ok = 1;
+      CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, 1, 0, 0, 0,
+                                  "bmw_stim_sync_cache");
+    }
   }
 
   if (do_scan && scan_blocks > 0) {
