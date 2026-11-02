@@ -1,7 +1,7 @@
 # Lab MEASURED — Path B GPIO lab substitute (0.0.41)
 
 **Tool:** `tools/lab_path_b_gpio.py` → `GET /api/lab/path-b-gpio`  
-**Host FW:** `0.0.43`  
+**Host FW:** `0.0.50`  
 **Pins:** DP=GPIO10 · DM=GPIO11 (**not** OTG 19/20)
 
 ## Question
@@ -15,11 +15,11 @@ for decoder/ingest tests?
 |-------|-------|
 | Mode | txrx_l0st |
 | Target rate | 100000 Hz |
-| Achieved rate | **84729 Hz** |
+| Achieved rate | **89034 Hz** |
 | States TX/RX | 177 / 177 |
 | Loopback mismatches | 0 · ok=True |
-| L0ST push | ok=True · bytes=286 → 192.168.178.187:9760 |
-| Duration | 2089 µs |
+| L0ST push | ok=True · bytes=286 → None:None |
+| Duration | 1988 µs |
 
 ## Verdict
 

@@ -2,8 +2,8 @@
 
 **Source:** `sim_inprocess`  
 **L0 packets:** 3  
-**L1 events:** 15  
-**Matched:** 3  
+**L1 events:** 48  
+**Matched:** 2  
 
 Claim: `l0_live_pipeline_lab` — Path B **sim/ingest** MEASURED.  
 **Not claimed:** live D+/D− PHY tap until external front-end soldered.
