@@ -6,6 +6,7 @@
 #include <espusbhost_version.h>
 
 #include "capture/CaptureLog.h"
+#include "host/MscScsiLab.h"
 
 #include <ArduinoJson.h>
 #include <algorithm>
@@ -738,7 +739,7 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
                               uint32_t scan_blocks, uint32_t file_lba0) {
   BmwHuStimulusResult r;
   r.profile = profile ? profile : "bmw_mount";
-  r.note = "not_real_hu_no_mode_sense_no_prevent;+sense+maxlun+sync";
+  r.note = "not_real_hu;+sense+maxlun+sync+mode_sense6x6+preventx7";
   const uint32_t t0 = millis();
   if (!begin_ok_ || host_released_ || deviceCount() == 0) {
     r.error = "no_dut";
@@ -763,7 +764,7 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
       {0, 8}, {0, 8}, {24, 8}, {0, 8}, {0, 1}, {1, 3},
       {7, 2}, {1, 1}, {2, 1},  {3, 5}, {24, 8}};
   static const size_t kPmreadN = sizeof(kPmread) / sizeof(kPmread[0]);
-  // Extra FAT/root probes for bmw_mount_deep (still not MODE_SENSE/PREVENT).
+  // Extra FAT/root probes for bmw_mount_deep.
   static const uint16_t kPmreadDeep[][2] = {
       {0, 1}, {1, 1}, {2, 1}, {8, 4}, {16, 4}, {24, 8}, {32, 8}};
   static const size_t kPmreadDeepN = sizeof(kPmreadDeep) / sizeof(kPmreadDeep[0]);
@@ -793,6 +794,31 @@ UsbHostNode::runBmwHuStimulus(const char *profile, uint16_t tur_count,
                                     static_cast<uint32_t>(blocks), 0,
                                     "bmw_stim_capacity");
       }
+    }
+    // P-MOUNT FACT: MODE_SENSE6 ×6 (page 0x3F, alloc 192 — BMW CBW length class)
+    if (do_mount) {
+      for (uint16_t i = 0; i < 6; i++) {
+        if (mscLabModeSense6(g_usb, 0x3F, 192)) {
+          r.mode_sense_ok++;
+        } else {
+          r.mode_sense_fail++;
+        }
+        delay(2);
+      }
+      CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0,
+                                  r.mode_sense_ok, r.mode_sense_fail, 6, 0,
+                                  "bmw_stim_mode_sense6");
+      // P-MOUNT FACT: PREVENT_ALLOW ×7
+      for (uint16_t i = 0; i < 7; i++) {
+        if (mscLabPreventAllow(g_usb, true)) {
+          r.prevent_ok++;
+        } else {
+          r.prevent_fail++;
+        }
+        delay(2);
+      }
+      CaptureLog::instance().push(CapRole::Host, CapType::EnumInfo, 0, r.prevent_ok,
+                                  r.prevent_fail, 7, 0, "bmw_stim_prevent");
     }
     for (uint16_t i = 0; i < tur_count; i++) {
       const bool ok = g_usb.mscTestUnitReady();

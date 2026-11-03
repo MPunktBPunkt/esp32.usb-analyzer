@@ -367,7 +367,8 @@ public:
    * BMW-NBT-like MSC host stimulus (desk FACT P-MOUNT/P-MREAD subset).
    * Profiles: bmw_mount | bmw_mount_scan | bmw_idle_tur
    * Emits INQUIRY / CAPACITY×N / TUR burst / READ10 sequence via EspUsbHost.
-   * Claim: bmw_hu_stimulus_lab — NOT real HU · NOT MODE_SENSE/PREVENT (not in EspUsbHost API).
+   * Claim: bmw_hu_stimulus_lab — NOT real HU wire.
+   * P-MOUNT FACT includes MODE_SENSE6×6 + PREVENT_ALLOW×7 (lab unlock via mscCommand).
    */
   struct BmwHuStimulusResult {
     bool ok = false;
@@ -380,6 +381,10 @@ public:
     uint16_t sense_fail = 0;
     uint16_t max_lun_ok = 0;
     uint16_t sync_cache_ok = 0;
+    uint16_t mode_sense_ok = 0;
+    uint16_t mode_sense_fail = 0;
+    uint16_t prevent_ok = 0;
+    uint16_t prevent_fail = 0;
     uint16_t read_ok = 0;
     uint16_t read_fail = 0;
     uint32_t bytes_read = 0;

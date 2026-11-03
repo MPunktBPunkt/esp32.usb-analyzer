@@ -2,7 +2,7 @@
 """BMW-NBT-like MSC host stimulus via Analyzer Host (.88) against a gadget DUT.
 
 Desk FACT sources (hu-probe feld 2026-10-19):
-  P-MOUNT: INQUIRY×1, CAPACITY×3, TUR burst (~32), (+ MODE_SENSE/PREVENT not in EspUsbHost)
+  P-MOUNT: INQUIRY×1, CAPACITY×3, MODE_SENSE6×6, PREVENT×7, TUR burst (~32)
   P-MREAD: 0/8,0/8,24/8,0/8,0/1,1/3,7/2,1/1,2/1,3/5,24/8
 
 Purpose: cross-check whether hu-probe / pidrive *see* controlled host accesses
@@ -206,7 +206,8 @@ def main() -> int:
         "after": after,
         "delta": delta,
         "visible_on_dut": visible,
-        "not_emitted": ["MODE_SENSE6", "PREVENT_ALLOW"],
+        "not_emitted": [],
+        "emitted_extra": ["MODE_SENSE6", "PREVENT_ALLOW"],
         "note": "lab_host_nbt_like_not_real_hu",
     }
 
@@ -225,8 +226,8 @@ def main() -> int:
         "## Epistemik",
         "",
         "- Desk FACT mount grammar from hu-probe feld (P-MOUNT / P-MREAD).",
-        "- Analyzer Host emits INQUIRY + MaxLUN + CAPACITY + TUR + REQUEST_SENSE + READ10 + SYNCHRONIZE_CACHE.",
-        "- **Not emitted:** MODE_SENSE6 / PREVENT_ALLOW (EspUsbHost API gap — mscCommand private).",
+        "- Analyzer Host emits INQUIRY + MaxLUN + CAPACITY + MODE_SENSE6×6 + PREVENT×7 + TUR + REQUEST_SENSE + READ10 + SYNCHRONIZE_CACHE.",
+        "- MODE_SENSE6/PREVENT via lab mscCommand unlock (0.0.52+) — Feld P-MOUNT FACT.",
         "- **Not claimed:** real BMW NBT · HU cache prediction · Path B L0.",
         "- hu-probe: prefer `msc_reads` vs Host READ; `read_count` is ReadInstrument (see LAB_MSC_READS_SEMANTICS).",
         "",

@@ -112,13 +112,18 @@ def set_gadget(ip: str, mode: str) -> dict:
 
 def soft_reboot(ip: str) -> dict:
     for path in (
+        f"http://{ip}/api/connected/gadget/reboot",  # hu-probe
         f"http://{ip}/api/reboot",
         f"http://{ip}/api/restart",
         f"http://{ip}/reboot",
     ):
         r = post(path, timeout=8)
-        if not r.get("err") or "http_404" not in str(r.get("err")):
-            return {"path": path, **r}
+        err = str(r.get("err") or "")
+        if "http_404" in err or "http_405" in err:
+            continue
+        if r.get("err") and "Not Found" in str(r):
+            continue
+        return {"path": path, **r}
     return {"ok": False, "err": "no_reboot_endpoint"}
 
 

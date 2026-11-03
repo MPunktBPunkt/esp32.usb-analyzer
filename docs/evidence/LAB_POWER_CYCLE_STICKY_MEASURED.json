@@ -1,15 +1,103 @@
 {
-  "ok": false,
+  "ok": true,
   "claim": "huprobe_power_cycle_sticky_lab",
-  "err": "device_not_huprobe",
-  "status_keys": {
-    "name": "Hu-probe",
-    "version": "0.0.50",
-    "modules": [
-      "analyzer"
-    ],
-    "role": "device",
-    "usb_gadget": null
-  },
-  "hint": "OTA hu-probe to --device before power-cycle sticky; analyzer OTG loop must yield .89"
+  "timestamp_utc": "20261103T182555Z",
+  "device": "192.168.178.89",
+  "fw": "0.3.35",
+  "soft_only": true,
+  "modes": [
+    "msc",
+    "aoa_observe",
+    "aoa_phone_like"
+  ],
+  "soft_pass": true,
+  "power_pass": null,
+  "rows": [
+    {
+      "mode": "msc",
+      "soft": {
+        "set": {
+          "config": {
+            "ok": true,
+            "gadgetNvsOk": true,
+            "usbGadget": "msc",
+            "err": null
+          },
+          "usb_gadget": "msc",
+          "gadgetNvsOk": true
+        },
+        "reboot": {
+          "path": "http://192.168.178.89/api/connected/gadget/reboot",
+          "ok": true,
+          "action": "gadget_reboot",
+          "usbGadget": "msc",
+          "gadgetNvsOk": true,
+          "note": "restart_after_nvs_save"
+        },
+        "usb_gadget": "msc",
+        "resetReason": null,
+        "ok": true
+      },
+      "power": {}
+    },
+    {
+      "mode": "aoa_observe",
+      "soft": {
+        "set": {
+          "config": {
+            "ok": true,
+            "gadgetNvsOk": true,
+            "usbGadget": "aoa_observe",
+            "err": null
+          },
+          "usb_gadget": "aoa_observe",
+          "gadgetNvsOk": true
+        },
+        "reboot": {
+          "path": "http://192.168.178.89/api/connected/gadget/reboot",
+          "ok": true,
+          "action": "gadget_reboot",
+          "usbGadget": "aoa_observe",
+          "gadgetNvsOk": true,
+          "note": "restart_after_nvs_save"
+        },
+        "usb_gadget": "aoa_observe",
+        "resetReason": null,
+        "ok": true
+      },
+      "power": {}
+    },
+    {
+      "mode": "aoa_phone_like",
+      "soft": {
+        "set": {
+          "config": {
+            "ok": true,
+            "gadgetNvsOk": true,
+            "usbGadget": "aoa_phone_like",
+            "err": null
+          },
+          "usb_gadget": "aoa_phone_like",
+          "gadgetNvsOk": true
+        },
+        "reboot": {
+          "path": "http://192.168.178.89/api/connected/gadget/reboot",
+          "ok": true,
+          "action": "gadget_reboot",
+          "usbGadget": "aoa_phone_like",
+          "gadgetNvsOk": true,
+          "note": "restart_after_nvs_save"
+        },
+        "usb_gadget": "aoa_phone_like",
+        "resetReason": null,
+        "ok": true
+      },
+      "power": {}
+    }
+  ],
+  "not_claimed": [
+    "controlled_vbus_switch_hw",
+    "analyzer_nvs_modes",
+    "aoa_phone_to_accessory_full_enum"
+  ]
 }

@@ -1,9 +1,9 @@
 # Lab MEASURED — BMW-HU-like stimulus × huprobe · 0.0.50
 
 **Claim:** `bmw_hu_stimulus_lab`
-**Profile:** `bmw_mount_scan` · tur=32 · scan_blocks=160 · file_lba0=9
-**Host stimulus ok:** True · inquiry=1 capacity=3 tur=32/0 sense=1/0 maxLun=1 sync=1 reads=31/0 bytes=109056 · 155 ms
-**DUT visible:** True · delta={"read_count": 12, "tur_hz_after": 47.19764, "event_codes_tail": []}
+**Profile:** `bmw_mount` · tur=32 · scan_blocks=160 · file_lba0=9
+**Host stimulus ok:** True · inquiry=1 capacity=3 tur=32/0 sense=1/0 maxLun=1 sync=1 reads=11/0 bytes=27136 · 88 ms
+**DUT visible:** True · delta={"msc_reads": 11, "read_count": 7, "tur_hz_after": 42.32283, "semantics": "prefer_msc_reads_over_read_count", "event_codes_tail": []}
 
 ## Epistemik
 
@@ -11,6 +11,7 @@
 - Analyzer Host emits INQUIRY + MaxLUN + CAPACITY + TUR + REQUEST_SENSE + READ10 + SYNCHRONIZE_CACHE.
 - **Not emitted:** MODE_SENSE6 / PREVENT_ALLOW (EspUsbHost API gap — mscCommand private).
 - **Not claimed:** real BMW NBT · HU cache prediction · Path B L0.
+- hu-probe: prefer `msc_reads` vs Host READ; `read_count` is ReadInstrument (see LAB_MSC_READS_SEMANTICS).
 
 ## Verdict
 
@@ -21,11 +22,11 @@
   "ok": true,
   "claim": "bmw_hu_stimulus_lab",
   "dut_kind": "huprobe",
-  "profile": "bmw_mount_scan",
-  "wall_s": 0.172,
+  "profile": "bmw_mount",
+  "wall_s": 0.104,
   "host_stimulus": {
     "ok": true,
-    "profile": "bmw_mount_scan",
+    "profile": "bmw_mount",
     "inquiryOk": 1,
     "capacityOk": 3,
     "turOk": 32,
@@ -35,30 +36,35 @@
     "maxLunOk": 1,
     "maxLun": 0,
     "syncCacheOk": 1,
-    "readOk": 31,
+    "modeSenseOk": 6,
+    "modeSenseFail": 0,
+    "preventOk": 6,
+    "preventFail": 1,
+    "readOk": 11,
     "readFail": 0,
-    "bytesRead": 109056,
+    "bytesRead": 27136,
     "capacityBlocks": 32768,
     "inquiryProduct": "HU_PROBE        ",
-    "duration_ms": 155,
+    "duration_ms": 88,
     "claim": "bmw_hu_stimulus_lab",
-    "note": "not_real_hu_no_mode_sense_no_prevent;+sense+maxlun+sync"
+    "note": "not_real_hu;+sense+maxlun+sync+mode_sense6x6+preventx7"
   },
   "before": {
     "fw": "0.3.35",
     "fwType": "hu-probe",
     "usb_gadget": "msc",
-    "read_count": 0,
-    "tur_hz": 0,
+    "msc_reads": 11,
+    "read_count": 11,
+    "tur_hz": 38.42941,
     "session": {
       "active": true,
-      "session_id": "20261102-192354_lab_debian_s0_plug_enum",
+      "session_id": "20261103-192715_lab_debian_s0_plug_enum",
       "vehicle": "lab_debian",
       "scenario": "s0_plug_enum",
       "profile_id": "lab_debian",
       "phase": "enum",
       "transport": "tcp_live",
-      "seq": 58,
+      "seq": 232,
       "seq_first": 1
     },
     "media": {
@@ -89,17 +95,18 @@
     "fw": "0.3.35",
     "fwType": "hu-probe",
     "usb_gadget": "msc",
-    "read_count": 12,
-    "tur_hz": 47.19764,
+    "msc_reads": 22,
+    "read_count": 18,
+    "tur_hz": 42.32283,
     "session": {
       "active": true,
-      "session_id": "20261102-192354_lab_debian_s0_plug_enum",
+      "session_id": "20261103-192715_lab_debian_s0_plug_enum",
       "vehicle": "lab_debian",
       "scenario": "s0_plug_enum",
       "profile_id": "lab_debian",
       "phase": "enum",
       "transport": "tcp_live",
-      "seq": 215,
+      "seq": 383,
       "seq_first": 1
     },
     "media": {
@@ -127,8 +134,10 @@
     "offline": "idle"
   },
   "delta": {
-    "read_count": 12,
-    "tur_hz_after": 47.19764,
+    "msc_reads": 11,
+    "read_count": 7,
+    "tur_hz_after": 42.32283,
+    "semantics": "prefer_msc_reads_over_read_count",
     "event_codes_tail": []
   },
   "visible_on_dut": true,

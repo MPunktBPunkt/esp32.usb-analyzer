@@ -2,6 +2,7 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.52: BMW stimulus MODE_SENSE6×6 + PREVENT×7 (P-MOUNT Feld FACT); `lab_stimulus_feld_diff.py`; hu-probe soft sticky MEASURED
 - FW 0.0.51: HID scenario — keyboard text inject + mouse move/click; Host mouse observe + `/api/lab/vbus-status`; ESP UI HID/VBUS card; `lab_hid_scenario.py`
 - Lab packages post-audit: `lab_version_matrix`, `lab_power_cycle_sticky`, `lab_heap_soak`, `release_gate_capability`, `lab_sf_discrimination`, `lab_observer_control_host`; `msc_reads` semantics; VBUS-switch checklist
 - Lab: `tools/lab_capability_audit.py` + Capability-Audit 0.0.50 (7/7 + Gate10 9/9); frische Baseline USB≈917 kB/s / TCP≈332 kB/s

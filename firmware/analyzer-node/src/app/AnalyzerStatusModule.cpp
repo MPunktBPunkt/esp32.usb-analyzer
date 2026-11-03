@@ -2050,6 +2050,14 @@ void AnalyzerStatusModule::handleBmwHuStimulus() {
   j += String(r.max_lun);
   j += ",\"syncCacheOk\":";
   j += String(r.sync_cache_ok);
+  j += ",\"modeSenseOk\":";
+  j += String(r.mode_sense_ok);
+  j += ",\"modeSenseFail\":";
+  j += String(r.mode_sense_fail);
+  j += ",\"preventOk\":";
+  j += String(r.prevent_ok);
+  j += ",\"preventFail\":";
+  j += String(r.prevent_fail);
   j += ",\"readOk\":";
   j += String(r.read_ok);
   j += ",\"readFail\":";
