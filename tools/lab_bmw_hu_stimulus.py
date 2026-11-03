@@ -60,6 +60,8 @@ def snap_dut(ip: str, kind: str) -> dict:
             "fw": st.get("fw") or st.get("version"),
             "fwType": st.get("fwType"),
             "usb_gadget": st.get("usb_gadget"),
+            # msc_reads = MscGadget READ completions; read_count = ReadInstrument aggregates
+            "msc_reads": st.get("msc_reads"),
             "read_count": st.get("read_count"),
             "tur_hz": st.get("tur_hz"),
             "session": st.get("session"),
@@ -157,8 +159,10 @@ def main() -> int:
     delta: dict = {}
     if args.dut == "huprobe":
         delta = {
+            "msc_reads": (after.get("msc_reads") or 0) - (before.get("msc_reads") or 0),
             "read_count": (after.get("read_count") or 0) - (before.get("read_count") or 0),
             "tur_hz_after": after.get("tur_hz"),
+            "semantics": "prefer_msc_reads_over_read_count",
         }
         # event codes that look like scsi/read
         codes = []
@@ -182,7 +186,12 @@ def main() -> int:
 
     visible = False
     if args.dut == "huprobe":
-        visible = int(delta.get("read_count") or 0) > 0 or bool(stim.get("ok"))
+        # Prefer msc_reads (SCSI/MSC path); read_count is instrument aggregate ≠ Host READ10
+        visible = (
+            int(delta.get("msc_reads") or 0) > 0
+            or int(delta.get("read_count") or 0) > 0
+            or bool(stim.get("ok"))
+        )
     else:
         visible = int(delta.get("bytesRead") or 0) > 0 or int(delta.get("readCount") or 0) > 0
 
@@ -219,6 +228,7 @@ def main() -> int:
         "- Analyzer Host emits INQUIRY + MaxLUN + CAPACITY + TUR + REQUEST_SENSE + READ10 + SYNCHRONIZE_CACHE.",
         "- **Not emitted:** MODE_SENSE6 / PREVENT_ALLOW (EspUsbHost API gap — mscCommand private).",
         "- **Not claimed:** real BMW NBT · HU cache prediction · Path B L0.",
+        "- hu-probe: prefer `msc_reads` vs Host READ; `read_count` is ReadInstrument (see LAB_MSC_READS_SEMANTICS).",
         "",
         "## Verdict",
         "",

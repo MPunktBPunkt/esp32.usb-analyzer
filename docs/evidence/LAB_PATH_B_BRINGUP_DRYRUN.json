@@ -23,7 +23,7 @@
     {
       "name": "live_host",
       "ok": true,
-      "version": "0.0.46",
+      "version": "0.0.50",
       "otg": {
         "mode": "host",
         "state": "device_attached",

@@ -150,6 +150,31 @@ input[type=file]{display:none}
         <button type="button" class="btn-sec" id="btn-usb-write">USB WRITE Probe</button>
         <span class="muted" id="usb-probe-msg"></span>
       </div>
+      <div class="perf-row" id="vbus-row" style="display:none;margin-top:8px">
+        <button type="button" class="btn-sec" id="btn-vbus">VBUS/HPRT Status</button>
+        <span class="muted" id="vbus-msg">Board: OTG speist typ. <b>kein</b> 5&nbsp;V — DUT muss self-powered oder Hub sein.</span>
+      </div>
+    </div>
+    <div class="card" id="hid-lab-card">
+      <h3>HID Lab (Keyboard / Mouse)</h3>
+      <p class="muted">OTG-Loop: Device injiziert Interrupt-Reports, Host beobachtet Class-Callbacks — <b>kein</b> L0/Wire. Composite kbd+mouse (kein echter Unplug-Wechsel).</p>
+      <table>
+        <tr><td>Host HID</td><td class="mono" id="a-hid">—</td></tr>
+        <tr><td>Device HID</td><td class="mono" id="a-hid-dev">—</td></tr>
+      </table>
+      <div class="perf-row" id="hid-host-row" style="display:none;margin-top:8px;flex-wrap:wrap">
+        <button type="button" class="btn-sec" id="btn-hid-obs-key">Observe Key</button>
+        <button type="button" class="btn-sec" id="btn-hid-obs-mouse">Observe Mouse</button>
+        <span class="muted" id="hid-host-msg"></span>
+      </div>
+      <div class="perf-row" id="hid-dev-row" style="display:none;margin-top:8px;flex-wrap:wrap">
+        <input id="hid-text" value="Hello World" style="max-width:140px" spellcheck="false">
+        <button type="button" class="btn-sec" id="btn-hid-hello">Type text</button>
+        <button type="button" class="btn-sec" id="btn-hid-move">Mouse move</button>
+        <button type="button" class="btn-sec" id="btn-hid-lclick">L-click</button>
+        <button type="button" class="btn-sec" id="btn-hid-rclick">R-click</button>
+        <span class="muted" id="hid-dev-msg"></span>
+      </div>
     </div>
     <div class="card">
       <h3>Capture Timeline (L1 lab)</h3>
@@ -318,21 +343,49 @@ input[type=file]{display:none}
       dutEl.textContent='—';
     }
     var probeRow=document.getElementById('usb-probe-row');
+    var vbusRow=document.getElementById('vbus-row');
+    var hidHostRow=document.getElementById('hid-host-row');
+    var hidDevRow=document.getElementById('hid-dev-row');
     if(o.mode==='host'){
       probeRow.style.display='flex';
+      vbusRow.style.display='flex';
+      hidHostRow.style.display='flex';
+      hidDevRow.style.display='none';
       det='DUT devices='+(o.devices!=null?o.devices:0)+' (OTG→PC zeigt kein Gadget)';
-      hint.textContent='Host-Rolle: connected = DUT am OTG (Stick oder Device-ESP in OTG-Schleife). UART/COM ist ein anderer Stecker.';
+      hint.textContent='Host-Rolle: connected = DUT am OTG (Stick oder Device-ESP in OTG-Schleife). UART/COM ist ein anderer Stecker. OTG speist kein Bus-5V.';
       if(s.lastUsbProbe){
         var up=s.lastUsbProbe;
         document.getElementById('usb-probe-msg').textContent=
           (up.ok?'OK':'FAIL')+' · '+up.rate_kBs+' kB/s · pattern='+(up.pattern_ok?'ok':'no');
       }
+      var hv=s.vbus||{};
+      document.getElementById('vbus-msg').textContent=
+        'HPRT.prtpwr='+(hv.prtpwr===true?'1':(hv.prtpwr===false?'0':'?'))+
+        ' · boardSourcesVbus='+(hv.boardSourcesVbus===true?'yes':'no')+
+        ' · '+(hv.note||'devkit_otg_no_5v');
+      var hh=s.hid||{};
+      document.getElementById('a-hid').textContent=
+        'reports='+(hh.reports||0)+' key='+(hh.lastKeycode||0)+'/'+(hh.lastAscii||0)+
+        ' mouseR='+(hh.mouseReports||0)+' xy='+(hh.lastMouseX||0)+','+(hh.lastMouseY||0)+
+        ' btn='+(hh.lastMouseButtons||0);
+      document.getElementById('a-hid-dev').textContent='(host — inject on device peer)';
     }else if(o.mode==='device'){
       probeRow.style.display='none';
+      vbusRow.style.display='none';
+      hidHostRow.style.display='none';
+      hidDevRow.style.display='flex';
       det=o.suspended?'gadget suspended':'gadget '+(o.connected?'mounted on USB host':'waiting for host');
       hint.textContent='Device-Rolle: connected = OTG am USB-Host (PC oder Host-ESP). COM-Kabel zaehlt nicht.';
+      var gd2=s.gadget||{};
+      document.getElementById('a-hid-dev').textContent=
+        'kbd='+(gd2.hid?'on':'off')+' inj='+(gd2.hidInjects||0)+
+        ' mouse='+(gd2.hidMouse?'on':'off')+' minj='+(gd2.hidMouseInjects||0);
+      document.getElementById('a-hid').textContent='(device — observe on host peer)';
     }else{
       probeRow.style.display='none';
+      vbusRow.style.display='none';
+      hidHostRow.style.display='none';
+      hidDevRow.style.display='none';
       hint.textContent='Host: DUT am OTG. Device: OTG zum USB-Host. COM/UART ist nicht OTG.';
     }
     document.getElementById('a-otg-detail').textContent=det;
@@ -462,6 +515,48 @@ input[type=file]{display:none}
     }).catch(function(e){btnR.disabled=false;btnW.disabled=false;msg.textContent='Fehler: '+e;});
   }
   document.getElementById('btn-usb-probe').addEventListener('click',function(){runUsbProbe('read');});
+  document.getElementById('btn-vbus').addEventListener('click',function(){
+    var msg=document.getElementById('vbus-msg');
+    msg.textContent='…';
+    fetch('/api/lab/vbus-status').then(function(r){return r.json();}).then(function(j){
+      msg.textContent='prtpwr='+j.prtpwr+' conn='+j.prtConn+' ena='+j.prtEna+
+        ' · boardSourcesVbus='+j.boardSourcesVbus+' · '+(j.boardNote||'');
+    }).catch(function(e){msg.textContent='VBUS-Fehler: '+e;});
+  });
+  function hidObs(kind){
+    var msg=document.getElementById('hid-host-msg');
+    msg.textContent='warte '+kind+'…';
+    fetch('/api/lab/hid-observe?kind='+encodeURIComponent(kind)+'&wait_ms=4000&clear=1',{method:'POST'})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j.kind==='mouse'){
+          msg.textContent=(j.ok?'OK':'FAIL')+' mouse dx='+j.mouseX+' dy='+j.mouseY+' btn='+j.mouseButtons;
+        }else{
+          msg.textContent=(j.ok?'OK':'FAIL')+' key ascii='+j.ascii+' kc='+j.keycode+' hex='+(j.reportHex||'');
+        }
+      }).catch(function(e){msg.textContent='Observe-Fehler: '+e;});
+  }
+  document.getElementById('btn-hid-obs-key').addEventListener('click',function(){hidObs('key');});
+  document.getElementById('btn-hid-obs-mouse').addEventListener('click',function(){hidObs('mouse');});
+  document.getElementById('btn-hid-hello').addEventListener('click',function(){
+    var msg=document.getElementById('hid-dev-msg');
+    var t=document.getElementById('hid-text').value||'Hello World';
+    msg.textContent='type…';
+    fetch('/api/lab/hid-inject?text='+encodeURIComponent(t),{method:'POST'})
+      .then(function(r){return r.json();}).then(function(j){
+        msg.textContent=(j.ok?'OK':'FAIL')+' textLen='+(j.textLen||0)+' inj='+j.injects+(j.err?(' · '+j.err):'');
+      }).catch(function(e){msg.textContent='Inject-Fehler: '+e;});
+  });
+  function hidMouse(q){
+    var msg=document.getElementById('hid-dev-msg');
+    msg.textContent='mouse…';
+    fetch('/api/lab/hid-mouse?'+q,{method:'POST'})
+      .then(function(r){return r.json();}).then(function(j){
+        msg.textContent=(j.ok?'OK':'FAIL')+' dx='+j.dx+' dy='+j.dy+' btn='+j.buttons+(j.err?(' · '+j.err):'');
+      }).catch(function(e){msg.textContent='Mouse-Fehler: '+e;});
+  }
+  document.getElementById('btn-hid-move').addEventListener('click',function(){hidMouse('dx=40&dy=-20&click=none');});
+  document.getElementById('btn-hid-lclick').addEventListener('click',function(){hidMouse('click=left');});
+  document.getElementById('btn-hid-rclick').addEventListener('click',function(){hidMouse('click=right');});
   document.getElementById('btn-usb-write').addEventListener('click',function(){runUsbProbe('write');});
 
   document.getElementById('btn-perf').addEventListener('click',function(){

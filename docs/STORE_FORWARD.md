@@ -1,7 +1,8 @@
 # Store-and-Forward USB Tunnel (planned)
 
-**Status:** architecture building block — **not implemented**  
-**Depends on:** Gate 4 transparent proxy baseline + Gate 5 capture integrity  
+**Status:** architecture building block — **not implemented** (SF-0…SF-5 below)  
+**Depends on:** Gate 4 transparent proxy baseline + Gate 5 capture integrity — **present**  
+**Lab precursor:** `tools/lab_sf_discrimination.py` → `LAB_SF_DISCRIMINATION_MEASURED` (Mode-A vs USB gap; does not ship rings)  
 **Motivation:** USB/WiFi coexistence under Bulk (technology-audit: HYPOTHESIS set; not desk FACT). Multicore scheduling alone does not remove WLAN latency, PSRAM/cache effects, or USB stack deadlines.
 
 ### PSRAM detection ≠ PSRAM architecture (v0.0.1 / current `main`)

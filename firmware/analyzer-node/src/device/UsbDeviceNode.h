@@ -79,8 +79,19 @@ public:
    * Claim: hid_interrupt_lab_loop — NOT MITM / L0 / HU.
    */
   bool injectHidKey(uint8_t ascii_or_raw, bool raw = false);
+  /** Type a short ASCII string (Shift for A–Z). Max ~64 chars lab. */
+  bool injectHidText(const char *text);
+  /**
+   * Lab HID mouse: relative move and/or button click.
+   * buttons: bit0=left bit1=right bit2=middle (Arduino MOUSE_*).
+   * click: if true, press+release buttons after move.
+   */
+  bool injectHidMouse(int8_t dx, int8_t dy, uint8_t buttons = 0,
+                      bool click = false, int8_t wheel = 0);
   bool hidEnabled() const { return hid_enabled_; }
+  bool hidMouseEnabled() const { return hid_mouse_enabled_; }
   uint32_t hidInjectCount() const { return hid_injects_; }
+  uint32_t hidMouseInjectCount() const { return hid_mouse_injects_; }
 
   /**
    * Gate 9 fault arm (MSC gadget path). Consumed in onRead.
@@ -160,6 +171,8 @@ private:
   uint16_t applied_pid_ = 0;
   bool hid_enabled_ = false;
   uint32_t hid_injects_ = 0;
+  uint32_t hid_mouse_injects_ = 0;
+  bool hid_mouse_enabled_ = false;
   FaultArm fault_{};
 
   static constexpr size_t kWriteCache = 64; // covers typical lab write probe

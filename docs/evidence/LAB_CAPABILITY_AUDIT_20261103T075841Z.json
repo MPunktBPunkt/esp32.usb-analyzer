@@ -1,0 +1,226 @@
+{
+  "classification": "MEASURED",
+  "claim": "lab_capability_audit_0_0_50",
+  "timestamp_utc": "20261103T075841Z",
+  "topology": "OTG Host(.88) \u2194 USB-C \u2194 Device(.89); WiFi TCP; Controller :8080",
+  "not_claimed": [
+    "passive_live_L0_D+/D-",
+    "path_b_soldered_phy",
+    "bmw_nbt_hu_wire",
+    "usb_high_speed",
+    "usb_if_compliance",
+    "soft_usb_equals_vbus_unplug"
+  ],
+  "nodes": {
+    "host": {
+      "ip": "192.168.178.88",
+      "version": "0.0.50",
+      "name": "ESP32-S3",
+      "role": "host",
+      "sketchUsed": 1545824,
+      "dut": {
+        "id": "303a:1001",
+        "product": "ANALYZER",
+        "mfr": "MPB",
+        "serial": "lab-gadget",
+        "speed": "full"
+      }
+    },
+    "device": {
+      "ip": "192.168.178.89",
+      "version": "0.0.50",
+      "name": "Hu-probe",
+      "role": "device",
+      "sketchUsed": 1446016
+    }
+  },
+  "controller": {
+    "ok": true,
+    "uptime_s": 46117,
+    "nodes": 2,
+    "version": "0.0.41"
+  },
+  "tests": {
+    "usb_enum_observe": {
+      "ok": true,
+      "summary": "addr=26 cfg=1",
+      "raw": {
+        "ok": true,
+        "dutPresent": true,
+        "address": 26,
+        "configurationValue": 1,
+        "interfaces": 3,
+        "hidIface": true,
+        "getDescOk": true,
+        "getConfigOk": true,
+        "getConfigMatch": true,
+        "getConfigByte": 1,
+        "duration_ms": 1,
+        "claim": "usb_enum_outcome_lab",
+        "note": "post_enum_stack_outcome_not_setup_mitm_not_l0"
+      }
+    },
+    "usb_otg_msc_sweep": {
+      "ok": true,
+      "summary": "peak=917 kB/s n=8",
+      "rows": [
+        {
+          "blocks": 1,
+          "chunk": 1,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 500,
+          "rtt_p50_us": 818,
+          "rtt_p95_us": 818
+        },
+        {
+          "blocks": 64,
+          "chunk": 1,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 627,
+          "rtt_p50_us": 756,
+          "rtt_p95_us": 816
+        },
+        {
+          "blocks": 128,
+          "chunk": 2,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 771,
+          "rtt_p50_us": 1254,
+          "rtt_p95_us": 1323
+        },
+        {
+          "blocks": 256,
+          "chunk": 4,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 859,
+          "rtt_p50_us": 2234,
+          "rtt_p95_us": 2362
+        },
+        {
+          "blocks": 512,
+          "chunk": 4,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 859,
+          "rtt_p50_us": 2237,
+          "rtt_p95_us": 2427
+        },
+        {
+          "blocks": 512,
+          "chunk": 8,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 914,
+          "rtt_p50_us": 4218,
+          "rtt_p95_us": 4394
+        },
+        {
+          "blocks": 512,
+          "chunk": 8,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 917,
+          "rtt_p50_us": 4217,
+          "rtt_p95_us": 4309
+        },
+        {
+          "blocks": 512,
+          "chunk": 8,
+          "ok": true,
+          "pattern_ok": true,
+          "pattern_fail_bytes": 0,
+          "rate_kBs": 914,
+          "rtt_p50_us": 4226,
+          "rtt_p95_us": 4425
+        }
+      ]
+    },
+    "tcp_wifi_integrity": {
+      "ok": true,
+      "summary": "rate=240 gaps=0",
+      "raw": {
+        "ok": true,
+        "rate_kBs": 240,
+        "gaps": null,
+        "gap": null,
+        "rtt_us": {
+          "min": 9522,
+          "avg": 33902,
+          "p50": 19800,
+          "p95": 150624,
+          "max": 164177
+        },
+        "frames": null
+      }
+    },
+    "controller_sync_offset": {
+      "ok": true,
+      "summary": "offset_us=1383269907 residual=143409",
+      "raw": {
+        "ok": true,
+        "offset_us": 1383269907,
+        "residual_us": 143409,
+        "samples": 7,
+        "claim": "cross_node_offset_estimate"
+      }
+    },
+    "bot_class_hook": {
+      "ok": true,
+      "summary": [
+        "CSW status 0 residue 0 sig USBS hex 5553425338020000",
+        "RESULT OK \u2014 class-hook BOT CBW/CSW",
+        "claim: class_hook_mscd_xfer (not wire PHY, not transparent MITM)"
+      ],
+      "rc": 0
+    },
+    "gate10_perf_campaign": {
+      "ok": true,
+      "summary": "skipped",
+      "skipped": true
+    },
+    "path_a_rejected": {
+      "ok": true,
+      "summary": "gpio19_20_are_internal_usb_phy_pins_cpu_sample_not_fs_packet_sniffer",
+      "raw": {
+        "ok": true,
+        "hostBegun": true,
+        "dutPresent": true,
+        "hprtRaw": 136197,
+        "prtConn": true,
+        "prtEna": true,
+        "prtSusp": false,
+        "prtOvercur": false,
+        "prtSpeed": 1,
+        "gpio19_Dm": 0,
+        "gpio20_Dp": 0,
+        "pathA_snifferOk": false,
+        "pathA_reason": "gpio19_20_are_internal_usb_phy_pins_cpu_sample_not_fs_packet_sniffer",
+        "pathB_preferred": true,
+        "pinsFact": "GPIO20=D+_GPIO19=D-_internal_PHY",
+        "note": "level2_hprt_only_not_l0_packets_prefer_path_b_external_tap",
+        "claim": "gate10a_feasibility",
+        "gate": "10A"
+      }
+    }
+  },
+  "limits": {
+    "usb_peak_kBs": 917,
+    "tcp_kBs": 240
+  },
+  "summary": {
+    "passed": 7,
+    "total": 7,
+    "pass_rate": 1.0
+  }
+}

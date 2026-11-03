@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "claim": "release_gate_capability",
+  "timestamp_utc": "20261103T075841Z",
+  "returncode": 0,
+  "cmd": [
+    "/usr/bin/python3",
+    "/home/martin/projects/usb-analyzer/tools/lab_capability_audit.py",
+    "--host",
+    "192.168.178.88",
+    "--device",
+    "192.168.178.89",
+    "--skip-heavy"
+  ],
+  "rule": "Do not tag/release analyzer FW unless capability audit is green on OTG loop.",
+  "not_claimed": [
+    "path_b_phy",
+    "hu_wire",
+    "usb_if"
+  ]
+}

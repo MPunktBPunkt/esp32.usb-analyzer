@@ -1,0 +1,89 @@
+# Lab — Observer control-host method
+
+**Claim:** `observer_control_host_method_lab`
+**Topology now:** otg_loop_analyzer
+**Stick baseline ready:** False
+
+## Checklist (must all pass before transparency claim)
+
+- [ ] **CH1** FS stick on Analyzer Host OTG; Device gadget disconnected or parked _(for direct_host_baseline)_
+- [ ] **CH2** Same stick on PC (usbmon/Wireshark); capture mount+READ reference _(for pc_direct_oracle)_
+- [ ] **CH3** MITM path: PC→Device-gadget ↔ WiFi/proxy ↔ Host→stick; compare CBW/CSW/data _(for transparency_diff)_
+- [ ] **CH4** Tag every rate with topology=pc_stick_mitm|otg_loop — never mix claims _(for claim_discipline)_
+- [ ] **CH5** Only after byte/order Diff pass: raise claim to transparent_mitm_lab _(for promotion_gate)_
+
+## Epistemik
+
+- OTG-loop observer MEASURED ≠ PC↔Stick MITM.
+- Promote claim only after Diff vs PC usbmon/Wireshark oracle.
+
+```json
+{
+  "ok": true,
+  "err": null,
+  "claim": "observer_control_host_method_lab",
+  "timestamp_utc": "20261103T075737Z",
+  "topology_observed": "otg_loop_analyzer",
+  "checklist": [
+    {
+      "id": "CH1",
+      "item": "FS stick on Analyzer Host OTG; Device gadget disconnected or parked",
+      "needed_for": "direct_host_baseline"
+    },
+    {
+      "id": "CH2",
+      "item": "Same stick on PC (usbmon/Wireshark); capture mount+READ reference",
+      "needed_for": "pc_direct_oracle"
+    },
+    {
+      "id": "CH3",
+      "item": "MITM path: PC\u2192Device-gadget \u2194 WiFi/proxy \u2194 Host\u2192stick; compare CBW/CSW/data",
+      "needed_for": "transparency_diff"
+    },
+    {
+      "id": "CH4",
+      "item": "Tag every rate with topology=pc_stick_mitm|otg_loop \u2014 never mix claims",
+      "needed_for": "claim_discipline"
+    },
+    {
+      "id": "CH5",
+      "item": "Only after byte/order Diff pass: raise claim to transparent_mitm_lab",
+      "needed_for": "promotion_gate"
+    }
+  ],
+  "checklist_pass": false,
+  "note": "Checklist is the method contract. Transparency FACT only after CH1\u2013CH5 with PC Diff \u2014 OTG-loop proxy \u0394 is insufficient.",
+  "probes": {
+    "host_version": "0.0.50",
+    "device_version": "0.0.50",
+    "dut": {
+      "present": true,
+      "id": "303a:1001",
+      "vid": 12346,
+      "pid": 4097,
+      "address": 17,
+      "configurationValue": 1,
+      "interfaces": 3,
+      "hidIface": true,
+      "speed": "full",
+      "manufacturer": "MPB",
+      "product": "ANALYZER",
+      "serial": "lab-gadget"
+    },
+    "is_analyzer_otg_loop": true,
+    "device_otg": {
+      "mode": "device",
+      "state": "connected",
+      "connected": true,
+      "suspended": false,
+      "meaning": "gadget_mounted_on_usb_host"
+    }
+  },
+  "ready_for_stick_baseline": false,
+  "not_claimed": [
+    "transparent_mitm",
+    "pc_stick_diff_done",
+    "otg_loop_equals_mitm"
+  ]
+}
+```

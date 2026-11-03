@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "claim": "huprobe_power_cycle_sticky_lab",
+  "err": "device_not_huprobe",
+  "status_keys": {
+    "name": "Hu-probe",
+    "version": "0.0.50",
+    "modules": [
+      "analyzer"
+    ],
+    "role": "device",
+    "usb_gadget": null
+  },
+  "hint": "OTA hu-probe to --device before power-cycle sticky; analyzer OTG loop must yield .89"
+}

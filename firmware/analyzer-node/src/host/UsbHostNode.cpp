@@ -153,6 +153,23 @@ void UsbHostNode::noteHidReport(uint8_t keycode, uint8_t ascii,
       "hid_irq", hid_report_, hid_report_len_);
 }
 
+void UsbHostNode::noteMouseReport(int16_t x, int16_t y, int16_t wheel,
+                                  uint8_t buttons, bool moved, uint8_t iface) {
+  mouse_x_ = x;
+  mouse_y_ = y;
+  mouse_wheel_ = wheel;
+  mouse_buttons_ = buttons;
+  mouse_moved_ = moved || x != 0 || y != 0 || wheel != 0;
+  hid_iface_ = iface;
+  mouse_last_ms_ = millis();
+  mouse_report_count_++;
+  mouse_got_ = true;
+  CaptureLog::instance().push(
+      CapRole::Host, CapType::HidInput, 1, buttons,
+      static_cast<uint32_t>(static_cast<int32_t>(x)),
+      static_cast<uint32_t>(static_cast<int32_t>(y)), 0, "hid_mouse_irq");
+}
+
 bool UsbHostNode::fillDutSnapshot(DutInfoSnapshot &out) {
   memset(&out, 0, sizeof(out));
   if (!begin_ok_ || !dut_present_ || deviceCount() == 0) {
@@ -261,6 +278,13 @@ bool UsbHostNode::begin() {
       noteHidReport(ev.keycode, ev.ascii, ev.modifiers, ev.interfaceNumber,
                     ev.rawData ? ev.rawData : ev.reportData,
                     ev.rawData ? ev.rawLength : ev.reportLength);
+    }
+  });
+  g_usb.onMouse([this](const EspUsbHostMouseEvent &ev) {
+    if (ev.moved || ev.buttonsChanged || ev.buttons != 0 || ev.x != 0 ||
+        ev.y != 0 || ev.wheel != 0) {
+      noteMouseReport(ev.x, ev.y, ev.wheel, ev.buttons, ev.moved,
+                      ev.interfaceNumber);
     }
   });
   g_usb.onHIDInput([this](const EspUsbHostHIDInput &in) {
@@ -401,6 +425,23 @@ void UsbHostNode::appendStatusJson(String &json) const {
   json += String(hid_keycode_);
   json += ",\"lastAscii\":";
   json += String(hid_ascii_);
+  json += ",\"mouseReports\":";
+  json += String(mouse_report_count_);
+  json += ",\"lastMouseX\":";
+  json += String(mouse_x_);
+  json += ",\"lastMouseY\":";
+  json += String(mouse_y_);
+  json += ",\"lastMouseButtons\":";
+  json += String(mouse_buttons_);
+  json += "}";
+  // HPRT power snapshot (software) — board typically does NOT source connector 5V.
+  json += ",\"vbus\":{";
+  json += "\"prtpwr\":";
+  json += USB_DWC.hprt_reg.prtpwr ? "true" : "false";
+  json += ",\"prtlnsts\":";
+  json += String(static_cast<unsigned>(USB_DWC.hprt_reg.prtlnsts));
+  json += ",\"boardSourcesVbus\":false";
+  json += ",\"note\":\"devkit_otg_no_5v_self_powered_dut_or_hub\"";
   json += "}";
   if (has_last_probe_) {
     const HostMscProbeResult &p = last_probe_;
@@ -1696,7 +1737,8 @@ UsbHostNode::CtrlNegResult UsbHostNode::runCtrlNegSeries() {
 }
 
 UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t wait_ms,
-                                                         bool clear) {
+                                                         bool clear,
+                                                         uint8_t want) {
   HidObserveResult r;
   const uint32_t t0 = millis();
   if (!begin_ok_) {
@@ -1711,30 +1753,87 @@ UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t wait_ms,
   }
   if (clear) {
     hid_got_ = false;
+    mouse_got_ = false;
     hid_armed_ = true;
   }
   const uint32_t deadline = millis() + wait_ms;
   while (millis() < deadline) {
-    if (hid_got_) {
+    const bool key_ok = hid_got_;
+    const bool mouse_ok = mouse_got_;
+    if (want == 1 && key_ok) {
+      break;
+    }
+    if (want == 2 && mouse_ok) {
+      break;
+    }
+    if (want == 0 && (key_ok || mouse_ok)) {
       break;
     }
     delay(5);
   }
   hid_armed_ = false;
-  r.got = hid_got_;
-  r.keycode = hid_keycode_;
-  r.ascii = hid_ascii_;
-  r.modifiers = hid_modifiers_;
-  r.iface = hid_iface_;
-  r.report_len = hid_report_len_;
-  memcpy(r.report, hid_report_, sizeof(r.report));
+  const bool prefer_mouse =
+      (want == 2) || (want == 0 && mouse_got_ && !hid_got_);
+  if (prefer_mouse && mouse_got_) {
+    r.got = true;
+    r.kind = "mouse";
+    r.mouse_x = mouse_x_;
+    r.mouse_y = mouse_y_;
+    r.mouse_wheel = mouse_wheel_;
+    r.mouse_buttons = mouse_buttons_;
+    r.mouse_moved = mouse_moved_;
+    r.iface = hid_iface_;
+    r.age_ms = mouse_last_ms_ ? (millis() - mouse_last_ms_) : 0xffffffffu;
+    r.ok = true;
+  } else {
+    r.got = hid_got_;
+    r.kind = hid_got_ ? "key" : (mouse_got_ ? "mouse" : "none");
+    r.keycode = hid_keycode_;
+    r.ascii = hid_ascii_;
+    r.modifiers = hid_modifiers_;
+    r.iface = hid_iface_;
+    r.report_len = hid_report_len_;
+    memcpy(r.report, hid_report_, sizeof(r.report));
+    r.mouse_x = mouse_x_;
+    r.mouse_y = mouse_y_;
+    r.mouse_wheel = mouse_wheel_;
+    r.mouse_buttons = mouse_buttons_;
+    r.mouse_moved = mouse_moved_;
+    r.age_ms = hid_last_ms_ ? (millis() - hid_last_ms_) : 0xffffffffu;
+    if (r.kind[0] == 'm') {
+      r.got = mouse_got_;
+      r.age_ms = mouse_last_ms_ ? (millis() - mouse_last_ms_) : 0xffffffffu;
+      r.ok = mouse_got_;
+    } else {
+      r.ok = r.got && (r.keycode != 0 || r.ascii != 0 || r.report_len > 0);
+    }
+  }
   r.report_count = hid_report_count_;
-  r.age_ms = hid_last_ms_ ? (millis() - hid_last_ms_) : 0xffffffffu;
-  r.ok = r.got && (r.keycode != 0 || r.ascii != 0 || r.report_len > 0);
+  r.mouse_report_count = mouse_report_count_;
   if (!r.ok && r.error.length() == 0) {
-    r.error = "timeout_no_hid";
+    r.error = (want == 2) ? "timeout_no_mouse" : "timeout_no_hid";
   }
   r.duration_ms = millis() - t0;
+  return r;
+}
+
+UsbHostNode::VbusStatusResult UsbHostNode::runVbusStatus() const {
+  VbusStatusResult r;
+  if (!begin_ok_) {
+    r.error = "host_disabled";
+    r.ok = true;
+    r.board_sources_vbus = false;
+    return r;
+  }
+  r.hprt_raw = USB_DWC.hprt_reg.val;
+  r.prtpwr = USB_DWC.hprt_reg.prtpwr != 0;
+  r.prtlnsts = USB_DWC.hprt_reg.prtlnsts;
+  r.prt_conn = usb_dwc_ll_hprt_get_conn_status(&USB_DWC);
+  r.prt_ena = usb_dwc_ll_hprt_get_port_en(&USB_DWC);
+  // FACT: YD-ESP32-S3 / DevKitC-1 class OTG connector does not source 5V.
+  // Controllers may still set HPRT.prtpwr in software — that is NOT rail 5V.
+  r.board_sources_vbus = false;
+  r.ok = true;
   return r;
 }
 
@@ -1824,8 +1923,16 @@ UsbHostNode::EnumObserveResult UsbHostNode::runEnumObserve(bool) {
   r.error = "host_disabled";
   return r;
 }
-UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t, bool) {
+UsbHostNode::HidObserveResult UsbHostNode::runHidObserve(uint32_t, bool,
+                                                         uint8_t) {
   HidObserveResult r;
+  r.error = "host_disabled";
+  return r;
+}
+UsbHostNode::VbusStatusResult UsbHostNode::runVbusStatus() const {
+  VbusStatusResult r;
+  r.ok = true;
+  r.board_sources_vbus = false;
   r.error = "host_disabled";
   return r;
 }

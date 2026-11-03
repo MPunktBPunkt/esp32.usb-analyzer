@@ -608,6 +608,8 @@ void AnalyzerStatusModule::registerRoutes(WebServer &server) {
             [this]() { handleUsbEnumObserve(); });
   server.on("/api/lab/hid-observe", HTTP_ANY, [this]() { handleHidObserve(); });
   server.on("/api/lab/hid-inject", HTTP_ANY, [this]() { handleHidInject(); });
+  server.on("/api/lab/hid-mouse", HTTP_ANY, [this]() { handleHidMouse(); });
+  server.on("/api/lab/vbus-status", HTTP_ANY, [this]() { handleVbusStatus(); });
   server.on("/api/lab/soft-reenum", HTTP_ANY, [this]() { handleSoftReenum(); });
   server.on("/api/lab/usb-suspend-resume", HTTP_ANY,
             [this]() { handleUsbSuspendResume(); });
@@ -1074,6 +1076,7 @@ void AnalyzerStatusModule::handleHidObserve() {
   }
   uint32_t wait_ms = 2000;
   bool clear = true;
+  uint8_t want = 0; // 0=any 1=key 2=mouse
   if (server_->hasArg("wait_ms")) {
     wait_ms = static_cast<uint32_t>(server_->arg("wait_ms").toInt());
   }
@@ -1081,12 +1084,23 @@ void AnalyzerStatusModule::handleHidObserve() {
     const String v = server_->arg("clear");
     clear = !(v == "0" || v == "false" || v == "off");
   }
-  const UsbHostNode::HidObserveResult r = host_->runHidObserve(wait_ms, clear);
+  if (server_->hasArg("kind")) {
+    const String k = server_->arg("kind");
+    if (k == "key" || k == "keyboard") {
+      want = 1;
+    } else if (k == "mouse") {
+      want = 2;
+    }
+  }
+  const UsbHostNode::HidObserveResult r =
+      host_->runHidObserve(wait_ms, clear, want);
   String j = "{\"ok\":";
   j += r.ok ? "true" : "false";
   j += ",\"got\":";
   j += r.got ? "true" : "false";
-  j += ",\"keycode\":";
+  j += ",\"kind\":\"";
+  j += r.kind ? r.kind : "none";
+  j += "\",\"keycode\":";
   j += String(r.keycode);
   j += ",\"ascii\":";
   j += String(r.ascii);
@@ -1102,10 +1116,22 @@ void AnalyzerStatusModule::handleHidObserve() {
     snprintf(hx, sizeof(hx), "%02x", r.report[i]);
     j += hx;
   }
-  j += "\",\"age_ms\":";
+  j += "\",\"mouseX\":";
+  j += String(r.mouse_x);
+  j += ",\"mouseY\":";
+  j += String(r.mouse_y);
+  j += ",\"mouseWheel\":";
+  j += String(r.mouse_wheel);
+  j += ",\"mouseButtons\":";
+  j += String(r.mouse_buttons);
+  j += ",\"mouseMoved\":";
+  j += r.mouse_moved ? "true" : "false";
+  j += ",\"age_ms\":";
   j += String(r.age_ms);
   j += ",\"reports\":";
   j += String(r.report_count);
+  j += ",\"mouseReports\":";
+  j += String(r.mouse_report_count);
   j += ",\"duration_ms\":";
   j += String(r.duration_ms);
   if (r.error.length()) {
@@ -1128,30 +1154,40 @@ void AnalyzerStatusModule::handleHidInject() {
                   F("{\"ok\":false,\"err\":\"device_role_required\"}"));
     return;
   }
-  uint8_t key = static_cast<uint8_t>('a');
-  bool raw = false;
-  if (server_->hasArg("ascii")) {
-    const String a = server_->arg("ascii");
-    if (a.length() > 0) {
-      key = static_cast<uint8_t>(a.charAt(0));
+  bool ok = false;
+  String mode = "key";
+  if (server_->hasArg("text") && server_->arg("text").length() > 0) {
+    mode = "text";
+    ok = device_->injectHidText(server_->arg("text").c_str());
+  } else {
+    uint8_t key = static_cast<uint8_t>('a');
+    bool raw = false;
+    if (server_->hasArg("ascii")) {
+      const String a = server_->arg("ascii");
+      if (a.length() > 0) {
+        key = static_cast<uint8_t>(a.charAt(0));
+      }
     }
+    if (server_->hasArg("key")) {
+      key = static_cast<uint8_t>(
+          strtoul(server_->arg("key").c_str(), nullptr, 0));
+    }
+    if (server_->hasArg("raw")) {
+      const String v = server_->arg("raw");
+      raw = (v == "1" || v == "true" || v == "on");
+    }
+    ok = device_->injectHidKey(key, raw);
   }
-  if (server_->hasArg("key")) {
-    key = static_cast<uint8_t>(strtoul(server_->arg("key").c_str(), nullptr, 0));
-  }
-  if (server_->hasArg("raw")) {
-    const String v = server_->arg("raw");
-    raw = (v == "1" || v == "true" || v == "on");
-  }
-  const bool ok = device_->injectHidKey(key, raw);
   String j = "{\"ok\":";
   j += ok ? "true" : "false";
-  j += ",\"key\":";
-  j += String(key);
-  j += ",\"raw\":";
-  j += raw ? "true" : "false";
-  j += ",\"injects\":";
+  j += ",\"mode\":\"";
+  j += mode;
+  j += "\",\"injects\":";
   j += String(device_->hidInjectCount());
+  if (server_->hasArg("text")) {
+    j += ",\"textLen\":";
+    j += String(server_->arg("text").length());
+  }
   if (!ok) {
     j += ",\"err\":\"";
     j += device_->hidEnabled() ? "inject_fail_or_unmounted" : "hid_disabled";
@@ -1161,6 +1197,110 @@ void AnalyzerStatusModule::handleHidInject() {
   j += ",\"note\":\"gadget_inject_not_hu\"}";
   server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
   server_->send(ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleHidMouse() {
+  if (!server_) {
+    return;
+  }
+  if (!device_ || role_ != Role::Device) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"device_role_required\"}"));
+    return;
+  }
+  int8_t dx = 0;
+  int8_t dy = 0;
+  int8_t wheel = 0;
+  uint8_t buttons = 0;
+  bool click = true;
+  if (server_->hasArg("dx")) {
+    dx = static_cast<int8_t>(server_->arg("dx").toInt());
+  }
+  if (server_->hasArg("dy")) {
+    dy = static_cast<int8_t>(server_->arg("dy").toInt());
+  }
+  if (server_->hasArg("wheel")) {
+    wheel = static_cast<int8_t>(server_->arg("wheel").toInt());
+  }
+  if (server_->hasArg("buttons")) {
+    buttons = static_cast<uint8_t>(
+        strtoul(server_->arg("buttons").c_str(), nullptr, 0));
+  }
+  if (server_->hasArg("click")) {
+    const String c = server_->arg("click");
+    if (c == "left") {
+      buttons = 0x01;
+      click = true;
+    } else if (c == "right") {
+      buttons = 0x02;
+      click = true;
+    } else if (c == "middle") {
+      buttons = 0x04;
+      click = true;
+    } else if (c == "0" || c == "false" || c == "off" || c == "none") {
+      click = false;
+    }
+  }
+  const bool ok =
+      device_->injectHidMouse(dx, dy, buttons, click || buttons != 0, wheel);
+  String j = "{\"ok\":";
+  j += ok ? "true" : "false";
+  j += ",\"dx\":";
+  j += String(dx);
+  j += ",\"dy\":";
+  j += String(dy);
+  j += ",\"buttons\":";
+  j += String(buttons);
+  j += ",\"mouseInjects\":";
+  j += String(device_->hidMouseInjectCount());
+  if (!ok) {
+    j += ",\"err\":\"";
+    j += device_->hidMouseEnabled() ? "inject_fail_or_unmounted"
+                                    : "hid_mouse_disabled";
+    j += "\"";
+  }
+  j += ",\"claim\":\"hid_interrupt_lab_loop\"";
+  j += ",\"note\":\"gadget_mouse_inject_not_hu\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(ok ? 200 : 500, F("application/json"), j);
+}
+
+void AnalyzerStatusModule::handleVbusStatus() {
+  if (!server_) {
+    return;
+  }
+  if (!host_ || role_ != Role::Host) {
+    server_->send(400, F("application/json"),
+                  F("{\"ok\":false,\"err\":\"host_role_required\"}"));
+    return;
+  }
+  const UsbHostNode::VbusStatusResult r = host_->runVbusStatus();
+  String j = "{\"ok\":";
+  j += r.ok ? "true" : "false";
+  j += ",\"prtpwr\":";
+  j += r.prtpwr ? "true" : "false";
+  j += ",\"prtlnsts\":";
+  j += String(r.prtlnsts);
+  j += ",\"prtConn\":";
+  j += r.prt_conn ? "true" : "false";
+  j += ",\"prtEna\":";
+  j += r.prt_ena ? "true" : "false";
+  j += ",\"hprtRaw\":";
+  j += String(r.hprt_raw);
+  j += ",\"boardSourcesVbus\":";
+  j += r.board_sources_vbus ? "true" : "false";
+  j += ",\"boardNote\":\"";
+  j += r.board_note ? r.board_note : "";
+  j += "\"";
+  if (r.error.length()) {
+    j += ",\"err\":\"";
+    j += r.error;
+    j += "\"";
+  }
+  j += ",\"claim\":\"host_vbus_status_lab\"";
+  j += ",\"note\":\"hprt_software_bit_not_connector_5v_meter\"}";
+  server_->sendHeader(F("Access-Control-Allow-Origin"), F("*"));
+  server_->send(200, F("application/json"), j);
 }
 
 void AnalyzerStatusModule::handleSoftReenum() {

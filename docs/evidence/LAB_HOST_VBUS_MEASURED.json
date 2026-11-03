@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "prtpwr": true,
+  "prtlnsts": 1,
+  "prtConn": true,
+  "prtEna": true,
+  "hprtRaw": 136197,
+  "boardSourcesVbus": false,
+  "boardNote": "yd_esp32_s3_devkit_class_otg_does_not_source_5v_use_self_powered_dut_or_hub",
+  "claim": "host_vbus_status_lab",
+  "note": "hprt_software_bit_not_connector_5v_meter"
+}

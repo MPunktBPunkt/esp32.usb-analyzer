@@ -4,6 +4,7 @@
 
 #include "USB.h"
 #include "USBHIDKeyboard.h"
+#include "USBHIDMouse.h"
 #include "USBMSC.h"
 #include "USBVendor.h"
 #include "capture/CaptureLog.h"
@@ -21,6 +22,7 @@ namespace {
 USBMSC g_msc;
 USBVendor g_vendor(64);
 USBHIDKeyboard g_kbd;
+USBHIDMouse g_mouse;
 static uint8_t g_sector[512];
 static UsbDeviceNode *g_self = nullptr;
 
@@ -463,6 +465,58 @@ bool UsbDeviceNode::injectHidKey(uint8_t ascii_or_raw, bool raw) {
   return true;
 }
 
+bool UsbDeviceNode::injectHidText(const char *text) {
+  if (!text || !hid_enabled_ || !mounted_) {
+    return false;
+  }
+  size_t ok_n = 0;
+  for (size_t i = 0; text[i] && i < 64; i++) {
+    const char c = text[i];
+    if (c == '\n' || c == '\r') {
+      if (!injectHidKey('\n', false)) {
+        break;
+      }
+    } else if (!injectHidKey(static_cast<uint8_t>(c), false)) {
+      break;
+    }
+    ok_n++;
+    delay(8);
+  }
+  CaptureLog::instance().push(CapRole::Device, CapType::HidInput, 0,
+                              static_cast<uint32_t>(ok_n), 0, 0, 0,
+                              "hid_text");
+  return ok_n > 0;
+}
+
+bool UsbDeviceNode::injectHidMouse(int8_t dx, int8_t dy, uint8_t buttons,
+                                   bool click, int8_t wheel) {
+  if (!hid_mouse_enabled_ || !mounted_) {
+    return false;
+  }
+  if (dx != 0 || dy != 0 || wheel != 0) {
+    g_mouse.move(dx, dy, wheel);
+    delay(20);
+  }
+  if (click && buttons) {
+    g_mouse.press(buttons);
+    delay(25);
+    g_mouse.release(buttons);
+    delay(10);
+  } else if (buttons && !click) {
+    // hold state report (lab): press without release
+    g_mouse.press(buttons);
+    delay(20);
+    g_mouse.release(buttons);
+  }
+  hid_mouse_injects_++;
+  CaptureLog::instance().push(CapRole::Device, CapType::HidInput, 1,
+                              static_cast<uint32_t>(buttons),
+                              static_cast<uint32_t>(static_cast<int32_t>(dx)),
+                              static_cast<uint32_t>(static_cast<int32_t>(dy)), 0,
+                              "hid_mouse");
+  return true;
+}
+
 void UsbDeviceNode::runSoftReenum() {
   Serial.printf("[device] soft re-enum as %04x:%04x (%s)\n", g_dev_desc.idVendor,
                 g_dev_desc.idProduct, g_str_product);
@@ -722,6 +776,10 @@ void UsbDeviceNode::appendStatusJson(String &json) const {
   json += hid_enabled_ ? "true" : "false";
   json += ",\"hidInjects\":";
   json += String(hid_injects_);
+  json += ",\"hidMouse\":";
+  json += hid_mouse_enabled_ ? "true" : "false";
+  json += ",\"hidMouseInjects\":";
+  json += String(hid_mouse_injects_);
   json += ",\"suspendCount\":";
   json += String(suspend_count_);
   json += ",\"resumeCount\":";
@@ -836,16 +894,18 @@ bool UsbDeviceNode::begin() {
   g_vendor.onRequest(onAoaVendorRequest);
   g_vendor.onEvent(onAoaVendorEvent);
   g_vendor.begin();
-  // HID keyboard IF — interrupt IN lab (MSC+Vendor+HID soft-composite).
+  // HID keyboard + mouse IFs — interrupt IN lab (MSC+Vendor+HID soft-composite).
   g_kbd.begin();
   hid_enabled_ = true;
+  g_mouse.begin();
+  hid_mouse_enabled_ = true;
 
   USB.begin();
   begin_ok_ = true;
   ready_ = true;
   mounted_ = static_cast<bool>(USB);
   Serial.println(
-      "[device] USB.begin() issued — MSC+Vendor+HID lab composite");
+      "[device] USB.begin() issued — MSC+Vendor+HID(kbd+mouse) lab composite");
   Serial.printf("[device] otg_state=%s id=%04x:%04x\n", otgState(),
                 g_dev_desc.idVendor, g_dev_desc.idProduct);
   (void)g_sector;
@@ -910,6 +970,10 @@ bool UsbDeviceNode::aoaRespondEnabled() const { return false; }
 void UsbDeviceNode::applyAoaAccessoryIdentity() {}
 void UsbDeviceNode::requestSoftReenum() {}
 bool UsbDeviceNode::injectHidKey(uint8_t, bool) { return false; }
+bool UsbDeviceNode::injectHidText(const char *) { return false; }
+bool UsbDeviceNode::injectHidMouse(int8_t, int8_t, uint8_t, bool, int8_t) {
+  return false;
+}
 void UsbDeviceNode::armFault(const FaultArm &) {}
 void UsbDeviceNode::clearFault() {}
 UsbDeviceNode::FaultArm UsbDeviceNode::faultStatus() const { return FaultArm{}; }

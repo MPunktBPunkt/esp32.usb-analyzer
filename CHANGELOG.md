@@ -2,6 +2,8 @@
 
 ## Unreleased (post-0.0.1)
 
+- FW 0.0.51: HID scenario — keyboard text inject + mouse move/click; Host mouse observe + `/api/lab/vbus-status`; ESP UI HID/VBUS card; `lab_hid_scenario.py`
+- Lab packages post-audit: `lab_version_matrix`, `lab_power_cycle_sticky`, `lab_heap_soak`, `release_gate_capability`, `lab_sf_discrimination`, `lab_observer_control_host`; `msc_reads` semantics; VBUS-switch checklist
 - Lab: `tools/lab_capability_audit.py` + Capability-Audit 0.0.50 (7/7 + Gate10 9/9); frische Baseline USB≈917 kB/s / TCP≈332 kB/s
 - Controller 0.0.41: lab `/api/v1/lab/proxy` allowlist (GET status/config/capture/events/metrics; POST sync/stimulus/usb-cycle/gadget-reboot)
 - Docs: Handover 0.0.50 + Cross-Repo-Bericht/GATE10 auf aktuellen Stand; `aoa_phone_like` sticky MEASURED

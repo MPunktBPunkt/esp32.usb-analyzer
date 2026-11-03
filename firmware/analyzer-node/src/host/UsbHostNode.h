@@ -178,18 +178,49 @@ public:
   struct HidObserveResult {
     bool ok = false;
     bool got = false;
+    /** "key" | "mouse" | "none" */
+    const char *kind = "none";
     uint8_t keycode = 0;
     uint8_t ascii = 0;
     uint8_t modifiers = 0;
     uint8_t iface = 0;
     uint8_t report_len = 0;
     uint8_t report[16]{};
+    int16_t mouse_x = 0;
+    int16_t mouse_y = 0;
+    int16_t mouse_wheel = 0;
+    uint8_t mouse_buttons = 0;
+    bool mouse_moved = false;
     uint32_t age_ms = 0;
     uint32_t duration_ms = 0;
     uint32_t report_count = 0;
+    uint32_t mouse_report_count = 0;
     String error;
   };
-  HidObserveResult runHidObserve(uint32_t wait_ms = 2000, bool clear = true);
+  /**
+   * @param want 0=any, 1=key, 2=mouse
+   */
+  HidObserveResult runHidObserve(uint32_t wait_ms = 2000, bool clear = true,
+                                 uint8_t want = 0);
+
+  /**
+   * DWC HPRT power bits + board VBUS claim.
+   * Claim: host_vbus_status_lab — software HPRT only; connector 5V needs meter.
+   */
+  struct VbusStatusResult {
+    bool ok = false;
+    bool prtpwr = false;
+    uint32_t prtlnsts = 0;
+    bool prt_conn = false;
+    bool prt_ena = false;
+    uint32_t hprt_raw = 0;
+    /** Board class (YD/DevKitC-1): OTG connector does NOT source bus 5V. */
+    bool board_sources_vbus = false;
+    const char *board_note =
+        "yd_esp32_s3_devkit_class_otg_does_not_source_5v_use_self_powered_dut_or_hub";
+    String error;
+  };
+  VbusStatusResult runVbusStatus() const;
 
   /**
    * Host root-port Suspend/Resume via DWC HPRT (lab).
@@ -391,6 +422,7 @@ private:
   // Last HID interrupt report (Host callback cache)
   volatile bool hid_armed_ = false;
   volatile bool hid_got_ = false;
+  volatile bool mouse_got_ = false;
   uint8_t hid_keycode_ = 0;
   uint8_t hid_ascii_ = 0;
   uint8_t hid_modifiers_ = 0;
@@ -399,11 +431,20 @@ private:
   uint8_t hid_report_[16]{};
   uint32_t hid_last_ms_ = 0;
   uint32_t hid_report_count_ = 0;
+  int16_t mouse_x_ = 0;
+  int16_t mouse_y_ = 0;
+  int16_t mouse_wheel_ = 0;
+  uint8_t mouse_buttons_ = 0;
+  bool mouse_moved_ = false;
+  uint32_t mouse_last_ms_ = 0;
+  uint32_t mouse_report_count_ = 0;
 
   void printNoDeviceHints() const;
   void clearDut();
   void noteHidReport(uint8_t keycode, uint8_t ascii, uint8_t modifiers,
                      uint8_t iface, const uint8_t *data, size_t len);
+  void noteMouseReport(int16_t x, int16_t y, int16_t wheel, uint8_t buttons,
+                       bool moved, uint8_t iface);
 };
 
 } // namespace usb_analyzer

@@ -27,3 +27,15 @@ Tool: `tools/lab_usb_enum_observe.py`
 | PHY interrupt packet / L0 | **UNKNOWN** / not claimed |
 
 Tool: `tools/lab_hid_interrupt_verify.py`
+
+## HID scenario 0.0.51 (`hid_scenario_lab_loop`)
+
+| Check | Result |
+|-------|--------|
+| Device `hid-inject?text=Hello+World` | MEASURED |
+| Host keyboard observes (≥1 report) | MEASURED |
+| Soft-reenum between phases | MEASURED (same composite) |
+| Mouse move + L/R click observe | MEASURED |
+| Host `boardSourcesVbus` | **false** (DevKit/YD — kein OTG-5 V) |
+
+Tool: `tools/lab_hid_scenario.py` · Evidence: `LAB_HID_SCENARIO_MEASURED.md`, `LAB_HOST_VBUS_MEASURED.md`

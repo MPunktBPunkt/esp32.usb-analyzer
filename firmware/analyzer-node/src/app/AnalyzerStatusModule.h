@@ -51,6 +51,8 @@ private:
   void handleUsbEnumObserve();
   void handleHidObserve();
   void handleHidInject();
+  void handleHidMouse();
+  void handleVbusStatus();
   void handleSoftReenum();
   void handleUsbSuspendResume();
   void handleUsbCtrlNeg();

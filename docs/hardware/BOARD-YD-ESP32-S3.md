@@ -21,4 +21,8 @@ Do **not** expect simultaneous USB-Serial/JTAG on the same internal PHY while OT
 
 ## VBUS
 
-Confirm 5 V on the OTG connector when acting as Host. If absent, use a **self-powered hub** between ESP and DUT (EspUsbHost / audit FACT for DevKitC-1 class boards).
+**Verdict (lab):** This board class does **not** source 5 V on the OTG connector for Host mode.  
+API: `GET/POST /api/lab/vbus-status` → `boardSourcesVbus=false` (HPRT.prtpwr is a **software** bit only).  
+Evidence: `docs/evidence/LAB_HOST_VBUS_MEASURED.md`.
+
+If you need bus-powered keyboards/mice, use a **self-powered hub** between ESP Host and DUT (EspUsbHost / audit FACT for DevKitC-1 class boards). The OTG-loop Device ESP is self-powered via its own PSU — that does **not** prove Host VBUS.

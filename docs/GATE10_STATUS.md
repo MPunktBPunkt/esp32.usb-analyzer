@@ -104,7 +104,20 @@ Tool: `lab_wire_stimulus.py` · confirm=`wire_stimulus_destructive` · claim `wi
 
 1. Procure/solder Path B Hi-Z tap (BOM) — replace GPIO lab / sim as *wire* source  
 2. Optional: jumper Host GPIO10/11 → second ESP RX for dual-node sampler  
-3. FS stick on Host + Device→PC for true observer MITM
+3. FS stick on Host + Device→PC for true observer MITM — method: `lab_observer_control_host.py`  
+4. VBUS switch — `docs/hardware/VBUS_SWITCH_CHECKLIST.md`
+
+## Post-0.0.50 software packages (tools)
+
+| Package | Tool | Notes |
+|---------|------|-------|
+| Version matrix | `lab_version_matrix.py` | live archive |
+| Power-cycle sticky | `lab_power_cycle_sticky.py` | needs hu-probe on `.89` + operator rail |
+| Heap soak | `lab_heap_soak.py` | heapMax leak vs churn |
+| Release gate | `release_gate_capability.py` | wraps capability audit |
+| SF discrimination | `lab_sf_discrimination.py` | Mode-A gap; SF rings still not implemented |
+| Control-host observer | `lab_observer_control_host.py` | checklist before MITM claim |
+| msc_reads semantics | `LAB_MSC_READS_SEMANTICS.md` | hu-probe counter rule |
 
 ## No-HW packages (0.0.46)
 
