@@ -1,15 +1,17 @@
 # Lab inventory — usb-analyzer
 
-Authorized overwrite targets for Gate testing (Proxmox PC / DebianCursor LXC).
+Authorized overwrite targets for Gate testing (Proxmox PC / DebianCursor LXC).  
+Stand: Analyzer FW **0.0.52** · siehe auch [`README.md`](../README.md) (Hardware-Abschnitt).
 
 | IP | MAC | Board | Typical role | Notes |
 |----|-----|-------|--------------|-------|
-| `192.168.178.88` | `68:b6:b3:29:33:9c` | YD-ESP32-S3 N8R2 | **Host** (ESP-A) | `usb-analyzer-339c`; COM on `/dev/ttyACM0` (CH343) |
-| `192.168.178.89` | `68:b6:b3:2b:c5:68` | YD-ESP32-S3 N8R2 | **Device** (ESP-B, Gate 2+) | Needs COM reflash (id still `…-0000` after first OTA) |
+| `192.168.178.88` | `68:b6:b3:29:33:9c` | YD-ESP32-S3 N8R2 | **Host** (ESP-A) | 8 MiB + 2 MiB PSRAM; COM `/dev/ttyACM0` (CH343); OTG **ohne** Bus-5 V |
+| `192.168.178.89` | `68:b6:b3:2b:c5:68` | YD-ESP32-S3 N8R2 | **Device** (ESP-B) | Analyzer gadget default; OTA-Swap zu hu-probe/pidrive für Fremd-DUT |
 
-Controller / discovery host: `192.168.178.187` (this LXC), port **9750**.
+Controller / discovery host: `192.168.178.187` (this LXC) — Discovery **:9750**, Lab-UI **:8080**.  
+esp-hub: `192.168.178.113:8093`.
 
-**Overwrite authorized** for usb-analyzer Gate tests (was hu-probe 0.3.34).
+**Overwrite authorized** for usb-analyzer Gate tests (hu-probe/pidrive temporarily on `.89` OK).
 
 ## USB on Proxmox
 
