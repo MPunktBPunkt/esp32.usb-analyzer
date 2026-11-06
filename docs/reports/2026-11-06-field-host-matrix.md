@@ -92,12 +92,15 @@ Unter `docs/evidence/field_host_matrix_2026-11-06/`:
 
 ## 5. NEXT (aus dieser Session)
 
+Ausführlich nach Mistral/GPT/Grok-Review: [`2026-11-06-field-matrix-actions.md`](2026-11-06-field-matrix-actions.md).
+
 | Prio | Aktion |
 |------|--------|
-| P0 | `.89` auf hu-probe mit **AOA-Erfolgssignatur** (`aoa_phone_like` / `aoa_observe`) → HU erneut |
-| P0 | Self-powered Hub zwischen `.88` und Phone |
-| P1 | Bei sichtbarem Stick: **pidrive FAT16** statt Lab-Pattern |
-| P1 | Erst nach AOA-Connect: BCL-Capture / Proxy-Experimente (USB-C1) |
+| P0 | **BMW C0:** `303a:1001` + echtes **FAT**/Media (Identity vs Content) |
+| P0 | **BMW C1:** hu-probe **AOA-Erfolgssignatur** (`aoa_phone_like` / `aoa_observe`) |
+| P0 | Self-powered Hub Phone → `.88` |
+| P0 | Software: SCSI-Counter/Histograms + Write-LBA-Audit (Ring-Overflow / Cache) |
+| P1 | Erst nach C1: BCL-Capture / MITM (USB-C1) |
 
 ---
 
