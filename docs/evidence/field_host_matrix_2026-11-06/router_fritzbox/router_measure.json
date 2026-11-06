@@ -1,0 +1,64 @@
+{
+  "host": "router",
+  "log": [
+    {
+      "t": 3.7,
+      "state": "connected",
+      "conn": true,
+      "reads": 187,
+      "bytes": 740864,
+      "writes": 0,
+      "m": 18,
+      "u": 16,
+      "last": "mount",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "id": "303a:1001",
+      "sus": 0,
+      "rssi": -25
+    },
+    {
+      "t": 18.4,
+      "state": "connected",
+      "conn": true,
+      "reads": 224,
+      "bytes": 892416,
+      "writes": 0,
+      "m": 18,
+      "u": 16,
+      "last": "mount",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "id": "303a:1001",
+      "sus": 0,
+      "rssi": -26
+    }
+  ],
+  "scsi_ring": {
+    "RCAP10": 1,
+    "TUR": 4,
+    "MSENSE6": 2,
+    "PREVENT": 2,
+    "READ10": 9,
+    "INQUIRY": 1
+  },
+  "types": {
+    "bot_cbw": 19,
+    "bot_csw": 18,
+    "enum_info": 9,
+    "error": 2,
+    "msc_read": 9,
+    "detach": 6,
+    "attach": 1
+  },
+  "delta": {
+    "reads": 37,
+    "bytes": 151552,
+    "writes": 0,
+    "mounts": 0,
+    "unmounts": 0,
+    "aoa51": 0
+  }
+}

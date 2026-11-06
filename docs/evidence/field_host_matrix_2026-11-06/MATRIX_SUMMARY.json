@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-06",
+  "gadget": {
+    "ip": "192.168.178.89",
+    "fw": "0.0.52",
+    "role": "device",
+    "identity": "303a:1001",
+    "pattern": "lab_sector_v1",
+    "capacity": "512x512B=256KiB"
+  },
+  "hosts": [
+    {
+      "host": "BMW NBT/HU",
+      "usb_host": true,
+      "mount": true,
+      "aoa51": 0,
+      "ui_visible": false,
+      "notes": "P-MOUNT SCSI; Soft-Reenum remounts; no AOA on lab MSC"
+    },
+    {
+      "host": "TV",
+      "usb_host": true,
+      "mount": true,
+      "aoa51": 0,
+      "delta_reads": 1,
+      "notes": "power-on mount; power-off unmount; mostly TUR"
+    },
+    {
+      "host": "Soundbar",
+      "usb_host": true,
+      "mount": true,
+      "aoa51": 0,
+      "delta_reads_replug": 20,
+      "notes": "replug MSC scan"
+    },
+    {
+      "host": "Ergometer USB",
+      "usb_host": false,
+      "mount": false,
+      "aoa51": 0,
+      "notes": "no connect while plugged"
+    },
+    {
+      "host": "FRITZ!Box router USB",
+      "usb_host": true,
+      "mount": true,
+      "aoa51": 0,
+      "delta_reads": 37,
+      "notes": "NAS-style stick mount"
+    },
+    {
+      "host": "Windows laptop",
+      "usb_host": true,
+      "mount": true,
+      "aoa51": 0,
+      "writes": 31,
+      "writeBytes": 54272,
+      "notes": "format+file; RAM write-cache persistence across USB replug"
+    },
+    {
+      "host": "Android phone on .88 Host",
+      "usb_host": "n/a_phone_is_device",
+      "mount": false,
+      "notes": "Host saw no DUT; VBUS false"
+    }
+  ],
+  "claim": "field_host_matrix_analyzer_msc_gadget_2026_11_06",
+  "not_claimed": [
+    "AOA_accessory_success_today",
+    "AAIdrive_USB",
+    "BCL_Etch_on_wire",
+    "transparent_MITM",
+    "FAT_media_player_UI",
+    "persistent_flash_storage"
+  ]
+}

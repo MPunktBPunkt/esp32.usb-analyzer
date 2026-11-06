@@ -1,0 +1,82 @@
+[
+  [
+    "t0",
+    {
+      "r": 104,
+      "b": 400896,
+      "m": 9,
+      "u": 8,
+      "last": "mount",
+      "id": "303a:1001",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "otg": "connected",
+      "cap": 2735
+    }
+  ],
+  [
+    "after_fail",
+    {
+      "r": 104,
+      "b": 400896,
+      "m": 9,
+      "u": 8,
+      "last": "mount",
+      "id": "303a:1001",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "otg": "connected",
+      "cap": 2741
+    }
+  ],
+  [
+    "after_delay",
+    {
+      "r": 104,
+      "b": 400896,
+      "m": 9,
+      "u": 8,
+      "last": "mount",
+      "id": "303a:1001",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "otg": "connected",
+      "cap": 2750
+    }
+  ],
+  [
+    "after_disconnect",
+    {
+      "r": 104,
+      "b": 400896,
+      "m": 9,
+      "u": 8,
+      "last": "mount",
+      "id": "303a:1001",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "otg": "connected",
+      "cap": 2762
+    }
+  ],
+  [
+    "after_reenum",
+    {
+      "r": 115,
+      "b": 445952,
+      "m": 10,
+      "u": 8,
+      "last": "mount",
+      "id": "303a:1001",
+      "a51": 0,
+      "a53": 0,
+      "setup": 0,
+      "otg": "connected",
+      "cap": 2897
+    }
+  ]
+]

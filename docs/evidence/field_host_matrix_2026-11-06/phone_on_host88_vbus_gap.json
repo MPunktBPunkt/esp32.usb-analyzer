@@ -1,0 +1,17 @@
+{
+  "host": "android_phone_attempt_on_analyzer_host_88",
+  "topology": "Phone -> ESP Host .88 OTG; HU was on Device .89",
+  "measured": {
+    "dut_present": false,
+    "otg_state": "waiting_for_dut",
+    "boardSourcesVbus": false,
+    "prtlnsts": 0,
+    "enum": "no_dut",
+    "aoa_handshake": "no_dut"
+  },
+  "inference": "YD-ESP32-S3 OTG does not source 5V; phone typically needs VBUS/self-powered hub to enumerate",
+  "not_claimed": [
+    "phone_hardware_fault",
+    "AAIdrive_USB_impossible"
+  ]
+}

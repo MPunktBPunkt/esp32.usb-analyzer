@@ -1,0 +1,19 @@
+{
+  "host": "windows_laptop",
+  "action": "format_plus_textfile_edit",
+  "otg": {
+    "mode": "device",
+    "state": "connected",
+    "connected": true,
+    "suspended": false,
+    "meaning": "gadget_mounted_on_usb_host"
+  },
+  "reads": 1591,
+  "readBytes": 1825792,
+  "writes": 31,
+  "writeBytes": 54272,
+  "mounts": 20,
+  "unmounts": 18,
+  "geometry": "512x512",
+  "note": "gadget RAM write cache + lab pattern; not persistent flash FS dump API"
+}

@@ -1,0 +1,347 @@
+{
+  "host": "TV",
+  "device": "192.168.178.89 analyzer 0.0.52 MSC lab",
+  "phases": [
+    {
+      "tag": "t0",
+      "rssi": -57,
+      "otg": {
+        "mode": "device",
+        "state": "waiting",
+        "connected": false,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "pattern": "lab_sector_v1",
+      "blocks": 512,
+      "bsz": 512,
+      "reads": 126,
+      "bytes": 491008,
+      "writes": 0,
+      "writeBytes": 0,
+      "mounts": 12,
+      "unmounts": 11,
+      "last": "unmount",
+      "sus": 0,
+      "res": 0,
+      "hidI": 7,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0,
+        "bulkTx": 0,
+        "stringBytes": 0
+      },
+      "capture": {
+        "seq": 3295,
+        "stored": 256,
+        "capacity": 256,
+        "dropped": 3039,
+        "overflow": true,
+        "session": "lab-3037",
+        "layer": "L1_lab",
+        "wire": false
+      }
+    },
+    {
+      "tag": "after_reenum",
+      "rssi": -57,
+      "otg": {
+        "mode": "device",
+        "state": "waiting",
+        "connected": false,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "pattern": "lab_sector_v1",
+      "blocks": 512,
+      "bsz": 512,
+      "reads": 126,
+      "bytes": 491008,
+      "writes": 0,
+      "writeBytes": 0,
+      "mounts": 12,
+      "unmounts": 11,
+      "last": "unmount",
+      "sus": 0,
+      "res": 0,
+      "hidI": 7,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0,
+        "bulkTx": 0,
+        "stringBytes": 0
+      },
+      "capture": {
+        "seq": 3299,
+        "stored": 256,
+        "capacity": 256,
+        "dropped": 3043,
+        "overflow": true,
+        "session": "lab-3037",
+        "layer": "L1_lab",
+        "wire": false
+      }
+    },
+    {
+      "tag": "+3s",
+      "rssi": -57,
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "pattern": "lab_sector_v1",
+      "blocks": 512,
+      "bsz": 512,
+      "reads": 126,
+      "bytes": 491008,
+      "writes": 0,
+      "writeBytes": 0,
+      "mounts": 13,
+      "unmounts": 11,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "hidI": 7,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0,
+        "bulkTx": 0,
+        "stringBytes": 0
+      },
+      "capture": {
+        "seq": 3301,
+        "stored": 256,
+        "capacity": 256,
+        "dropped": 3045,
+        "overflow": true,
+        "session": "lab-3037",
+        "layer": "L1_lab",
+        "wire": false
+      }
+    },
+    {
+      "tag": "+8s",
+      "rssi": -57,
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "pattern": "lab_sector_v1",
+      "blocks": 512,
+      "bsz": 512,
+      "reads": 127,
+      "bytes": 495104,
+      "writes": 0,
+      "writeBytes": 0,
+      "mounts": 13,
+      "unmounts": 11,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "hidI": 7,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0,
+        "bulkTx": 0,
+        "stringBytes": 0
+      },
+      "capture": {
+        "seq": 3361,
+        "stored": 256,
+        "capacity": 256,
+        "dropped": 3105,
+        "overflow": true,
+        "session": "lab-3037",
+        "layer": "L1_lab",
+        "wire": false
+      }
+    },
+    {
+      "tag": "+12s",
+      "rssi": -57,
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "pattern": "lab_sector_v1",
+      "blocks": 512,
+      "bsz": 512,
+      "reads": 127,
+      "bytes": 495104,
+      "writes": 0,
+      "writeBytes": 0,
+      "mounts": 13,
+      "unmounts": 11,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "hidI": 7,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0,
+        "bulkTx": 0,
+        "stringBytes": 0
+      },
+      "capture": {
+        "seq": 3361,
+        "stored": 256,
+        "capacity": 256,
+        "dropped": 3105,
+        "overflow": true,
+        "session": "lab-3037",
+        "layer": "L1_lab",
+        "wire": false
+      }
+    },
+    {
+      "tag": "+23s",
+      "rssi": -58,
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "pattern": "lab_sector_v1",
+      "blocks": 512,
+      "bsz": 512,
+      "reads": 127,
+      "bytes": 495104,
+      "writes": 0,
+      "writeBytes": 0,
+      "mounts": 13,
+      "unmounts": 11,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "hidI": 7,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0,
+        "bulkTx": 0,
+        "stringBytes": 0
+      },
+      "capture": {
+        "seq": 3361,
+        "stored": 256,
+        "capacity": 256,
+        "dropped": 3105,
+        "overflow": true,
+        "session": "lab-3037",
+        "layer": "L1_lab",
+        "wire": false
+      }
+    }
+  ],
+  "delta": {
+    "reads": 1,
+    "bytes": 4096,
+    "writes": 0,
+    "mounts": 1,
+    "unmounts": 0,
+    "aoa51": 0
+  },
+  "capture_event_types": {
+    "enum_info": 22,
+    "bot_cbw": 21,
+    "bot_csw": 21
+  },
+  "scsi_ops_in_ring": {
+    "TEST_UNIT_READY": 21
+  },
+  "cbw_samples": [
+    {
+      "protocol": "msc-bot",
+      "command": "SCSI",
+      "scsi_opcode": 0,
+      "lba": 0,
+      "transfer_length": 0,
+      "signature": "USBC",
+      "source": "class_hook_mscd_xfer"
+    },
+    {
+      "protocol": "msc-bot",
+      "command": "SCSI",
+      "scsi_opcode": 0,
+      "lba": 0,
+      "transfer_length": 0,
+      "signature": "USBC",
+      "source": "class_hook_mscd_xfer"
+    },
+    {
+      "protocol": "msc-bot",
+      "command": "SCSI",
+      "scsi_opcode": 0,
+      "lba": 0,
+      "transfer_length": 0,
+      "signature": "USBC",
+      "source": "class_hook_mscd_xfer"
+    },
+    {
+      "protocol": "msc-bot",
+      "command": "SCSI",
+      "scsi_opcode": 0,
+      "lba": 0,
+      "transfer_length": 0,
+      "signature": "USBC",
+      "source": "class_hook_mscd_xfer"
+    },
+    {
+      "protocol": "msc-bot",
+      "command": "SCSI",
+      "scsi_opcode": 0,
+      "lba": 0,
+      "transfer_length": 0,
+      "signature": "USBC",
+      "source": "class_hook_mscd_xfer"
+    }
+  ],
+  "final_otg": {
+    "mode": "device",
+    "state": "connected",
+    "connected": true,
+    "suspended": false,
+    "meaning": "gadget_mounted_on_usb_host"
+  },
+  "final_id": "303a:1001"
+}

@@ -1,0 +1,167 @@
+{
+  "host": "soundbar",
+  "phases": [
+    {
+      "tag": "t0",
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "reads": 157,
+      "bytes": 617984,
+      "writes": 0,
+      "mounts": 14,
+      "unmounts": 12,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0
+      },
+      "rssi": -58,
+      "cap": 3732
+    },
+    {
+      "tag": "+2s",
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "reads": 157,
+      "bytes": 617984,
+      "writes": 0,
+      "mounts": 14,
+      "unmounts": 12,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0
+      },
+      "rssi": -56,
+      "cap": 3732
+    },
+    {
+      "tag": "+16s",
+      "otg": {
+        "mode": "device",
+        "state": "waiting",
+        "connected": false,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "reads": 157,
+      "bytes": 617984,
+      "writes": 0,
+      "mounts": 14,
+      "unmounts": 13,
+      "last": "unmount",
+      "sus": 0,
+      "res": 0,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0
+      },
+      "rssi": -56,
+      "cap": 3734
+    },
+    {
+      "tag": "+20s",
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "reads": 167,
+      "bytes": 658944,
+      "writes": 0,
+      "mounts": 15,
+      "unmounts": 13,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0
+      },
+      "rssi": -61,
+      "cap": 3841
+    },
+    {
+      "tag": "final",
+      "otg": {
+        "mode": "device",
+        "state": "connected",
+        "connected": true,
+        "suspended": false,
+        "meaning": "gadget_mounted_on_usb_host"
+      },
+      "id": "303a:1001",
+      "reads": 167,
+      "bytes": 658944,
+      "writes": 0,
+      "mounts": 15,
+      "unmounts": 13,
+      "last": "mount",
+      "sus": 0,
+      "res": 0,
+      "aoa": {
+        "respond": false,
+        "aoa51": 0,
+        "aoa52": 0,
+        "aoa53": 0,
+        "setup": 0,
+        "bulkRx": 0
+      },
+      "rssi": -61,
+      "cap": 3841
+    }
+  ],
+  "delta": {
+    "reads": 10,
+    "bytes": 40960,
+    "writes": 0,
+    "mounts": 1,
+    "unmounts": 1
+  },
+  "scsi_ops_in_ring": {},
+  "capture_event_types": {},
+  "final_otg": {
+    "mode": "device",
+    "state": "connected",
+    "connected": true,
+    "suspended": false,
+    "meaning": "gadget_mounted_on_usb_host"
+  },
+  "seen_connected": true
+}

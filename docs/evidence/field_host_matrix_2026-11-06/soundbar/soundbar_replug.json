@@ -1,0 +1,54 @@
+{
+  "host": "soundbar_replug",
+  "log": [
+    {
+      "t": 5.9,
+      "state": "connected",
+      "conn": true,
+      "reads": 167,
+      "bytes": 658944,
+      "writes": 0,
+      "m": 15,
+      "u": 13,
+      "last": "mount",
+      "a51": 0,
+      "id": "303a:1001"
+    },
+    {
+      "t": 33.3,
+      "state": "connected",
+      "conn": true,
+      "reads": 187,
+      "bytes": 740864,
+      "writes": 0,
+      "m": 17,
+      "u": 15,
+      "last": "mount",
+      "a51": 0,
+      "id": "303a:1001"
+    }
+  ],
+  "scsi_ring": {
+    "TUR": 5,
+    "READ10": 9,
+    "PREVENT": 2,
+    "INQUIRY": 1,
+    "RCAP10": 1,
+    "MSENSE6": 2
+  },
+  "types": {
+    "bot_cbw": 20,
+    "bot_csw": 19,
+    "enum_info": 10,
+    "msc_read": 10,
+    "detach": 2,
+    "attach": 1,
+    "error": 2
+  },
+  "delta": {
+    "reads": 20,
+    "bytes": 81920,
+    "mounts": 2,
+    "unmounts": 2
+  }
+}
